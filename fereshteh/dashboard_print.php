@@ -5,7 +5,7 @@ error_reporting(E_ALL);
 ob_start();
 
 // --- Essential Includes ---
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 require_once 'includes/jdf.php'; // For date conversion
 require_once 'includes/functions.php'; // Optional, if needed for other helpers
 

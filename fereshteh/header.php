@@ -26,7 +26,7 @@ if (function_exists('isLoggedIn') && isLoggedIn() && isset($_SESSION['user_id'])
 
     $currentUserIdHeader = $_SESSION['user_id']; // Use a distinct variable name if needed
 
-    // Check if $pdo connection exists (assuming config.php or header.php sets it up)
+    // Check if $pdo connection exists (assuming config_fereshteh.php or header.php sets it up)
     if (isset($pdo) && $pdo instanceof PDO) {
         try {
             // Prepare statement to count total unread messages for the user

@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../sercon/config.php'; // Adjust path if needed
+require_once __DIR__ . '/../../sercon/config_fereshteh.php'; // Adjust path if needed
 secureSession();
 // --- ROLE DEFINITIONS (Adjust as needed for this specific page) ---
 // Define who has FULL access to assign/unassign/save on THIS page

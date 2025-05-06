@@ -3,7 +3,7 @@
 
 // Adjust the paths based on the location of this 'api' folder
 // If 'api' is directly inside your project root:
-$config_path = __DIR__ . '/../../../sercon/config.php';
+$config_path = __DIR__ . '/../../../sercon/config_fereshteh.php';
 if (file_exists($config_path)) {
     require_once $config_path;
 } else {

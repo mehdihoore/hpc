@@ -10,12 +10,12 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 // --- END DEVELOPMENT ONLY ---
 
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 
 // --- NO Session or Role Check ---
 // This page is public.
 
-// Function to convert Gregorian to Shamsi date (ensure it's defined - maybe move to config.php?)
+// Function to convert Gregorian to Shamsi date (ensure it's defined - maybe move to config_fereshteh.php?)
 if (!function_exists('gregorianToShamsi')) {
     function gregorianToShamsi($date)
     {

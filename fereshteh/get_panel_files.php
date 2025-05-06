@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 
 // Basic security
 if (!isset($_GET['panel_id']) || !is_numeric($_GET['panel_id'])) { /* ... */ }

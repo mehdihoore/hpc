@@ -1,7 +1,7 @@
 <?php
 // api/send_message.php
-require_once __DIR__ . '/../../../sercon/config.php';  // Adjust path as needed
-// require_once '../includes/functions.php'; // Likely redundant if config.php includes it. Keep if necessary.
+require_once __DIR__ . '/../../../sercon/config_fereshteh.php';  // Adjust path as needed
+// require_once '../includes/functions.php'; // Likely redundant if config_fereshteh.php includes it. Keep if necessary.
 
 // Start session and apply security settings
 secureSession();

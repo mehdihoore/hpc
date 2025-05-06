@@ -4,7 +4,7 @@ ini_set('display_errors', 1); // Development only
 error_reporting(E_ALL);
 ob_start(); // Start output buffering
 
-require_once __DIR__ . '/../../sercon/config.php'; // Adjust path if needed
+require_once __DIR__ . '/../../sercon/config_fereshteh.php'; // Adjust path if needed
 require_once __DIR__ . '/includes/jdf.php';      // For jdate()
 require_once __DIR__ . '/includes/functions.php'; // For secureSession, escapeHtml etc.
 

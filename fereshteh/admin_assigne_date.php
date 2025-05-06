@@ -2,7 +2,7 @@
 // admin_assign_date.php
 
 
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 
 // --- Capacities & Helpers (Unchanged) ---
 $formworkDailyCapacity = ['F-H-1' => 1, 'F-H-2' => 3, 'F-H-3' => 2, 'F-H-4' => 1, 'F-H-5' => 2, 'F-H-6' => 2, 'F-H-7' => 2, 'F-H-8' => 1, 'F-H-9' => 2, 'F-H-10' => 1, 'F-H-11' => 1, 'F-H-12' => 1, 'F-H-13' => 1, 'F-H-14' => 1, 'F-H-15' => 1, 'F-H-16' => 1];

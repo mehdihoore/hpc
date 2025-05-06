@@ -1,6 +1,6 @@
 <?php
 // messages.php
-require_once __DIR__ . '/../../sercon/config.php'; // Adjust path
+require_once __DIR__ . '/../../sercon/config_fereshteh.php'; // Adjust path
 
 require_once 'includes/jdf.php'; // For dates
 

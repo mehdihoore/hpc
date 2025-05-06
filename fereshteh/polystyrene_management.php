@@ -7,11 +7,11 @@ $responseSent = false;
 ob_start();
 
 
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 require_once 'includes/jdf.php'; // For jdate(), jalali_to_gregorian()
 require_once 'includes/functions.php'; // Needs secureSession, get_user_permissions, escapeHtml, log_activity, translate_status, get_status_color, formatJalaliDateOrEmpty, secure_file_upload
 
-// --- connectDB() in config.php MUST set charset=utf8mb4 ---
+// --- connectDB() in config_fereshteh.php MUST set charset=utf8mb4 ---
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }

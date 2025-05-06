@@ -1,6 +1,6 @@
 <?php
 // upload_panel.php
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 
 // Check if user is logged in and is an admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -196,7 +196,7 @@ $show_preview = false; // Flag to control preview display
 
 
 // --- CSRF Token Generation (on GET request) ---
-// This is now handled in config.php, so we don't repeat it here
+// This is now handled in config_fereshteh.php, so we don't repeat it here
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 

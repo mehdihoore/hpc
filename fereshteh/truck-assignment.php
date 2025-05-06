@@ -1,6 +1,6 @@
 <?php
 // truck-assignment.php
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 require_once 'includes/jdf.php';
 require_once 'includes/functions.php';
 

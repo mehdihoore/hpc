@@ -1,7 +1,7 @@
 <?php
 // activity_log.php
 
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 secureSession();
 require_once 'includes/jdf.php'; // Or your date utility file
 require_once 'includes/functions.php'; // For connectDB

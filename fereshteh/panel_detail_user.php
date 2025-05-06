@@ -3,7 +3,7 @@ ini_set('memory_limit', '1G');
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 
 // Check user login
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'user'])) { // Allow admin and worker roles

@@ -4,7 +4,7 @@ ini_set('memory_limit', '1G');
 ini_set('display_errors', 1); // Keep for development; remove in production
 error_reporting(E_ALL);       // Keep for development; remove in production
 
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 
 // --- Role Check & Session ---
 // NOTE: Current check is ADMIN ONLY. If supervisors need access, adjust this.

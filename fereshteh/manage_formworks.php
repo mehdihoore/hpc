@@ -1,6 +1,6 @@
 <?php
 // admin_formwork_availability.php (v3 - with improved UI for availability tracking)
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 // --- Start Session (Important: Do this before accessing $_SESSION) ---
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();

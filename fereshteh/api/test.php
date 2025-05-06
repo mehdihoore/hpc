@@ -9,7 +9,7 @@
     <h1>Testing Config File Inclusion</h1>
     <?php
     // Define the path to the config file
-    $config_path = __DIR__ . '/../../sercon/config.php';
+    $config_path = __DIR__ . '/../../sercon/config_fereshteh.php';
     
     // Check if the file exists
     if (file_exists($config_path)) {

@@ -1,7 +1,7 @@
 <?php
 // api/add-truck.php
 
-$config_path = __DIR__ . '/../../../sercon/config.php';
+$config_path = __DIR__ . '/../../../sercon/config_fereshteh.php';
 if (file_exists($config_path)) {
     require_once $config_path;
 } else {

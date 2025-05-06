@@ -3,7 +3,7 @@
 ini_set('memory_limit', '1G');
 
 
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 
 // Ensure session is started
 // session_start(); // Uncomment if not already started elsewhere
@@ -14,7 +14,7 @@ if (!isset($_SESSION['user_id']) ) {
     exit();
 }
 
-// Assuming secureSession() is defined in config.php to enhance session security
+// Assuming secureSession() is defined in config_fereshteh.php to enhance session security
 secureSession();
 
 // Function to convert Gregorian to Shamsi date
@@ -77,7 +77,7 @@ if ($panelId <= 0) {
 }
 
 try {
-    // Assuming connectDB() returns a PDO instance, defined in config.php
+    // Assuming connectDB() returns a PDO instance, defined in config_fereshteh.php
     $pdo = connectDB();
 
     // Optimized query selecting only necessary fields
@@ -123,7 +123,7 @@ try {
     }
 
 } catch (PDOException $e) {
-    // Log error securely (assuming logError is defined in config.php)
+    // Log error securely (assuming logError is defined in config_fereshteh.php)
     logError("Database error: " . $e->getMessage());
     die("A database error occurred. Please try again later.");
 }

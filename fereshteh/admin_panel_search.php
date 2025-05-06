@@ -1,6 +1,6 @@
 <?php
 // admin_panel_search.php
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 
 // Role check (Admin or Supervisor)
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'supervisor', 'planner', 'user'])) {

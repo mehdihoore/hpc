@@ -4,7 +4,7 @@ error_reporting(E_ALL);
 ob_start(); // Start output buffering *before* any output
 // header('Content-Type: text/html; charset=utf-8'); // Moved down
 
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 require_once 'includes/jdf.php'; // For jdate()
 require_once 'includes/functions.php'; // For escapeHtml etc.
 

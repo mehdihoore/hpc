@@ -2,7 +2,7 @@
 // api/unassign-panel-from-truck.php
 
 // --- Includes and Setup ---
-$config_path = __DIR__ . '/../../../sercon/config.php'; // Adjust path
+$config_path = __DIR__ . '/../../../sercon/config_fereshteh.php'; // Adjust path
 if (file_exists($config_path)) {
     require_once $config_path;
 } else {

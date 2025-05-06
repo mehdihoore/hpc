@@ -1,6 +1,6 @@
 <?php
 // api/mark_messages_read.php
-require_once __DIR__ . '/../../../sercon/config.php';  // Adjust path as needed
+require_once __DIR__ . '/../../../sercon/config_fereshteh.php';  // Adjust path as needed
 require_once '../includes/functions.php';  // Adjust path as needed
 
 // Start session if not already started

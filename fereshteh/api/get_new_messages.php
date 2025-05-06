@@ -9,13 +9,13 @@
 header('Content-Type: application/json');
 
 // Only include the main config file, assuming it loads all dependencies
-require_once __DIR__ . '/../../../sercon/config.php'; // Adjust path if needed
+require_once __DIR__ . '/../../../sercon/config_fereshteh.php'; // Adjust path if needed
 
-// secureSession() should start the session AND define/load isLoggedIn() via config.php
+// secureSession() should start the session AND define/load isLoggedIn() via config_fereshteh.php
 secureSession();
 
 // Check if user is logged in
-// This function MUST be available after secureSession() / including config.php
+// This function MUST be available after secureSession() / including config_fereshteh.php
 if (!isLoggedIn()) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Authentication required.']);

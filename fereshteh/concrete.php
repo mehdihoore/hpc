@@ -6,7 +6,7 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 ob_start();
 header('Content-Type: text/html; charset=utf-8');
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 require_once 'includes/jdf.php';
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 $allroles = ['admin', 'supervisor', 'planner', 'cnc_operator', 'superuser', 'user'];

@@ -1,6 +1,6 @@
 <?php
 // get_production_schedule.php
-require_once 'config.php';
+require_once 'config_fereshteh.php';
 require_once 'date_utils.php';
 require_once 'includes/jdf.php';
 

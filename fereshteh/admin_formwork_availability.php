@@ -1,6 +1,6 @@
 <?php
 // admin_formwork_availability.php (v3 - with improved UI for availability tracking)
-require_once __DIR__ . '/../../sercon/config.php'; // Ensure you have your DB connection details
+require_once __DIR__ . '/../../sercon/config_fereshteh.php'; // Ensure you have your DB connection details
 
 // --- Handle POST Request for Changing Available Count ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_available_count') {

@@ -4,7 +4,7 @@ ini_set('display_errors', 0);
 error_reporting(E_ALL);
 ob_start();
 
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 require_once 'includes/jdf.php'; // For gregorianToShamsi
 require_once 'includes/functions.php'; // For connectDB
 require_once('includes/libraries/TCPDF-main/tcpdf.php'); // <-- ADJUST PATH if needed

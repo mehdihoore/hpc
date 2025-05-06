@@ -7,7 +7,7 @@ error_reporting(E_ALL);
 ob_start();
 header('Content-Type: text/html; charset=utf-8');
 
-require_once __DIR__ . '/../../sercon/config.php'; // Adjust path if needed
+require_once __DIR__ . '/../../sercon/config_fereshteh.php'; // Adjust path if needed
 require_once __DIR__ . '/includes/jdf.php';      // Ensure jdf functions are available
 require_once __DIR__ . '/includes/functions.php'; // For secureSession
 

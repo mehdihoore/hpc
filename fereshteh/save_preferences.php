@@ -1,6 +1,6 @@
 <?php
 // save_preferences.php
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 
 // Check authentication

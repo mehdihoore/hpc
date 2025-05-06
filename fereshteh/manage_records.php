@@ -1,6 +1,6 @@
 <?php
 // manage_records.php
-require_once __DIR__ . '/../../sercon/config.php';
+require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 require_once 'header.php'; // Includes the header.  This is now the *only* include needed for the header.
 $pageTitle = "مدیریت رکوردها";  // Set the page title *before* including the header.
 
@@ -27,7 +27,7 @@ if (!in_array($current_table, $valid_tables)) {
 
 // --- Database Connection ---
 try {
-    $pdo = connectDB(); // Use PDO connection from config.php
+    $pdo = connectDB(); // Use PDO connection from config_fereshteh.php
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); // Set error mode to exception
      $pdo->exec("SET NAMES utf8mb4"); // FOR PERSIAN
 
