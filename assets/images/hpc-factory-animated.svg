@@ -1,0 +1,151 @@
+<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#36a6ff" />
+      <stop offset="100%" stop-color="#1a7bda" />
+    </linearGradient>
+    
+    <!-- Factory building pattern -->
+    <pattern id="gridPattern" width="20" height="20" patternUnits="userSpaceOnUse">
+      <rect width="20" height="20" fill="none" stroke="#ffffff20" stroke-width="1" />
+    </pattern>
+    
+    <!-- Animation for cog rotation -->
+    <animateTransform id="spinnerRotate" 
+                  attributeName="transform"
+                  attributeType="XML"
+                  type="rotate"
+                  from="0 400 300"
+                  to="360 400 300"
+                  dur="60s"
+                  repeatCount="indefinite" />
+  </defs>
+  
+  <!-- Background -->
+  <rect x="0" y="0" width="800" height="600" fill="url(#bgGradient)" />
+  
+  <!-- Factory base elements -->
+  <g id="factory" transform="translate(200, 100)">
+    <!-- Main factory building -->
+    <rect x="50" y="150" width="300" height="250" fill="#235a97" stroke="#1a4372" stroke-width="2" />
+    <rect x="60" y="160" width="280" height="240" fill="#2c6eb6" stroke="#1a4372" stroke-width="1" />
+    <rect x="60" y="160" width="280" height="240" fill="url(#gridPattern)" />
+    
+    <!-- Factory roof -->
+    <polygon points="50,150 200,50 350,150" fill="#1a4372" stroke="#0c2340" stroke-width="2" />
+    
+    <!-- Chimney -->
+    <rect x="270" y="70" width="30" height="80" fill="#1a4372" stroke="#0c2340" stroke-width="2" />
+    
+    <!-- Windows -->
+    <g id="windows">
+      <rect x="80" y="190" width="40" height="40" fill="#88ccff" stroke="#1a4372" stroke-width="2" rx="2" ry="2">
+        <animate attributeName="opacity" values="0.7;1;0.7" dur="3s" repeatCount="indefinite" />
+      </rect>
+      <rect x="140" y="190" width="40" height="40" fill="#88ccff" stroke="#1a4372" stroke-width="2" rx="2" ry="2">
+        <animate attributeName="opacity" values="0.8;1;0.8" dur="4s" repeatCount="indefinite" />
+      </rect>
+      <rect x="200" y="190" width="40" height="40" fill="#88ccff" stroke="#1a4372" stroke-width="2" rx="2" ry="2">
+        <animate attributeName="opacity" values="0.9;1;0.9" dur="5s" repeatCount="indefinite" />
+      </rect>
+      <rect x="260" y="190" width="40" height="40" fill="#88ccff" stroke="#1a4372" stroke-width="2" rx="2" ry="2">
+        <animate attributeName="opacity" values="0.7;1;0.7" dur="3.5s" repeatCount="indefinite" />
+      </rect>
+      
+      <rect x="80" y="250" width="40" height="40" fill="#88ccff" stroke="#1a4372" stroke-width="2" rx="2" ry="2">
+        <animate attributeName="opacity" values="0.8;1;0.8" dur="4.5s" repeatCount="indefinite" />
+      </rect>
+      <rect x="140" y="250" width="40" height="40" fill="#88ccff" stroke="#1a4372" stroke-width="2" rx="2" ry="2">
+        <animate attributeName="opacity" values="0.9;1;0.9" dur="3s" repeatCount="indefinite" />
+      </rect>
+      <rect x="200" y="250" width="40" height="40" fill="#88ccff" stroke="#1a4372" stroke-width="2" rx="2" ry="2">
+        <animate attributeName="opacity" values="0.7;1;0.7" dur="4s" repeatCount="indefinite" />
+      </rect>
+      <rect x="260" y="250" width="40" height="40" fill="#88ccff" stroke="#1a4372" stroke-width="2" rx="2" ry="2">
+        <animate attributeName="opacity" values="0.8;1;0.8" dur="5s" repeatCount="indefinite" />
+      </rect>
+    </g>
+    
+    <!-- Door -->
+    <rect x="170" y="330" width="60" height="70" fill="#1a4372" stroke="#0c2340" stroke-width="2" />
+    <rect x="175" y="335" width="50" height="65" fill="#0c2340" />
+    <circle cx="220" cy="365" r="3" fill="#aaccff" />
+    
+    <!-- Smoke from chimney -->
+    <g id="smoke">
+      <circle cx="285" cy="65" r="8" fill="#ffffff" opacity="0.6">
+        <animate attributeName="cy" values="65;35;5;-25" dur="4s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.6;0.3;0" dur="4s" repeatCount="indefinite" />
+        <animate attributeName="r" values="8;12;16" dur="4s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="285" cy="85" r="6" fill="#ffffff" opacity="0.5">
+        <animate attributeName="cy" values="85;55;25;-5" dur="4s" begin="1s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.5;0.3;0" dur="4s" begin="1s" repeatCount="indefinite" />
+        <animate attributeName="r" values="6;10;14" dur="4s" begin="1s" repeatCount="indefinite" />
+      </circle>
+    </g>
+  </g>
+  
+  <!-- HPC Elements (servers, data connections) -->
+  <g id="hpc-elements" transform="translate(300, 300)">
+    <!-- Main server rack -->
+    <rect x="150" y="-50" width="80" height="120" fill="#0c2340" stroke="#1a4372" stroke-width="2" rx="5" ry="5" />
+    
+    <!-- Server units -->
+    <rect x="155" y="-45" width="70" height="15" fill="#235a97" stroke="#1a4372" stroke-width="1" rx="2" ry="2">
+      <animate attributeName="fill" values="#235a97;#3775c0;#235a97" dur="2s" repeatCount="indefinite" />
+    </rect>
+    <rect x="155" y="-25" width="70" height="15" fill="#235a97" stroke="#1a4372" stroke-width="1" rx="2" ry="2">
+      <animate attributeName="fill" values="#235a97;#3775c0;#235a97" dur="3s" repeatCount="indefinite" />
+    </rect>
+    <rect x="155" y="-5" width="70" height="15" fill="#235a97" stroke="#1a4372" stroke-width="1" rx="2" ry="2">
+      <animate attributeName="fill" values="#235a97;#3775c0;#235a97" dur="2.5s" repeatCount="indefinite" />
+    </rect>
+    <rect x="155" y="15" width="70" height="15" fill="#235a97" stroke="#1a4372" stroke-width="1" rx="2" ry="2">
+      <animate attributeName="fill" values="#235a97;#3775c0;#235a97" dur="1.5s" repeatCount="indefinite" />
+    </rect>
+    <rect x="155" y="35" width="70" height="15" fill="#235a97" stroke="#1a4372" stroke-width="1" rx="2" ry="2">
+      <animate attributeName="fill" values="#235a97;#3775c0;#235a97" dur="2s" repeatCount="indefinite" />
+    </rect>
+    <rect x="155" y="55" width="70" height="15" fill="#235a97" stroke="#1a4372" stroke-width="1" rx="2" ry="2">
+      <animate attributeName="fill" values="#235a97;#3775c0;#235a97" dur="3s" repeatCount="indefinite" />
+    </rect>
+    
+    <!-- Blinking lights -->
+    <circle cx="165" cy="-37.5" r="2" fill="#ff0000">
+      <animate attributeName="opacity" values="1;0.3;1" dur="0.5s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="165" cy="-17.5" r="2" fill="#00ff00">
+      <animate attributeName="opacity" values="1;0.3;1" dur="0.7s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="165" cy="2.5" r="2" fill="#ff0000">
+      <animate attributeName="opacity" values="1;0.3;1" dur="0.3s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="165" cy="22.5" r="2" fill="#00ff00">
+      <animate attributeName="opacity" values="1;0.3;1" dur="0.6s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="165" cy="42.5" r="2" fill="#ff0000">
+      <animate attributeName="opacity" values="1;0.3;1" dur="0.4s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="165" cy="62.5" r="2" fill="#00ff00">
+      <animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" />
+    </circle>
+  </g>
+  
+  <!-- Floating gear elements (representing manufacturing) -->
+  <g id="gears">
+    <path d="M400,235 L400,220 L390,215 L385,200 L390,185 L400,180 L400,165 L385,160 L375,145 L380,130 L390,120 L380,110 L365,115 L350,105 L350,90 L335,85 L325,95 L310,90 L300,75 L285,80 L280,95 L265,100 L250,90 L240,100 L245,115 L235,130 L220,130 L210,145 L220,160 L215,175 L200,180 L200,195 L215,200 L220,215 L210,230 L220,245 L235,240 L245,255 L240,270 L250,280 L265,270 L280,275 L285,290 L300,295 L310,280 L325,275 L335,285 L350,280 L350,265 L365,255 L380,260 L390,250 L380,240 Z" 
+          fill="#1a4372" stroke="#0c2340" stroke-width="2">
+      <animateTransform attributeName="transform"
+                        attributeType="XML"
+                        type="rotate"
+                        from="0 300 190"
+                        to="360 300 190"
+                        dur="60s"
+                        repeatCount="indefinite" />
+    </path>
+    <circle cx="300" cy="190" r="30" fill="#0c2340" stroke="#1a4372" stroke-width="2" />
+    
+    <!-- Smaller gears -->
+    <path d="M480,260 L480,253 L475,250 L473,243 L475,236 L480,233 L480,226 L473,223 L468,216 L470,209 L475,204 L470,199 L463,202 L456,197 L456,190 L449,187 L444,192 L437,190 L432,183 L425,185 L423,192 L416,195 L409,190 L404,195 L406,202 L401,209 L393,209 L388,216 L393,223 L390,230 L383,233 L383,240 L390,243 L393,250 L388,257 L393,
