@@ -1,8 +1,8 @@
 <?php
-//login.php
-require_once __DIR__ . '/../sercon/config.php';
+// public_html/login.php
+require_once __DIR__ . '/../sercon/bootstrap.php'; // Use the new bootstrap
 
-secureSession();
+secureSession(); // Initializes session and applies security measures
 
 $error = '';
 
@@ -11,90 +11,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
 
     // --- Input Sanitization ---
-    $username = filter_var($username, FILTER_SANITIZE_STRING);
+    // Consider using htmlspecialchars or a more robust library for output,
+    // but for DB comparison, ensure it matches what's stored.
+    // FILTER_SANITIZE_STRING is deprecated in PHP 8. Use htmlspecialchars for output.
+    // For input to DB, often raw is fine if using prepared statements.
+    // $username = filter_var($username, FILTER_SANITIZE_STRING); // Deprecated
 
-
-    // --- CSRF Token Generation and Verification ---
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-        logError("CSRF token mismatch in login.php"); // Log the attempt
-        $error = "Invalid request."; // Don't expose CSRF token issue
+    // --- CSRF Token Verification ---
+    if (!isset($_POST['csrf_token']) || !isset($_SESSION['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        logError("CSRF token mismatch in login.php. User: " . $username);
+        $error = "درخواست نامعتبر است.";
     } else {
-
         try {
-            $pdo = connectDB(); // Use the PDO connection
+            $pdo = getCommonDBConnection(); // Connect to hpc_common for users and login_attempts
 
-            // Check for login attempts
             $ip = $_SERVER['REMOTE_ADDR'];
+            // Define LOGIN_LOCKOUT_TIME and LOGIN_ATTEMPTS_LIMIT in bootstrap.php or ensure they are available
+            $lockout_time = defined('LOGIN_LOCKOUT_TIME') ? LOGIN_LOCKOUT_TIME : 900;
+            $attempts_limit = defined('LOGIN_ATTEMPTS_LIMIT') ? LOGIN_ATTEMPTS_LIMIT : 5;
+
             $stmt = $pdo->prepare("SELECT COUNT(*) as attempts, MAX(attempt_time) as last_attempt
                                    FROM login_attempts
                                    WHERE ip_address = ? AND attempt_time > DATE_SUB(NOW(), INTERVAL ? SECOND)");
-            $lockout_time = LOGIN_LOCKOUT_TIME;
-            $stmt->execute([$ip, $lockout_time]); // PDO uses execute with an array
-            $result = $stmt->fetch(); // Use fetch() with PDO
+            $stmt->execute([$ip, $lockout_time]);
+            $result = $stmt->fetch();
 
-            if ($result['attempts'] >= LOGIN_ATTEMPTS_LIMIT) {
-                $error = "Too many login attempts. Please try again later.";
+            if ($result['attempts'] >= $attempts_limit) {
+                $error = "تعداد تلاش‌های ورود بیش از حد مجاز است. لطفاً بعداً دوباره امتحان کنید.";
             } else {
+                // Fetch user from hpc_common.users
                 $stmt = $pdo->prepare("SELECT id, username, password_hash, role, is_active, first_name, last_name FROM users WHERE username = ?");
-                $stmt->execute([$username]); // Pass parameters directly to execute()
-                $user = $stmt->fetch(); // Use fetch()
+                $stmt->execute([$username]);
+                $user = $stmt->fetch();
 
                 if ($user && password_verify($password, $user['password_hash'])) {
                     if (!$user['is_active']) {
-                        $error = "Your account is pending activation.";
+                        $error = "حساب کاربری شما در انتظار فعال‌سازی است.";
                     } else {
-                        // Regenerate session ID *after* successful login:
-                        session_regenerate_id(true);
+                        // Regenerate session ID *after* successful login and *before* setting sensitive session data:
+                        if (session_status() == PHP_SESSION_ACTIVE) {
+                            session_regenerate_id(true);
+                            $_SESSION['last_regen'] = time(); // Update last_regen time
+                        }
 
                         $_SESSION['user_id'] = $user['id'];
                         $_SESSION['username'] = $user['username'];
                         $_SESSION['role'] = $user['role'];
-                        $_SESSION['last_activity'] = time();
                         $_SESSION['first_name'] = $user['first_name'];
                         $_SESSION['last_name'] = $user['last_name'];
+                        $_SESSION['last_activity'] = time(); // Update last activity
 
-                        // Clear login attempts
+                        // Clear login attempts from hpc_common.login_attempts
                         $stmt = $pdo->prepare("DELETE FROM login_attempts WHERE ip_address = ?");
                         $stmt->execute([$ip]);
 
-                        // Log login activity
-                        $logStmt = $pdo->prepare("INSERT INTO activity_log (user_id, username, activity_type) VALUES (?, ?, 'login')");
-                        $logStmt->execute([$user['id'], $user['username']]);
-                        if ($_SESSION['role'] === 'guest') {
-                            header('Location: messages.php');
-                        } elseif ($_SESSION['role'] === 'admin' || $_SESSION['role'] === 'superuser') {
-                            header('Location: admin_panel_search.php'); // Redirect to the *route* /admin
-                        } elseif ($_SESSION['role'] === 'supervisor') {
-                            header('Location: admin_panel_search.php'); // Redirect to the *route* /new_panels
-                        } elseif ($_SESSION['role'] === 'user') {
-                            header('Location: admin_panel_search.php'); // Redirect to the *route* /new_panels
-                        } elseif ($_SESSION['role'] === 'cnc_operator') {
-                            header('Location: admin_panel_search.php'); // Redirect to the *route*
-                        } elseif ($_SESSION['role'] === 'planner') {
-                            header('Location: admin_panel_search.php'); // Redirect to the *route*
-                        }
+                        // Log login activity to hpc_common.activity_log (project_id will be null for general login)
+                        log_activity($user['id'], $user['username'], 'login', 'User logged in successfully');
+
+                        // *** NEW REDIRECT ***
+                        header('Location: select_project.php'); // Redirect to project selection page
                         exit();
                     }
                 } else {
-                    // Record failed attempt
+                    // Record failed attempt in hpc_common.login_attempts
                     $stmt = $pdo->prepare("INSERT INTO login_attempts (ip_address, attempt_time) VALUES (?, NOW())");
                     $stmt->execute([$ip]);
-
-                    $error = "نام کاربری یا پسورد شما درست نیست.";
+                    logError("Failed login attempt for username: " . $username . " from IP: " . $ip);
+                    $error = "نام کاربری یا رمز عبور شما درست نیست.";
                 }
             }
         } catch (PDOException $e) {
             logError("Database error in login.php: " . $e->getMessage());
-            $error = "خطایی رخ داد! لطفاً بعداً دوباره تلاش کنید.";
+            $error = "خطایی در پایگاه داده رخ داد! لطفاً بعداً دوباره تلاش کنید.";
+        } catch (Exception $e) { // Catch other general exceptions from bootstrap
+            logError("General error in login.php: " . $e->getMessage());
+            $error = "یک خطای سیستمی رخ داده است. لطفاً با پشتیبانی تماس بگیرید.";
         }
     }
 }
 
 // --- CSRF Token Generation (for the form) ---
+// secureSession() should have started the session
 if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -102,17 +102,21 @@ if (!isset($_SESSION['csrf_token'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ورود به سیستم</title>
+    <!-- Link to your shared assets -->
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/favicon-16x16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="96x96" href="/assets/images/favicon-96x96.png">
     <link rel="icon" type="image/x-icon" href="/assets/images/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/apple-touch-icon.png">
     <link rel="manifest" href="/assets/images/site.webmanifest">
-    <title>ورود به سیستم </title>
+    <link rel="stylesheet" href="/assets/css/login_styles.css"> <!-- Create a dedicated CSS file or use inline -->
     <style>
+        /* Your existing login page CSS */
         @font-face {
             font-family: 'Vazir';
             src: url('/assets/fonts/Vazir.eot');
+            /* Make sure these paths are correct from web root */
             src: url('/assets/fonts/Vazir.eot?#iefix') format('embedded-opentype'),
                 url('/assets/fonts/Vazir.woff2') format('woff2'),
                 url('/assets/fonts/Vazir.woff') format('woff'),
@@ -121,6 +125,7 @@ if (!isset($_SESSION['csrf_token'])) {
             font-style: normal;
         }
 
+        /* ... (rest of your login CSS from previous example) ... */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -168,15 +173,14 @@ if (!isset($_SESSION['csrf_token'])) {
             overflow: hidden;
         }
 
-        .company-logo {
-            text-align: right;
-            margin-bottom: 20px;
-        }
-
-        .logo-text {
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
+        .user-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            display: block;
+            background-color: #0a4d8c;
+            border-radius: 50%;
+            padding: 15px;
         }
 
         h1 {
@@ -191,16 +195,6 @@ if (!isset($_SESSION['csrf_token'])) {
             color: #666;
             margin-bottom: 30px;
             text-align: center;
-        }
-
-        .user-icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            display: block;
-            background-color: #0a4d8c;
-            border-radius: 50%;
-            padding: 15px;
         }
 
         .form-group {
@@ -253,21 +247,6 @@ if (!isset($_SESSION['csrf_token'])) {
             background: #083b6a;
         }
 
-        .forgot-password {
-            text-align: center;
-            margin-top: 15px;
-        }
-
-        .forgot-password a {
-            color: #0a4d8c;
-            text-decoration: none;
-            font-size: 14px;
-        }
-
-        .forgot-password a:hover {
-            text-decoration: underline;
-        }
-
         .register-link {
             text-align: center;
             margin-top: 25px;
@@ -286,10 +265,6 @@ if (!isset($_SESSION['csrf_token'])) {
             font-weight: bold;
         }
 
-        .register-link a:hover {
-            text-decoration: underline;
-        }
-
         .error {
             background-color: #fff2f2;
             color: #e74c3c;
@@ -298,6 +273,7 @@ if (!isset($_SESSION['csrf_token'])) {
             margin-bottom: 20px;
             border-right: 4px solid #e74c3c;
             font-size: 14px;
+            text-align: center;
         }
 
         .factory-svg {
@@ -305,7 +281,6 @@ if (!isset($_SESSION['csrf_token'])) {
             height: 100%;
         }
 
-        /* Responsive adjustments */
         @media (max-width: 768px) {
             .login-wrapper {
                 flex-direction: column;
@@ -326,58 +301,45 @@ if (!isset($_SESSION['csrf_token'])) {
 <body>
     <div class="login-wrapper">
         <div class="login-form-container">
-
-
             <div class="user-avatar">
                 <svg class="user-icon" viewBox="0 0 24 24" fill="white">
                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                 </svg>
             </div>
-
             <h1>ورود به سیستم</h1>
             <p class="login-subtitle"> سامانه مدیریت آلومنیوم شیشه تهران </p>
 
-            <?php if (isset($error) && $error): ?>
-                <div class="error"><?php echo htmlspecialchars($error); ?></div>
+            <?php if ($error): // Check if $error is set and not empty 
+            ?>
+                <div class="error"><?php echo escapeHtml($error); // Use escapeHtml from bootstrap 
+                                    ?></div>
             <?php endif; ?>
 
-            <form method="post" action="">
-                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-
+            <form method="post" action="login.php"> <?php // Action can be empty or point to itself 
+                                                    ?>
+                <input type="hidden" name="csrf_token" value="<?php echo escapeHtml($_SESSION['csrf_token'] ?? ''); ?>">
                 <div class="form-group">
                     <label for="username">نام کاربری</label>
-                    <div class="input-with-icon">
-                        <input type="text" id="username" name="username" required>
-                        <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="#aaa">
-                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                        </svg>
-                    </div>
+                    <input type="text" id="username" name="username" required value="<?php echo escapeHtml($username ?? ''); ?>">
+                    <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="#aaa">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                    </svg>
                 </div>
-
                 <div class="form-group">
                     <label for="password">رمز عبور</label>
-                    <div class="input-with-icon">
-                        <input type="password" id="password" name="password" required>
-                        <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="#aaa">
-                            <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
-                        </svg>
-                    </div>
+                    <input type="password" id="password" name="password" required>
+                    <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="#aaa">
+                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+                    </svg>
                 </div>
-
                 <button type="submit" class="btn-login">ورود</button>
-
-                <!--  <div class="forgot-password">
-                    <a href="forgot_password.php">فراموشی رمز عبور؟</a>
-                </div> -->
             </form>
-
             <div class="register-link">
                 <p>حساب کاربری ندارید؟ <a href="registration.php">ثبت نام کنید</a></p>
             </div>
         </div>
-
         <div class="illustration-container">
-
+            <!-- Your SVG illustration -->
             <svg class="factory-svg" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
                 <!-- Background gradient -->
                 <defs>

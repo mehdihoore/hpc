@@ -1,20 +1,57 @@
 <?php
-// admin_formwork_availability.php (v3 - with improved UI for availability tracking)
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
-// --- Start Session (Important: Do this before accessing $_SESSION) ---
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
+require_once __DIR__ . '/../../sercon/bootstrap.php'; // Go up one level to find sercon/
+
+secureSession(); // Initializes session and security checks
+
+// Determine which project this instance of the file belongs to.
+// This is simple hardcoding based on folder. More complex routing could derive this.
+$current_file_path = __DIR__;
+$expected_project_key = null;
+if (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Fereshteh') !== false) {
+    $expected_project_key = 'fereshteh';
+
+} elseif (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Arad') !== false) {
+    $expected_project_key = 'arad';
+} else {
+    // If the file is somehow not in a recognized project folder, handle error
+    logError("manage_formworks.php accessed from unexpected path: " . $current_file_path);
+    die("خطای پیکربندی: پروژه قابل تشخیص نیست.");
 }
+
+
+// --- Authorization ---
+// 1. Check if logged in
+if (!isLoggedIn()) {
+    header('Location: /login.php'); // Redirect to common login
+    exit();
+}
+// 2. Check if user has selected ANY project
+if (!isset($_SESSION['current_project_config_key'])) {
+    logError("Access attempt to {$expected_project_key}/admin_panel_search.php without project selection. User ID: " . $_SESSION['user_id']);
+
+    header('Location: /select_project.php'); // Redirect to project selection
+    exit();
+}
+// 3. Check if the selected project MATCHES the folder this file is in
+if ($_SESSION['current_project_config_key'] !== $expected_project_key) {
+    logError("Project context mismatch. Session has '{$_SESSION['current_project_config_key']}', expected '{$expected_project_key}'. User ID: " . $_SESSION['user_id']);
+
+    // Maybe redirect to select_project or show an error specific to context mismatch
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+
+// --- End Authorization ---
 // --- Handle POST Request for Changing Available Count ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_available_count') {
      // ****** ADD ROLE CHECK ******
      if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
         // Not an admin or role not set in session
         error_log("Permission Denied: User ID " . ($_SESSION['user_id'] ?? 'N/A') . " (Role: " . ($_SESSION['role'] ?? 'N/A') . ") attempted to change formwork count.");
-        header("Location: admin_formwork_availability.php?error=5"); // Use a new error code for permission denied
+        header("Location: manage_formworks.php?error=5"); // Use a new error code for permission denied
         exit();
     } // ****** END ROLE CHECK ******
-    $pdo = connectDB();
+    $pdo = getProjectDBConnection();
     $typeToChange = $_POST['formwork_type'] ?? null;
     // Change can be +1 (make available) or -1 (make unavailable)
     $change = filter_input(INPUT_POST, 'change', FILTER_VALIDATE_INT, ['options' => ['min_range' => -1, 'max_range' => 1]]);
@@ -38,29 +75,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $pdo->commit();
                     
                     // Pass the changed formwork type as highlighted parameter
-                    header("Location: admin_formwork_availability.php?updated=1&highlighted_type=" . urlencode($typeToChange) . "&action=" . ($change > 0 ? "increment" : "decrement"));
+                    header("Location: manage_formworks.php?updated=1&highlighted_type=" . urlencode($typeToChange) . "&action=" . ($change > 0 ? "increment" : "decrement"));
                     exit();
                 } else {
                     // Invalid change (e.g., trying to go below 0 or above total)
                     $pdo->rollBack();
-                    header("Location: admin_formwork_availability.php?error=3"); // Error code for invalid range
+                    header("Location: manage_formworks.php?error=3"); // Error code for invalid range
                     exit();
                 }
             } else {
                 // Formwork type not found
                 $pdo->rollBack();
-                header("Location: admin_formwork_availability.php?error=4"); // Error code for not found
+                header("Location: manage_formworks.php?error=4"); // Error code for not found
                 exit();
             }
         } catch (PDOException $e) {
             $pdo->rollBack();
             error_log("Error changing formwork available count: " . $e->getMessage());
-            header("Location: admin_formwork_availability.php?error=1"); // Generic DB error
+            header("Location: manage_formworks.php?error=1"); // Generic DB error
             exit();
         }
     } else {
         // Invalid data submitted
-        header("Location: admin_formwork_availability.php?error=2"); // Invalid input error
+        header("Location: manage_formworks.php?error=2"); // Invalid input error
         $pdo = null;
         exit();
     }
@@ -76,7 +113,7 @@ $availableTypeCount = 0; // Count of types with at least one available
 $fullyUnavailableTypeCount = 0; // Count of types with zero available
 
 try {
-    $pdo = connectDB();
+    $pdo = getProjectDBConnection();
     // Fetch total_count and available_count
     $stmt = $pdo->query("SELECT formwork_type, total_count, available_count FROM available_formworks ORDER BY formwork_type ASC");
     $formworks = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -104,7 +141,7 @@ try {
 $highlightedType = isset($_GET['highlighted_type']) ? $_GET['highlighted_type'] : null;
 $highlightAction = isset($_GET['action']) ? $_GET['action'] : null;
 
-$pageTitle = 'مدیریت موجودی قالب‌ها';
+$pageTitle = 'مدیریت موجودی قالب‌ها - ' . escapeHtml($_SESSION['current_project_name'] ?? 'پروژه');;
 require_once 'header.php'; // Include your standard header
 
 // Add JS for highlighting animation
@@ -303,7 +340,7 @@ echo '<script>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2 space-x-reverse">
                                 <?php if ($isAdmin): // Only show buttons for admin ?>
                                         <!-- Make One Unavailable Button -->
-                                        <form method="POST" action="admin_formwork_availability.php" class="inline-block">
+                                        <form method="POST" action="manage_formworks.php" class="inline-block">
                                         <input type="hidden" name="action" value="change_available_count">
                                         <input type="hidden" name="formwork_type" value="<?php echo htmlspecialchars($fw['formwork_type']); ?>">
                                         <input type="hidden" name="change" value="-1">
@@ -319,7 +356,7 @@ echo '<script>
                                     </form>
 
                                     <!-- Make One Available Button -->
-                                    <form method="POST" action="admin_formwork_availability.php" class="inline-block">
+                                    <form method="POST" action="manage_formworks.php" class="inline-block">
                                         <input type="hidden" name="action" value="change_available_count">
                                         <input type="hidden" name="formwork_type" value="<?php echo htmlspecialchars($fw['formwork_type']); ?>">
                                         <input type="hidden" name="change" value="1">

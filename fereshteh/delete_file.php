@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+require_once __DIR__ . '/../../sercon/bootstrap.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
@@ -18,7 +18,7 @@ if (!$attachmentId) {
     exit('Invalid request');
 }
 try {
-        $pdo = connectDB();
+        $pdo = getProjectDBConnection();
 
         // Get file path
         $stmt = $pdo->prepare("SELECT file_path FROM hpc_panel_attachments WHERE id = ?");

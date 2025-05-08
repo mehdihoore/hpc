@@ -34,6 +34,7 @@
 /fereshteh/includes/libraries/
 /fereshteh/lib/
 /fereshteh/vendor/
+
 # Ignore all media files
 *.jpg
 *.jpeg
@@ -105,3 +106,25 @@
 *.bak
 *.sv$
 *.ac$
+make_newProject_instructions.md
+finalsqlcommands.sql
+*.sql
+*.sql.gz
+*.sql.bz2
+*.txt
+/*.sql
+/*.txt
+/Arad/assets/
+/Arad/uploads/
+/Arad/.env
+/Arad/.env.example
+/Arad/svg_files/
+/Arad/.gitignore
+/Arad/includes/libraries/
+/Arad/lib/
+/Arad/vendor/
+/includes/libraries/
+/phpinfo.php
+phpinfo.php
+/Arad/phpinfo.php/
+/Fereshteh/includes/jdf.php/

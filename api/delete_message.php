@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../../sercon/config_fereshteh.php';
+require_once __DIR__ . '/../../sercon/bootstrap.php';
 header('Content-Type: application/json');
 secureSession();
 
@@ -19,7 +19,7 @@ if (!$messageId) {
 }
 
 try {
-    $pdo = connectDB();
+    $pdo = getCommonDBConnection();
     // Soft delete: UPDATE messages SET is_deleted = 1, message_content = NULL, file_path = NULL, caption = NULL WHERE id = :id
     // Or Hard delete: DELETE FROM messages WHERE id = :id
     $stmt = $pdo->prepare("UPDATE messages SET is_deleted = 1, message_content = NULL, file_path = NULL, caption = NULL WHERE id = :id"); // Soft delete example

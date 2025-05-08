@@ -1,8 +1,48 @@
 <?php
 // manage_records.php
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+require_once __DIR__ . '/../../sercon/bootstrap.php'; // Go up one level to find sercon/
+
+secureSession(); // Initializes session and security checks
+
+// Determine which project this instance of the file belongs to.
+// This is simple hardcoding based on folder. More complex routing could derive this.
+$current_file_path = __DIR__;
+$expected_project_key = null;
+if (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Arad') !== false) {
+    $expected_project_key = 'arad';
+} elseif (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Fereshteh') !== false) {
+    $expected_project_key = 'fereshteh';
+} else {
+    // If the file is somehow not in a recognized project folder, handle error
+    logError("admin_panel_search.php accessed from unexpected path: " . $current_file_path);
+    die("خطای پیکربندی: پروژه قابل تشخیص نیست.");
+}
+
+
+// --- Authorization ---
+// 1. Check if logged in
+if (!isLoggedIn()) {
+    header('Location: /login.php'); // Redirect to common login
+    exit();
+}
+// 2. Check if user has selected ANY project
+if (!isset($_SESSION['current_project_config_key'])) {
+    logError("Access attempt to {$expected_project_key}/admin_panel_search.php without project selection. User ID: " . $_SESSION['user_id']);
+    header('Location: /select_project.php'); // Redirect to project selection
+    exit();
+}
+// 3. Check if the selected project MATCHES the folder this file is in
+if ($_SESSION['current_project_config_key'] !== $expected_project_key) {
+    logError("Project context mismatch. Session has '{$_SESSION['current_project_config_key']}', expected '{$expected_project_key}'. User ID: " . $_SESSION['user_id']);
+    // Maybe redirect to select_project or show an error specific to context mismatch
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+// 4. Check user role access for this specific page
+
+// --- End Authorization ---
 require_once 'header.php'; // Includes the header.  This is now the *only* include needed for the header.
-$pageTitle = "مدیریت رکوردها";  // Set the page title *before* including the header.
+$pageTitle = "مدیریت رکوردها - " . escapeHtml($_SESSION['current_project_name'] ?? 'پروژه');;  // Set the page title *before* including the header.
 
 // Check for admin login
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -27,7 +67,7 @@ if (!in_array($current_table, $valid_tables)) {
 
 // --- Database Connection ---
 try {
-    $pdo = connectDB(); // Use PDO connection from config_fereshteh.php
+    $pdo = getProjectDBConnection(); // Use PDO connection from config_fereshteh.php
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); // Set error mode to exception
      $pdo->exec("SET NAMES utf8mb4"); // FOR PERSIAN
 

@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../sercon/config.php';
+require_once __DIR__ . '/../sercon/bootstrap.php';
 
 // No need to call secureSession() here, as we are already checking if session is set.
 

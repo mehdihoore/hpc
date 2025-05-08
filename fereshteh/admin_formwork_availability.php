@@ -1,10 +1,20 @@
 <?php
 // admin_formwork_availability.php (v3 - with improved UI for availability tracking)
-require_once __DIR__ . '/../../sercon/config_fereshteh.php'; // Ensure you have your DB connection details
-
+require_once __DIR__ . '/../../sercon/bootstrap.php'; // Ensure you have your DB connection details
+$current_file_path = __DIR__;
+$expected_project_key = null;
+if (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Fereshteh') !== false) {
+    $expected_project_key = 'fereshteh';
+} elseif (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Arad') !== false) {
+    $expected_project_key = 'arad';
+} else {
+    // If the file is somehow not in a recognized project folder, handle error
+    logError("admin_panel_search.php accessed from unexpected path: " . $current_file_path);
+    die("خطای پیکربندی: پروژه قابل تشخیص نیست.");
+}
 // --- Handle POST Request for Changing Available Count ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_available_count') {
-    $pdo = connectDB();
+    $pdo = getProjectDBConnection();
     $typeToChange = $_POST['formwork_type'] ?? null;
     // Change can be +1 (make available) or -1 (make unavailable)
     $change = filter_input(INPUT_POST, 'change', FILTER_VALIDATE_INT, ['options' => ['min_range' => -1, 'max_range' => 1]]);
@@ -66,7 +76,7 @@ $availableTypeCount = 0; // Count of types with at least one available
 $fullyUnavailableTypeCount = 0; // Count of types with zero available
 
 try {
-    $pdo = connectDB();
+    $pdo = getProjectDBConnection();
     // Fetch total_count and available_count
     $stmt = $pdo->query("SELECT formwork_type, total_count, available_count FROM available_formworks ORDER BY formwork_type ASC");
     $formworks = $stmt->fetchAll(PDO::FETCH_ASSOC);

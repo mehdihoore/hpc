@@ -198,31 +198,7 @@ function get_user_permissions($role) {
 /**
  * Log activity
  */
-function log_activity($user_id, $activity_type, $details) {
-    global $pdo;
-    
-    try {
-        // Get username for the user_id
-        $stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
-        $stmt->execute([$user_id]);
-        $username = $stmt->fetchColumn();
 
-        // Insert into activity_log with the correct columns
-        $stmt = $pdo->prepare("INSERT INTO activity_log 
-            (user_id, username, activity_type, details, timestamp) 
-            VALUES (?, ?, ?, ?, NOW())");
-        
-        return $stmt->execute([
-            $user_id,
-            $username,
-            $activity_type,
-            $details
-        ]);
-    } catch (PDOException $e) {
-        error_log("Activity Log Error: " . $e->getMessage());
-        return false;
-    }
-}
 /**
  * Format file size
  */

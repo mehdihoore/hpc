@@ -1,13 +1,18 @@
 <?php
 // messages.php
-require_once __DIR__ . '/../../sercon/config_fereshteh.php'; // Adjust path
+require_once __DIR__ . '/../sercon/bootstrap.php'; // Adjust path
 
-require_once 'includes/jdf.php'; // For dates
+if (file_exists(__DIR__ . '/includes/jdf.php')) {
+    require_once __DIR__ . '/includes/jdf.php';
+}
 
-secureSession(); // Includes session_start() and checks login
-if (!isLoggedIn()) {
-    header('Location: login.php');
-    exit; // Important: Stop script execution after redirect header
+
+secureSession(); // Initializes session, applies security, and checks login internally
+// secureSession() from bootstrap.php should ideally handle the isLoggedIn check and redirect.
+// If not, the manual check is a fallback.
+if (!isLoggedIn()) { // isLoggedIn() should be in bootstrap.php
+    header('Location: login.php'); // Common login page
+    exit;
 }
 $pageTitle = 'پیام‌ها';
 
@@ -15,7 +20,7 @@ $currentUserId = $_SESSION['user_id'];
 $selectedUserId = filter_input(INPUT_GET, 'user_id', FILTER_VALIDATE_INT); // User to chat with
 
 try {
-    $pdo = connectDB(); // Connect if header didn't already
+    $pdo = getCommonDBConnection(); // Connect if header didn't already
 
     // Get list of all users (except self) to potentially message
     try {
@@ -204,7 +209,7 @@ function isImageFile($filename)
 
 // Maximum upload size in MB
 $maxUploadSize = 100;
-require_once 'header.php'; // Includes DB connection, auth check, activity update
+require_once 'header_common.php'; // Includes DB connection, auth check, activity update
 
 ?>
 
@@ -2304,5 +2309,5 @@ function formatFileSize($bytes)
         return round($bytes / 1048576, 1) . ' MB';
 }
 
-require_once 'footer.php';
+require_once 'footer_common.php';
 ?>

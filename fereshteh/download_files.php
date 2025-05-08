@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+require_once __DIR__ . '/../../sercon/bootstrap.php';
 require_once 'includes/jdf.php';
 require_once 'includes/functions.php';
 
@@ -24,7 +24,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$pdo = connectDB();
+$pdo = getProjectDBConnection();
 
 // Get user role and permissions
 $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");

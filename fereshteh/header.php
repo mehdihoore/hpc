@@ -1,76 +1,76 @@
 <?php
-// header.php
+// public_html/Fereshteh/header.php
+// --- Bootstrap and Session ---
+if (!defined('APP_ROOT')) {
+    require_once __DIR__ . '/../sercon/bootstrap.php';
+    secureSession();
+}
 
-// Check if user is logged in.
-if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
+// --- Redirect if not logged in or project context not Fereshteh ---
+if (!isLoggedIn()) {
+    header('Location: /login.php');
     exit();
 }
+$currentProjectConfigKeyInSession = $_SESSION['current_project_config_key'] ?? null;
+if ($currentProjectConfigKeyInSession !== 'fereshteh') { // Hardcoded for this Fereshteh header
+    logError("Fereshteh header loaded with incorrect project context. Session: " . $currentProjectConfigKeyInSession);
+    header('Location: /select_project.php?msg=project_mismatch_header');
+    exit();
+}
+// --- End Redirects ---
 
-// --- Update Last Activity ---
+
+$pdo_common_header = null; // Initialize
 try {
-    $pdo = connectDB(); // Make sure connection is established before this
-    if ($_SESSION['user_id'] != 1) { // Exclude user with ID 1
-        $stmt_update_activity = $pdo->prepare("UPDATE users SET last_activity = NOW() WHERE id = ?");
-        $stmt_update_activity->execute([$_SESSION['user_id']]);
+    $pdo_common_header = getCommonDBConnection();
+} catch (Exception $e) {
+    logError("Critical: Common DB connection failed in Fereshteh header: " . $e->getMessage());
+}
+
+// --- Update Last Activity (uses hpc_common.users) ---
+if ($pdo_common_header && isset($_SESSION['user_id'])) {
+    try {
+        // Exclude user with ID 1 (if this is a special admin/system account)
+        if ($_SESSION['user_id'] != 1) {
+            $stmt_update_activity = $pdo_common_header->prepare("UPDATE users SET last_activity = NOW() WHERE id = ?");
+            $stmt_update_activity->execute([$_SESSION['user_id']]);
+        }
+    } catch (PDOException $e) {
+        logError("Database error in Fereshteh header (updating last_activity): " . $e->getMessage());
     }
-} catch (PDOException $e) {
-    logError("Database error in header.php updating last_activity: " . $e->getMessage());
-    // Don't exit, just log the error, header should still load
 }
 // --- End Update Last Activity ---
-$totalUnreadCount = 0; // Initialize count
 
-// Check if user is logged in and essential variables exist
-if (function_exists('isLoggedIn') && isLoggedIn() && isset($_SESSION['user_id'])) {
 
-    $currentUserIdHeader = $_SESSION['user_id']; // Use a distinct variable name if needed
-
-    // Check if $pdo connection exists (assuming config_fereshteh.php or header.php sets it up)
-    if (isset($pdo) && $pdo instanceof PDO) {
-        try {
-            // Prepare statement to count total unread messages for the user
-            // Also ensure we don't count messages marked as deleted (if using soft delete)
-            $stmt_total_unread = $pdo->prepare("
-                SELECT COUNT(*) as total_unread_count
-                FROM messages
-                WHERE receiver_id = :user_id
-                AND is_read = 0
-                AND is_deleted = 0
-            "); // Added is_deleted check
-
-            
-                $stmt_total_unread->execute([':user_id' => $currentUserIdHeader]);
-                $result = $stmt_total_unread->fetch(PDO::FETCH_ASSOC);
-
-                // If the query was successful and returned a result, update the count
-                if ($result) {
-                    $totalUnreadCount = (int) $result['total_unread_count'];
-                }
-           
-        } catch (PDOException $e) {
-            // Log error if query fails, but don't break the page
-            if (function_exists('logError')) {
-                logError("Error fetching total unread count in header: " . $e->getMessage());
-            }
-            $totalUnreadCount = 0; // Keep count at 0 on error
+// --- Unread Messages Count (uses hpc_common.messages) ---
+$totalUnreadCount = 0;
+if ($pdo_common_header && isset($_SESSION['user_id'])) {
+    $currentUserIdHeader = $_SESSION['user_id'];
+    try {
+        $stmt_total_unread = $pdo_common_header->prepare("
+            SELECT COUNT(*) as total_unread_count
+            FROM messages
+            WHERE receiver_id = :user_id AND is_read = 0 AND is_deleted = 0
+        ");
+        $stmt_total_unread->execute([':user_id' => $currentUserIdHeader]);
+        $result_unread = $stmt_total_unread->fetch(PDO::FETCH_ASSOC);
+        if ($result_unread) {
+            $totalUnreadCount = (int) $result_unread['total_unread_count'];
         }
-    } else {
-        // Optional: Log if PDO connection isn't available when expected
-        if (function_exists('logError')) {
-            logError("PDO connection not available in header.php for unread count.");
-        }
+    } catch (PDOException $e) {
+        logError("Error fetching total unread count in Fereshteh header: " . $e->getMessage());
     }
 }
+// --- End Unread Messages ---
 
-// --- End of added block ---
 
-$pageTitle = isset($pageTitle) ? $pageTitle : 'پنل مدیریت'; // Default title
-$current_page = basename($_SERVER['PHP_SELF']); // Get the current page filename
+$pageTitle = isset($pageTitle) ? $pageTitle : 'پروژه فرشته'; // Default title for Fereshteh
+$current_page_filename = basename($_SERVER['PHP_SELF']); // Get the current page filename
 
-// Pre-calculate roleText and role for easier use.
+// --- Role Text (from session) ---
 $role = $_SESSION['role'] ?? '';
-$roleText = '';
+$roleText = ''; // Initialize
+// Your existing switch statement for $roleText...
 switch ($role) {
     case 'admin':
         $roleText = 'مدیر';
@@ -89,56 +89,90 @@ switch ($role) {
         break;
     case 'receiver':
         $roleText = 'نصاب';
-        break;
+        break; // Assuming 'receiver' is a valid role
     default:
         $roleText = 'کاربر';
 }
+// --- End Role Text ---
 
+
+// --- Online Users (uses hpc_common.users) ---
 $onlineUsers = [];
-$onlineTimeoutMinutes = 5; // Consider users online if active in the last 5 minutes
-try {
-    // $pdo should still be connected from the activity update
-    $stmt_online = $pdo->prepare("
-        SELECT id, first_name, last_name
-        FROM users
-        WHERE last_activity >= NOW() - INTERVAL :timeout MINUTE
-          AND id != :current_user_id -- Exclude self
-        ORDER BY first_name, last_name
-    ");
-    $stmt_online->bindParam(':timeout', $onlineTimeoutMinutes, PDO::PARAM_INT);
-    $stmt_online->bindParam(':current_user_id', $_SESSION['user_id'], PDO::PARAM_INT);
-    $stmt_online->execute();
-    $onlineUsers = $stmt_online->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    logError("Database error in header.php fetching online users: " . $e->getMessage());
-    // Gracefully handle error, $onlineUsers remains empty
+if ($pdo_common_header && isset($_SESSION['user_id'])) {
+    $onlineTimeoutMinutes = 5;
+    try {
+        $stmt_online = $pdo_common_header->prepare("
+            SELECT id, first_name, last_name
+            FROM users
+            WHERE last_activity >= NOW() - INTERVAL :timeout MINUTE
+              AND id != :current_user_id
+            ORDER BY first_name, last_name
+        ");
+        $stmt_online->bindParam(':timeout', $onlineTimeoutMinutes, PDO::PARAM_INT);
+        $stmt_online->bindParam(':current_user_id', $_SESSION['user_id'], PDO::PARAM_INT);
+        $stmt_online->execute();
+        $onlineUsers = $stmt_online->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        logError("Database error in Fereshteh header (fetching online users): " . $e->getMessage());
+    }
 }
 // --- End Fetch Online Users ---
 
-// Fetch the user's avatar path
-// Fetch the user's avatar path from the database
-try {
-    $pdo = connectDB();
-    $stmt = $pdo->prepare("SELECT avatar_path FROM users WHERE id = ?");
-    $stmt->execute([$_SESSION['user_id']]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    $avatarPath = $user['avatar_path'] ?? 'assets/images/default-avatar.jpg';
-} catch (PDOException $e) {
-    logError("Database error in header.php while fetching avatar path: " . $e->getMessage());
-    $avatarPath = 'assets/images/default-avatar.jpg';
+
+// --- User Avatar Path (uses hpc_common.users) ---
+$avatarPath = '/assets/images/default-avatar.jpg'; // Default, ensure web accessible path
+if ($pdo_common_header && isset($_SESSION['user_id'])) {
+    try {
+        $stmt_avatar = $pdo_common_header->prepare("SELECT avatar_path FROM users WHERE id = ?");
+        $stmt_avatar->execute([$_SESSION['user_id']]);
+        $user_avatar_data = $stmt_avatar->fetch(PDO::FETCH_ASSOC);
+
+        $potentialAvatarWebPath = $user_avatar_data['avatar_path'] ?? null;
+        if ($potentialAvatarWebPath && fileExistsAndReadable(PUBLIC_HTML_ROOT . $potentialAvatarWebPath)) {
+            // Ensure $potentialAvatarWebPath starts with '/' if it's a root-relative web path
+            $avatarPath = escapeHtml((strpos($potentialAvatarWebPath, '/') === 0 ? '' : '/') . ltrim($potentialAvatarWebPath, '/'));
+        }
+    } catch (PDOException $e) {
+        logError("Database error in Fereshteh header (fetching avatar path): " . $e->getMessage());
+    }
 }
-// Helper function to check access
-function hasAccess($requiredRoles)
-{
-    global $role;
-    return in_array($role, $requiredRoles);
+// --- End User Avatar Path ---
+// --- NEW: Fetch ALL projects the user has access to ---
+$all_user_accessible_projects = [];
+if ($pdo_common_header && isset($_SESSION['user_id'])) {
+    try {
+        $stmt_all_projects = $pdo_common_header->prepare(
+            "SELECT p.project_id, p.project_name, p.project_code, p.base_path, p.config_key, p.ro_config_key
+    FROM projects p
+    JOIN user_projects up ON p.project_id = up.project_id
+    WHERE up.user_id = ? AND p.is_active = TRUE
+    ORDER BY p.project_name"
+        );
+        $stmt_all_projects->execute([$_SESSION['user_id']]);
+        $all_user_accessible_projects = $stmt_all_projects->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        logError("Error fetching all accessible projects in Fereshteh header: " . $e->getMessage());
+    }
 }
-$current_page_filename = basename($_SERVER['PHP_SELF']); // e.g., "upload_panel.php"
-// Function to check if a link is active and return the class string
-function getActiveClass($link_filename, $current_filename)
-{
-    return ($link_filename == $current_filename) ? ' active' : ''; // Add space before 'active'
+// --- End Fetch ALL projects ---
+// Helper function to check access (relies on $role from session)
+// This could also be moved to bootstrap.php if used globally
+if (!function_exists('hasAccess')) {
+    function hasAccess($requiredRoles)
+    {
+        $current_user_role = $_SESSION['role'] ?? '';
+        return in_array($current_user_role, (array)$requiredRoles);
+    }
 }
+
+// Function to check if a link is active
+if (!function_exists('getActiveClass')) {
+    function getActiveClass($link_filename, $current_filename)
+    {
+        return ($link_filename == $current_filename) ? ' active' : '';
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -164,6 +198,12 @@ function getActiveClass($link_filename, $current_filename)
     <link href="/assets/css/persian-datepicker.min.css" rel="stylesheet">
     <link href="/assets/css/bootstrap.rtl.min.css" rel="stylesheet">
     <link href="/assets/css/sweetalert2.min.css" rel="stylesheet">
+    <!-- ... other head elements ... -->
+
+    <link href="https://cdn.datatables.net/v/dt/dt-2.3.0/datatables.min.css" rel="stylesheet" integrity="sha384-b6zpX2e8uzvhWek1oBTKdifu88SXYijvZlp44itAjiEbD8ic6XRiVFQ9F6u4gspj" crossorigin="anonymous">
+
+
+
     <style>
         /* Base Styles */
         @font-face {
@@ -273,6 +313,7 @@ function getActiveClass($link_filename, $current_filename)
             transition: all 0.3s ease;
             white-space: nowrap;
             border-right: 3px solid transparent;
+            border-right-color: transparent;
             /* Reserve space for active indicator (RTL) */
 
         }
@@ -833,6 +874,7 @@ function getActiveClass($link_filename, $current_filename)
                 /* Let it align naturally or set right: 0 */
                 right: 0;
                 min-width: 180px;
+                user-select: all !important;
             }
         }
 
@@ -1404,16 +1446,43 @@ function getActiveClass($link_filename, $current_filename)
         .profile-link:hover {
             opacity: 0.8;
         }
+
+        .project-switcher-nav .nav-link.current-project-highlight {
+            background-color: #102a66 !important;
+            /* A darker shade of Fereshteh blue */
+            color: #f39c12 !important;
+            /* Orange accent for current project */
+            font-weight: bold;
+        }
+
+        .project-switcher-dropdown .dropdown-item.current-project-highlight {
+            background-color: #4a627a;
+            color: #f39c12;
+            font-weight: bold;
+        }
+
+        .project-switcher-dropdown .dropdown-toggle {
+            background-color: #f39c12;
+            /* Default Orange button */
+            color: #2c3e50;
+        }
+
+        .project-switcher-dropdown .dropdown-toggle:hover {
+            background-color: #e67e22;
+        }
     </style>
     <!-- Put all the JavaScript includes *here*, just before the closing </head> tag -->
 
     <script src="/assets/js/main.min.js"></script>
     <!-- Add the DataTables CSS and JS -->
-    <script src="/assets/js/jquery-3.6.0.min.js"></script>
+    <script src="/assets/js/jquery-3.5.1.slim.min.js"></script>
     <script src="/assets/js/popper.min.js"></script>
+
     <script src="/assets/js/bootstrap.min.js"></script>
-    <script type="text/javascript" charset="utf8" src="/assets/js/jquery.dataTables.min.js"></script>
-    <script type="text/javascript" charset="utf8" src="/assets/js/dataTables.responsive.min.js"></script>
+    <script type="text/javascript" charset="utf8" src="/assets/js/datatables.js"></script>
+    <script type="text/javascript" charset="utf8" src="/assets/js/datatables.min.js"></script>
+
+
     <script src="/assets/js/persian-date.min.js"></script>
     <script src="/assets/js/persian-datepicker.min.js"></script>
     <script src="/assets/js/mobile-detect.min.js"></script>
@@ -1438,7 +1507,7 @@ function getActiveClass($link_filename, $current_filename)
 
                 <div class="user-infoheader">
                     <!-- Make the avatar and username clickable to redirect to user's profile -->
-                    <a href="profile.php" class="profile-link">
+                    <a href="/../profile.php" class="profile-link">
                         <!-- Display user's avatar or default avatar if not set -->
                         <img src="<?php echo htmlspecialchars($avatarPath); ?>" alt="Profile Picture" class="profile-pic">
                         <!-- Inline SVG for user-circle -->
@@ -1453,7 +1522,7 @@ function getActiveClass($link_filename, $current_filename)
                         (<?php echo $roleText; ?>)
                     </a>
                 </div>
-                <a href="logout.php" class="logout-btn">
+                <a href="/logout.php" class="logout-btn">
                     <!-- Inline SVG for sign-out-alt -->
                     <svg class="icon-signout" viewBox="0 0 24 24">
                         <path d="M14.08,15.59L16.67,13H7V11H16.67L14.08,8.41L15.5,7L20.5,12L15.5,17L14.08,15.59M19,3A2,2 0 0,1 21,5V9.67L19,7.67V5H5V19H19V16.33L21,14.33V19A2,2 0 0,1 19,21H5C3.89,21 3,20.1 3,19V5C3,3.89 3.89,3 5,3H19Z" />
@@ -1602,13 +1671,41 @@ function getActiveClass($link_filename, $current_filename)
                         گزارشات دسته‌ای
                     </a>
                 <?php endif; ?>
-
+                <?php if (count($all_user_accessible_projects) > 1): ?>
+                    <li class="nav-item dropdown project-switcher-dropdown ms-auto">
+                        <a class="nav-link dropdown-toggle btn btn-sm" href="#" id="projectSwitcherDropdown" role="button"
+                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                            <i class="fas fa-exchange-alt me-1"></i> تعویض پروژه
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" aria-labelledby="projectSwitcherDropdown">
+                            <?php foreach ($all_user_accessible_projects as $project_nav_item): ?>
+                                <?php
+                                $is_current_project_link = (isset($_SESSION['current_project_id']) && $_SESSION['current_project_id'] == $project_nav_item['project_id']);
+                                ?>
+                                <li>
+                                    <form action="/project_switch_handler.php" method="POST" class="d-inline">
+                                        <input type="hidden" name="switch_to_project_id" value="<?= $project_nav_item['project_id'] ?>">
+                                        <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
+                                        <button type="submit"
+                                            class="dropdown-item <?= $is_current_project_link ? 'current-project-highlight active' : '' ?>"
+                                            <?= $is_current_project_link ? 'disabled title="شما در این پروژه هستید"' : 'title="رفتن به پروژه ' . escapeHtml($project_nav_item['project_name']) . '"' ?>>
+                                            <i class="fas fa-folder me-2"></i> <?= escapeHtml($project_nav_item['project_name']) ?>
+                                            <?= $is_current_project_link ? ' (فعلی)' : '' ?>
+                                        </button>
+                                    </form>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </li>
+                <?php endif; ?>
+                <!-- **** END: Project Switcher **** -->
             </div>
+
             <?php // --- Messages Link Block ---
             // Original access check
-           if (hasAccess(['admin', 'superuser', 'supervisor', 'planner', 'user', 'receiver', 'cnc_operator', 'guest'])) : // Adjust roles as needed
+            if (hasAccess(['admin', 'superuser', 'supervisor', 'planner', 'user', 'receiver', 'cnc_operator', 'guest'])) : // Adjust roles as needed
             ?>
-                <a href="messages.php"
+                <a href="/messages.php"
                     class="nav-item<?php echo getActiveClass('messages.php', $current_page_filename); ?>"
                     style="position: relative; display: inline-flex; align-items: center;"> <!-- Add styles for alignment -->
 
@@ -1624,6 +1721,13 @@ function getActiveClass($link_filename, $current_filename)
                     if ($totalUnreadCount > 0): ?>
                         <span class="unread-badge"><?= $totalUnreadCount ?></span>
                     <?php endif; ?>
+                    <?php if (isAdmin()): ?>
+                        <a href="/admin.php" class="nav-item" style="background-color: #5c6ac4; color: white;">
+                            <i class="fas fa-cogs me-2"></i> مدیریت مرکزی کاربران
+                        </a>
+                    <?php endif; ?>
+
+                    <!-- **** END: Change Project Link/Dropdown **** -->
                     <?php // --- End Badge --- 
                     ?>
 

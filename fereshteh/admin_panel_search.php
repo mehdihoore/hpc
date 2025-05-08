@@ -1,90 +1,106 @@
 <?php
-// admin_panel_search.php
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+// admin_panel_search.php (Located inside /Fereshteh/ or /Arad/)
+require_once __DIR__ . '/../../sercon/bootstrap.php'; // Go up one level to find sercon/
 
-// Role check (Admin or Supervisor)
-if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'supervisor', 'planner', 'user'])) {
-    header('Location: unauthorized.php');
+secureSession(); // Initializes session and security checks
+
+// Determine which project this instance of the file belongs to.
+// This is simple hardcoding based on folder. More complex routing could derive this.
+$current_file_path = __DIR__;
+$expected_project_key = null;
+if (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Fereshteh') !== false) {
+    $expected_project_key = 'fereshteh';
+} elseif (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Arad') !== false) {
+    $expected_project_key = 'arad';
+} else {
+    // If the file is somehow not in a recognized project folder, handle error
+    logError("admin_panel_search.php accessed from unexpected path: " . $current_file_path);
+    die("خطای پیکربندی: پروژه قابل تشخیص نیست.");
+}
+
+
+// --- Authorization ---
+// 1. Check if logged in
+if (!isLoggedIn()) {
+    header('Location: /login.php'); // Redirect to common login
     exit();
 }
-secureSession();
-
-// --- Function for Shamsi Date Conversion  ---
-if (!function_exists('gregorianToShamsi')) {
-    function gregorianToShamsi($date)
-    {
-        if (empty($date) || $date == '0000-00-00') return '';
-        try {
-            $dt = new DateTime($date);
-            $year = (int)$dt->format('Y');
-            $month = (int)$dt->format('m');
-            $day = (int)$dt->format('d');
-            $gDays = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-            $gy = $year - 1600;
-            $gm = $month - 1;
-            $gd = $day - 1;
-            $gDayNo = 365 * $gy + floor(($gy + 3) / 4) - floor(($gy + 99) / 100) + floor(($gy + 399) / 400);
-            $gDayNo += $gDays[$gm];
-            if ($gm > 1 && (($gy % 4 == 0 && $gy % 100 != 0) || ($gy % 400 == 0))) $gDayNo++;
-            $gDayNo += $gd;
-            $jDayNo = $gDayNo - 79;
-            $jNp = floor($jDayNo / 12053);
-            $jDayNo %= 12053;
-            $jy = 979 + 33 * $jNp + 4 * floor($jDayNo / 1461);
-            $jDayNo %= 1461;
-            if ($jDayNo >= 366) {
-                $jy += floor(($jDayNo - 1) / 365);
-                $jDayNo = ($jDayNo - 1) % 365;
-            }
-            $jDaysInMonth = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
-            for ($i = 0; $i < 12 && $jDayNo >= $jDaysInMonth[$i]; $i++) $jDayNo -= $jDaysInMonth[$i];
-            $jm = $i + 1;
-            $jd = $jDayNo + 1;
-            return sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
-        } catch (Exception $e) {
-            return 'تاریخ نامعتبر';
-        }
-    }
+// 2. Check if user has selected ANY project
+if (!isset($_SESSION['current_project_config_key'])) {
+    logError("Access attempt to {$expected_project_key}/admin_panel_search.php without project selection. User ID: " . $_SESSION['user_id']);
+    header('Location: /select_project.php'); // Redirect to project selection
+    exit();
 }
+// 3. Check if the selected project MATCHES the folder this file is in
+if ($_SESSION['current_project_config_key'] !== $expected_project_key) {
+    logError("Project context mismatch. Session has '{$_SESSION['current_project_config_key']}', expected '{$expected_project_key}'. User ID: " . $_SESSION['user_id']);
+    // Maybe redirect to select_project or show an error specific to context mismatch
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+// 4. Check user role access for this specific page
+$allowed_roles = ['admin', 'supervisor', 'planner', 'user', 'superuser']; // Added superuser for completeness
+if (!in_array($_SESSION['role'], $allowed_roles)) {
+    logError("Role '{$_SESSION['role']}' unauthorized access attempt to {$expected_project_key}/admin_panel_search.php. User ID: " . $_SESSION['user_id']);
+    // Redirect to a project-specific unauthorized page or dashboard
+    header('Location: dashboard.php?msg=unauthorized'); // Assumes dashboard.php exists in the project folder
+    exit();
+}
+// --- End Authorization ---
+
+
 
 // --- Database Operations ---
+$allPanels = [];
+$prioritizationLevels = [];
+$formworkTypeNames = [];
+$uniquePanelAddresses = [];
+$uniqueCompletedPanelAddresses = [];
+$uniqueAssignedDatePanelAddresses = [];
+$uniqushippedAddresses = [];
+
 try {
-    $pdo = connectDB(); // Use your existing connection function
+    // Get the connection for the CURRENT project based on session data
+    // The session variable 'current_project_config_key' should be 'fereshteh' or 'arad'
+    $pdo = getProjectDBConnection(); // Reads from $_SESSION['current_project_config_key']
 
-    // --- Fetch All Panels ---
-    // 1. Select new columns: planned_finish_date, Proritization
-    // 2. Simplify formwork join: Assuming hp.formwork_type stores the TYPE NAME
+    // Fetch All Panels for this project
+    // The query remains the same, it just runs on the selected project's DB now.
     $stmt = $pdo->prepare("
-        SELECT
-            hp.*
-            
-       FROM hpc_panels hp
-
-        ORDER BY hp.Proritization ASC, hp.id DESC 
+        SELECT hp.*
+        FROM hpc_panels hp
+        ORDER BY hp.Proritization ASC, hp.id DESC
     ");
     $stmt->execute();
     $allPanels = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // --- Fetch Distinct Prioritization Levels ---
+    // Fetch Distinct Prioritization Levels for this project
     $stmtPrio = $pdo->query("SELECT DISTINCT Proritization FROM hpc_panels WHERE Proritization IS NOT NULL AND Proritization != '' ORDER BY Proritization ASC");
     $prioritizationLevels = $stmtPrio->fetchAll(PDO::FETCH_COLUMN);
 
-    // --- Fetch Formwork Types for Filter  ---
+    // Fetch Formwork Types for Filter for this project
     $stmtFormwork = $pdo->query("SELECT formwork_type FROM available_formworks ORDER BY formwork_type ASC");
     $formworkTypeNames = $stmtFormwork->fetchAll(PDO::FETCH_COLUMN);
 
+    // Calculate unique addresses based on the fetched panels for *this project*
     $uniquePanelAddresses = array_unique(array_column($allPanels, 'address'));
     $uniqueCompletedPanelAddresses = array_unique(array_column(array_filter($allPanels, fn($p) => $p['status'] == 'completed'), 'address'));
     $uniqueAssignedDatePanelAddresses = array_unique(array_column(array_filter($allPanels, fn($p) => !empty($p['assigned_date'])), 'address'));
     $uniqushippedAddresses = array_unique(array_column(array_filter($allPanels, fn($p) => $p['packing_status'] == 'shipped'), 'address'));
 } catch (PDOException $e) {
-    logError("Database error in admin_panel_search.php: " . $e->getMessage()); // Log the error
-    die("خطای پایگاه داده رخ داد. لطفا با پشتیبانی تماس بگیرید."); // User-friendly message
+    logError("Database error in {$expected_project_key}/admin_panel_search.php: " . $e->getMessage());
+    die("خطای پایگاه داده در بارگذاری اطلاعات پروژه رخ داد. لطفا با پشتیبانی تماس بگیرید.");
+} catch (Exception $e) { // Catch exceptions from getProjectDBConnection if config key is missing
+    logError("Configuration or Connection error in {$expected_project_key}/admin_panel_search.php: " . $e->getMessage());
+    die("خطای پیکربندی یا اتصال پایگاه داده پروژه رخ داد.");
 }
 
 // --- HTML Starts Here ---
-$pageTitle = "جستجو و فیلتر پنل ها";
-require_once 'header.php'; // Include header
+// Update title to include project name from session
+$pageTitle = "جستجو و فیلتر پنل ها - " . escapeHtml($_SESSION['current_project_name'] ?? 'پروژه');
+
+// Include the project-specific header file. Assumes header.php is in the same folder (Fereshteh/ or Arad/)
+require_once __DIR__ . '/header.php';
 ?>
 
 <body class="bg-gray-100">
@@ -194,15 +210,15 @@ require_once 'header.php'; // Include header
 
 
 
-    <link rel="stylesheet" href="assets/css/bootstrap.rtl.min.css">
-    <link rel="stylesheet" href="assets/css/persianDatepicker-dark.css">
+    <link rel="stylesheet" href="/assets/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="/assets/css/persian-datepicker-dark.min.css">
     <!-- Include Datepicker and Moment JS -->
-    <script src="assets/js/jquery-3.6.0.min.js"></script>
+    <script src="/assets/js/jquery-3.6.0.min.js"></script>
 
-    <script src="assets/js/moment.min.js"></script>
-    <script src="assets/js/moment-jalaali.js"></script>
-    <script src="assets/js/persian-datepicker.min.js"></script>
-    <script src="mobile-detect.min.js"></script>
+    <script src="/assets/js/moment.min.js"></script>
+    <script src="/assets/js/moment-jalaali.js"></script>
+    <script src="/assets/js/persian-datepicker.min.js"></script>
+    <script src="/assets/js/mobile-detect.min.js"></script>
     <!-- <script src="main.min.js"></script> --> <!-- Only if it contains generic functions -->
 
     <script>

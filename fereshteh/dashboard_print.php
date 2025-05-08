@@ -5,7 +5,7 @@ error_reporting(E_ALL);
 ob_start();
 
 // --- Essential Includes ---
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+require_once __DIR__ . '/../../sercon/bootstrap.php';
 require_once 'includes/jdf.php'; // For date conversion
 require_once 'includes/functions.php'; // Optional, if needed for other helpers
 
@@ -16,61 +16,7 @@ if (!isset($_SESSION['user_id'])) { // Basic check
     header('Location: login.php');
     exit('دسترسی غیر مجاز! لطفاً وارد شوید.');
 }
-function gregorianToShamsi($date)
-{
-    if (empty($date) || $date == '0000-00-00' || $date == null) return '';
-    try {
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/', $date)) {
-            if ($date instanceof DateTime) $date = $date->format('Y-m-d');
-            else {
-                return '';
-            }
-        }
-        $date_part = explode(' ', $date)[0];
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_part)) {
-            return '';
-        }
-        list($year, $month, $day) = explode('-', $date_part);
-        $year = (int)$year;
-        $month = (int)$month;
-        $day = (int)$day;
-        if ($year <= 0 || $month <= 0 || $month > 12 || $day <= 0 || $day > 31 || !checkdate($month, $day, $year)) {
-            return '';
-        }
-        $gDays = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-        $gy = $year - 1600;
-        $gm = $month - 1;
-        $gd = $day - 1;
-        $gDayNo = 365 * $gy + floor(($gy + 3) / 4) - floor(($gy + 99) / 100) + floor(($gy + 399) / 400);
-        $gDayNo += $gDays[$gm];
-        if ($gm > 1 && (($gy % 4 == 0 && $gy % 100 != 0) || ($gy % 400 == 0))) $gDayNo++;
-        $gDayNo += $gd;
-        $jDayNo = $gDayNo - 79;
-        $jNp = floor($jDayNo / 12053);
-        $jDayNo %= 12053;
-        $jy = 979 + 33 * $jNp + 4 * floor($jDayNo / 1461);
-        $jDayNo %= 1461;
-        if ($jDayNo >= 366) {
-            $jy += floor(($jDayNo - 1) / 365);
-            $jDayNo = ($jDayNo - 1) % 365;
-        }
-        $jDaysInMonth = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
-        if (in_array($jy % 33, [1, 5, 9, 13, 17, 22, 26, 30])) $jDaysInMonth[11] = 30;
-        for ($i = 0; $i < 12; $i++) {
-            if ($jDayNo < $jDaysInMonth[$i]) break;
-            $jDayNo -= $jDaysInMonth[$i];
-        }
-        $jm = $i + 1;
-        $jd = $jDayNo + 1;
-        if ($jy < 1300 || $jy > 1500 || $jm < 1 || $jm > 12 || $jd < 1 || $jd > 31) {
-            return '';
-        }
-        return sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
-    } catch (Exception $e) {
-        error_log("Error gregorianToShamsi date '$date': " . $e->getMessage());
-        return '';
-    }
-}
+
 // --- Get POST Data ---
 $filtersJson = $_POST['filters'] ?? '{}';
 $chartImages = [];
@@ -93,13 +39,6 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 
 // --- Prepare Filter Display String ---
 $filterDisplayItems = []; // Initialize array to hold parts of the filter string
-if (!function_exists('toLatinDigitsPhp')) {
-    function toLatinDigitsPhp($num)
-    { // Copy this from your other files if needed
-        if ($num === null || !is_scalar($num)) return '';
-        return str_replace(['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', '٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'], range(0, 9), strval($num));
-    }
-}
 
 // Status Filter
 if (isset($filters['status']) && $filters['status'] !== 'all' && $filters['status'] !== '') {

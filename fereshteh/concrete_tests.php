@@ -6,87 +6,40 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 ob_start();
 header('Content-Type: text/html; charset=utf-8');
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+require_once __DIR__ . '/../../sercon/bootstrap.php';
 require_once 'includes/jdf.php';
-if (session_status() !== PHP_SESSION_ACTIVE) session_start();
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || !in_array($_SESSION['role'], ['admin', 'supervisor', 'superuser'])) {
-    header('Location: login.php');
-    exit('Access Denied.');
+secureSession();
+$expected_project_key = 'fereshteh'; // HARDCODED FOR THIS FILE
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
+
+if (!isLoggedIn()) {
+    header('Location: /login.php');
+    exit();
 }
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Concrete test manager accessed with incorrect project context. Session: {$current_project_config_key}, Expected: {$expected_project_key}, User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+$allowed_roles = ['admin', 'supervisor', 'superuser'];
+if (!in_array($_SESSION['role'], $allowed_roles)) {
+    logError("Unauthorized role '{$_SESSION['role']}' attempt on {$expected_project_key}/concrete_tests_manager.php. User: {$_SESSION['user_id']}");
+    header('Location: dashboard.php?msg=unauthorized'); // Redirect within project
+    exit();
+}
+// --- End Authorization ---
 $user_id = $_SESSION['user_id'];
-$db_options = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false];
+$pdo = null; // Initialize
 try {
-    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS, $db_options);
-} catch (PDOException $e) {
-    error_log("DB Connection failed: " . $e->getMessage());
-    die("خطا در اتصال به پایگاه داده.");
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/concrete_tests.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
 }
 
 // --- PHP Helper Functions ---
-if (!function_exists('toLatinDigitsPhp')) {
-    function toLatinDigitsPhp($num)
-    {
-        if ($num === null || !is_scalar($num)) return '';
-        return str_replace(['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', '٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'], range(0, 9), strval($num));
-    }
-}
-if (!function_exists('gregorianToShamsi')) {
-    function gregorianToShamsi($date)
-    {
-        if (empty($date) || $date == '0000-00-00' || $date == null) return '';
-        try {
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/', $date)) {
-                if ($date instanceof DateTime) $date = $date->format('Y-m-d');
-                else {
-                    return '';
-                }
-            }
-            $date_part = explode(' ', $date)[0];
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_part)) {
-                return '';
-            }
-            list($year, $month, $day) = explode('-', $date_part);
-            $year = (int)$year;
-            $month = (int)$month;
-            $day = (int)$day;
-            if ($year <= 0 || $month <= 0 || $month > 12 || $day <= 0 || $day > 31 || !checkdate($month, $day, $year)) {
-                return '';
-            }
-            $gDays = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-            $gy = $year - 1600;
-            $gm = $month - 1;
-            $gd = $day - 1;
-            $gDayNo = 365 * $gy + floor(($gy + 3) / 4) - floor(($gy + 99) / 100) + floor(($gy + 399) / 400);
-            $gDayNo += $gDays[$gm];
-            if ($gm > 1 && (($gy % 4 == 0 && $gy % 100 != 0) || ($gy % 400 == 0))) $gDayNo++;
-            $gDayNo += $gd;
-            $jDayNo = $gDayNo - 79;
-            $jNp = floor($jDayNo / 12053);
-            $jDayNo %= 12053;
-            $jy = 979 + 33 * $jNp + 4 * floor($jDayNo / 1461);
-            $jDayNo %= 1461;
-            if ($jDayNo >= 366) {
-                $jy += floor(($jDayNo - 1) / 365);
-                $jDayNo = ($jDayNo - 1) % 365;
-            }
-            $jDaysInMonth = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
-            if (in_array($jy % 33, [1, 5, 9, 13, 17, 22, 26, 30])) $jDaysInMonth[11] = 30;
-            for ($i = 0; $i < 12; $i++) {
-                if ($jDayNo < $jDaysInMonth[$i]) break;
-                $jDayNo -= $jDaysInMonth[$i];
-            }
-            $jm = $i + 1;
-            $jd = $jDayNo + 1;
-            if ($jy < 1300 || $jy > 1500 || $jm < 1 || $jm > 12 || $jd < 1 || $jd > 31) {
-                return '';
-            }
-            return sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
-        } catch (Exception $e) {
-            error_log("Error gregorianToShamsi date '$date': " . $e->getMessage());
-            return '';
-        }
-    }
-}
+
 function calculate_age($prod_g, $break_g)
 {
     if (empty($prod_g) | empty($break_g)) return null;
@@ -107,7 +60,14 @@ function calculate_strength($force_kg, $dim_l, $dim_w)
     return ($force_kg * 9.80665) / ($dim_l * $dim_w);
 }
 // --- Define Upload Path ---
-define('UPLOAD_DIRT', 'uploads/concrete_tests/'); // Relative to current script
+define('UPLOAD_DIRT', 'uploads/concrete_tests/'); // Relative to current 
+
+if (!is_dir(__DIR__ . '/' . UPLOAD_DIRT)) {
+    if (!mkdir(__DIR__ . '/' . UPLOAD_DIRT, 0775, true)) {
+        logError("Failed to create concrete test upload directory: " . __DIR__ . '/' . UPLOAD_DIRT);
+        $error = "خطا: امکان ایجاد پوشه آپلود وجود ندارد.";
+    }
+}
 function find_test_file($record_id, $sample_code)
 {
     if (empty($record_id) || empty($sample_code)) {
@@ -581,70 +541,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // --- Action: DELETE (Single Record) ---
     } elseif (isset($_POST['action']) && $_POST['action'] == 'delete') {
-        $id = intval($_POST['id'] ?? 0);
-        if ($id > 0) {
+        $id = intval($_POST['id'] ?? 0); // Get ID from the hidden form input named 'id'
+
+        // Reset $sql and $params for this action block if using the generic execution later
+        $sql = "";
+        $params = [];
+        // Reset messages specific to this action block
+        $message = "";
+        // $error is handled by the outer try/catch and final check
+
+        if ($id <= 0) {
+            $error = "شناسه نامعتبر برای حذف.";
+        } else {
             try {
-                // --- Get record details to construct filename for deletion ---
-                $stmt_details = $pdo->prepare("SELECT sample_code FROM concrete_tests WHERE id = ?");
+                // 1. Get record details FIRST (needed for folder path & confirmation)
+                $stmt_details = $pdo->prepare("SELECT production_date, sample_code FROM concrete_tests WHERE id = ?");
                 $stmt_details->execute([$id]);
                 $details = $stmt_details->fetch(PDO::FETCH_ASSOC);
 
-                if ($details) {
-                    $safe_code_del = preg_replace('/[^a-zA-Z0-9_-]/', '_', $details['sample_code']);
-                    $base_filename_del = $id . '_' . $safe_code_del;
-                    $allowed_ext_del = ['pdf', 'jpg', 'jpeg', 'png', 'gif']; // Same allowed extensions
+                if (!$details) {
+                    // Record did not exist BEFORE attempting delete
+                    $error = "رکورد مورد نظر برای حذف یافت نشد (ID: {$id}).";
+                    // No need to rollback here specifically, the outer catch/final check will handle it if $error is set.
+                } else {
+                    // 2. Attempt to DELETE the DB record (only ONCE)
+                    $stmt_del = $pdo->prepare("DELETE FROM concrete_tests WHERE id = ?");
+                    $deleted = $stmt_del->execute([$id]);
 
-                    // Delete the DB record FIRST
-                    $sql = "DELETE FROM concrete_tests WHERE id = ?";
-                    $stmt = $pdo->prepare($sql);
-                    $stmt->execute([$id]);
+                    if ($deleted && $stmt_del->rowCount() > 0) {
+                        // --- Deletion SUCCESSFUL ---
+                        $message = "رکورد با موفقیت حذف شد."; // Set success message
 
-                    if ($stmt->rowCount() > 0) {
-                        $_SESSION['success_message'] = "حذف شد.";
+                        // Log the activity
+                        log_activity(
+                            $user_id, // Admin performing the action
+                            
+                            'delete_concrete_test',
+                            "Deleted Record ID: {$id}, Sample Code: " . ($details['sample_code'] ?? 'N/A')
+                            // Project ID might be added if relevant for this log type
+                        );
+
+                        // 3. Attempt to delete associated folder/files
                         if (!empty($details['production_date']) && !empty($details['sample_code'])) {
                             $safe_code_del = preg_replace('/[^a-zA-Z0-9_-]/', '_', $details['sample_code']);
-                            $folder_path = UPLOAD_DIRT . $details['production_date'] . '/' . $safe_code_del . '/';
+                            $folder_path = __DIR__ . '/' . UPLOAD_DIRT . $details['production_date'] . '/' . $safe_code_del . '/';
 
                             if (is_dir($folder_path)) {
-                                // Function to recursively delete directory and contents
-                                function delete_directory($dir)
-                                {
-                                    if (!file_exists($dir)) return true;
-                                    if (!is_dir($dir)) return unlink($dir);
-                                    foreach (scandir($dir) as $item) {
-                                        if ($item == '.' || $item == '..') continue;
-                                        if (!delete_directory($dir . DIRECTORY_SEPARATOR . $item)) return false;
+                                // Ensure delete_directory function is available
+                                if (!function_exists('delete_directory')) {
+                                    function delete_directory($dir)
+                                    {
+                                        if (!file_exists($dir)) return true;
+                                        if (!is_dir($dir)) return unlink($dir);
+                                        foreach (scandir($dir) as $item) {
+                                            if ($item == '.' || $item == '..') continue;
+                                            if (!delete_directory($dir . DIRECTORY_SEPARATOR . $item)) return false;
+                                        }
+                                        return rmdir($dir);
                                     }
-                                    return rmdir($dir);
                                 }
 
                                 if (!delete_directory($folder_path)) {
-                                    error_log("Could not delete directory: " . $folder_path);
-                                    $_SESSION['warning_message'] = "رکورد حذف شد اما پوشه فایل‌ها حذف نشد.";
+                                    logError("Could not delete directory: " . $folder_path);
+                                    // Set a separate session warning, don't overwrite success message
+                                    $_SESSION['warning_message'] = "رکورد پایگاه داده حذف شد، اما حذف پوشه فایل‌های مرتبط با خطا مواجه شد.";
                                 } else {
-                                    error_log("Deleted directory: " . $folder_path);
+                                    logError("Deleted associated directory: " . $folder_path);
                                 }
                             }
                         } else {
-                            error_log("Missing date or code to delete folder for ID: " . $id);
+                            logError("Missing production_date or sample_code, cannot attempt folder deletion for deleted record ID: " . $id);
                         }
+                        // --- End File Deletion Attempt ---
+
                     } else {
-                        $_SESSION['error_message'] = "یافت نشد.";
+                        // --- Deletion FAILED (or row didn't exist after check - less likely) ---
+                        $error = "خطا در هنگام حذف رکورد از پایگاه داده (ID: {$id}).";
+                        logError("Delete execute failed or rowCount=0 for concrete_test ID: {$id}");
                     }
-                } else {
-                    $_SESSION['error_message'] = "رکورد برای حذف یافت نشد.";
-                }
+                } // end if($details) check
+
             } catch (PDOException $e) {
-                error_log("Delete fail ID $id: " . $e->getMessage());
-                $_SESSION['error_message'] = "خطا در حذف.";
+                // Catch DB errors during the SELECT or DELETE specific to this block
+                logError("Delete DB Exception ID {$id}: " . $e->getMessage());
+                $error = "خطای پایگاه داده هنگام حذف رکورد.";
             }
-        } else {
-            $_SESSION['error_message'] = "شناسه نامعتبر.";
-        }
-        header('Location: ' . $_SERVER['PHP_SELF']);
-        exit();
-        // --- END DELETE ---
-    } elseif (isset($_POST['action']) && $_POST['action'] == 'list_files' && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+        } // end if($id > 0)
+
+        // The success/error message will be set in the session AFTER the main try/catch block based on $message/$error state
+        // The redirect happens once at the end of all POST processing.
+     // End elseif action == 'delete'
+    // --- END DELETE ---
+} elseif (isset($_POST['action']) && $_POST['action'] == 'list_files' && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
         ob_clean(); // Clean potential output buffer
         header('Content-Type: text/html; charset=utf-8'); // Set correct header for HTML response
 
@@ -2026,7 +2014,7 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                             <i class="bi bi-printer me-1"></i> چاپ
                         </a>
                     </div>
-                    
+
                 </div>
             </div>
             <div class="card-body p-0">
@@ -2140,6 +2128,14 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                 </div>
             </div>
         </div>
+        <form id="deleteRecordForm" method="POST" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" style="display: none;">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="id" id="deleteRecordIdInput" value="">
+            <?php // Optional: Add CSRF token if your POST handling requires it 
+            ?>
+            <!-- <input type="hidden" name="csrf_token" value="<?php // echo $_SESSION['csrf_token']; 
+                                                                ?>"> -->
+        </form>
         <div class="modal fade" id="fileManagerModal" tabindex="-1" aria-labelledby="fileManagerModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
@@ -2222,14 +2218,14 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                 const escapedCode = code.replace(/'/g, "\\'").replace(/"/g, '\\"');
                 const message = `آیا از حذف تست '${escapedCode}' با شناسه ${id} اطمینان دارید؟`;
                 if (confirm(message)) {
-                    const deleteForm = document.getElementById('hiddenDeleteForm');
-                    const idInput = document.getElementById('hiddenDeleteRecordId');
+                    const deleteForm = document.getElementById('deleteRecordForm'); // Find the form by its ID
+                    const idInput = document.getElementById('deleteRecordIdInput'); // Find the hidden ID input by its ID
                     if (deleteForm && idInput) {
                         idInput.value = id;
                         deleteForm.submit();
                     } else {
-                        console.error("Hidden delete form elements not found!");
-                        alert("خطا در ارسال درخواست حذف.");
+                        console.error("Hidden delete form elements ('deleteRecordForm' or 'deleteRecordIdInput') not found!");
+                        alert("خطا در ارسال درخواست حذف. لطفا صفحه را رفرش کنید.");
                     }
                 }
             }

@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../../sercon/config_fereshteh.php';
+require_once __DIR__ . '/../../sercon/bootstrap.php';
 header('Content-Type: application/json');
 secureSession();
 
@@ -11,7 +11,7 @@ if (!isLoggedIn() || !isAdmin()) {
 
 $input = json_decode(file_get_contents('php://input'), true);
 $messageId = filter_var($input['message_id'] ?? null, FILTER_VALIDATE_INT);
-$newContent = trim(filter_var($input['new_content'] ?? '', FILTER_SANITIZE_STRING)); // Or other appropriate sanitization
+$newContent = trim(htmlspecialchars($input['new_content'] ?? '', ENT_QUOTES, 'UTF-8')); // Sanitizing input
 
 if (!$messageId || $newContent === '') {
     http_response_code(400);
@@ -20,7 +20,7 @@ if (!$messageId || $newContent === '') {
 }
 
 try {
-    $pdo = connectDB();
+    $pdo = getCommonDBConnection();
     $stmt = $pdo->prepare("UPDATE messages SET message_content = :content, edited_at = NOW() WHERE id = :id");
     if ($stmt->execute([':content' => $newContent, ':id' => $messageId])) {
         echo json_encode(['success' => true, 'message' => 'Message updated.', 'new_content' => $newContent]);

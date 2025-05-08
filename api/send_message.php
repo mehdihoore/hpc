@@ -1,6 +1,6 @@
 <?php
 // api/send_message.php
-require_once __DIR__ . '/../../../sercon/config_fereshteh.php';  // Adjust path as needed
+require_once __DIR__ . '/../../sercon/bootstrap.php'; // Adjust path as needed
 // require_once '../includes/functions.php'; // Likely redundant if config_fereshteh.php includes it. Keep if necessary.
 
 // Start session and apply security settings
@@ -38,7 +38,7 @@ $currentUserId = $_SESSION['user_id'];
 // Get receiver ID
 $receiverId = filter_input(INPUT_POST, 'receiver_id', FILTER_VALIDATE_INT);
 try {
-    $pdo = connectDB(); // Connect to DB here
+    $pdo = getCommonDBConnection(); // Connect to DB here
 } catch (PDOException $e) {
     logError("Database connection error at start of send_message.php: " . $e->getMessage());
     http_response_code(500);
@@ -235,7 +235,7 @@ if (empty($messageContent) && empty($uploadedFileDetails)) {
 }
 
 try {
-    $pdo = connectDB();
+    $pdo = getCommonDBConnection();
 
     // Insert message into database
     $stmt = $pdo->prepare("

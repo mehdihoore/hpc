@@ -1,37 +1,41 @@
 <?php
 //dashboard.php
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+ob_start();
+header('Content-Type: text/html; charset=utf-8');
+require_once __DIR__ . '/../../sercon/bootstrap.php';
 require_once 'includes/jdf.php';
-require_once 'includes/functions.php';
+secureSession();
+$expected_project_key = 'fereshteh'; // HARDCODED FOR THIS FILE
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
 
-
-
-if (session_status() !== PHP_SESSION_ACTIVE) session_start();
-$allroles = ['admin', 'supervisor', 'planner', 'cnc_operator', 'superuser', 'user'];
-$authroles = ['admin', 'supervisor', 'superuser'];
-$readonlyroles = ['planner', 'cnc_operator', 'user'];
-
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || !in_array($_SESSION['role'], $allroles)) {
-    header('Location: login.php');
-    exit('دسترسی غیر مجاز! لطفاً وارد شوید.');
-}
-
-$pdo = connectDB();
-
-// Get user role and permissions
-$stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
-$stmt->execute([$_SESSION['user_id']]);
-$userRole = $stmt->fetchColumn();
-if (!$userRole) {
-    header('Location: login.php'); // Redirect, don't echo in final version
+if (!isLoggedIn()) {
+    header('Location: /login.php');
     exit();
 }
-$userPermissions = get_user_permissions($userRole);
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Concrete test manager accessed with incorrect project context. Session: {$current_project_config_key}, Expected: {$expected_project_key}, User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
 
-// Check if the user has permission
-if (!in_array($userRole, ['admin', 'supervisor', 'planner', 'cnc_operator', 'superuser', 'user'])) {
-    header("HTTP/1.0 403 Forbidden");
-    echo "شما اجازه دسترسی به این صفحه را ندارید.";
+
+$user_id = $_SESSION['user_id'];
+$pdo = null; // Initialize
+try {
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/dashboard.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
+}
+if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+// Get user role and permissions
+$allowed_roles = ['admin', 'supervisor', 'planner', 'cnc_operator', 'superuser', 'user'];
+if (!in_array($_SESSION['role'], $allowed_roles)) {
+    logError("Unauthorized role '{$_SESSION['role']}' attempt on {$expected_project_key}/dashboard.php. User: {$_SESSION['user_id']}");
+    header('Location: dashboard.php?msg=unauthorized'); // Redirect within project
     exit();
 }
 

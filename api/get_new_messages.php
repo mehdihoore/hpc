@@ -9,7 +9,7 @@
 header('Content-Type: application/json');
 
 // Only include the main config file, assuming it loads all dependencies
-require_once __DIR__ . '/../../../sercon/config_fereshteh.php'; // Adjust path if needed
+require_once __DIR__ . '/../../sercon/bootstrap.php';
 
 // secureSession() should start the session AND define/load isLoggedIn() via config_fereshteh.php
 secureSession();
@@ -37,7 +37,7 @@ $withUserId = filter_input(INPUT_GET, 'with', FILTER_VALIDATE_INT);
 $since = $_GET['since'] ?? '1970-01-01 00:00:00';
 // --- ESTABLISH DB CONNECTION ONCE ---
 try {
-    $pdo = connectDB(); // Connect to DB here
+    $pdo = getCommonDBConnection(); // Connect to DB here
 } catch (PDOException $e) {
     logError("Database connection error at start of get_new_messages.php: " . $e->getMessage());
     http_response_code(500);
