@@ -4,9 +4,9 @@ ini_set('display_errors', 0);
 error_reporting(E_ALL);
 ob_start(); // Start output buffering
 
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+require_once __DIR__ . '/../sercon/config.php';
 require_once 'includes/jdf.php'; // For gregorianToShamsi
-require_once('includes/libraries/TCPDF-main/tcpdf.php'); 
+require_once('includes/libraries/TCPDF-main/tcpdf.php');
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 
 // --- Authentication ---
@@ -22,59 +22,33 @@ try {
     logError("DB Connection failed in export_pdf.php: " . $e->getMessage());
     die("Database connection error.");
 }
+function getUserPreferences($user_id, $page, $preference_type = 'columns', $default_value = null)
+{
+    global $pdo;
+    try {
+        if (!isset($pdo) || !$pdo instanceof PDO) {
+            throw new RuntimeException("Database connection is not initialized.");
+        }
+        $stmt = $pdo->prepare("SELECT preferences FROM user_preferences WHERE user_id = ? AND page = ? AND preference_type = ?");
+        $stmt->execute([$user_id, $page, $preference_type]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// --- Mappings & Available Columns (MUST match) ---
-$status_map_persian = [
-    'pending' => 'در انتظار',
-    'polystyrene' => 'قالب فوم', // Corrected
-    'Mesh' => 'مش بندی',          // Corrected
-    'Concreting' => 'قالب‌بندی/بتن ریزی', // Corrected
-    'Assembly' => 'فیس کوت',       // Corrected
-    'completed' => 'تکمیل شده',
-    // 'Formwork' was in your DB enum but not in your list, add if needed:
-    // 'Formwork' => 'قالب بندی',
-];
-$packing_status_map_persian = [
-    'pending' => 'در انتظار',
-    'assigned' => 'تخصیص یافته',
-    'shipped' => 'ارسال شده'
-];
-$polystyrene_map_persian = [
-    0 => 'انجام نشده',
-    1 => 'انجام شده'
-];
-
-// --- Define Available Columns for Display/Selection ---
-$available_columns = [
-    'address' => 'آدرس',
-    'type' => 'نوع',
-    'area' => 'مساحت (m²)',
-    'width' => 'عرض (mm)',   // Updated Unit
-    'length' => 'طول (mm)',  // Updated Unit
-    'formwork_type' => 'نوع قالب', // Added
-    'Proritization' => 'اولویت',
-    'status' => 'وضعیت',
-    'assigned_date' => 'تاریخ تخصیص',
-    'polystyrene' => 'پلی استایرن',
-    'mesh_end_time' => 'پایان مش',
-    'concrete_end_time' => 'پایان بتن',
-    'assembly_end_time' => 'پایان فیس کوت',
-    'packing_status' => 'وضعیت بسته بندی',
-];
-$default_columns = ['address', 'type', 'area', 'width', 'length', 'formwork_type', 'status', 'assigned_date', 'packing_status']; // Sensible defaults
-
-// --- Helper Functions (Copy if needed) ---
-if (!function_exists('toPersianDigits')) {
-    function toPersianDigits($num)
-    {
-        if ($num === null) return '';
-        $persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-        $latinDigits = range(0, 9);
-        // Ensure input is treated as a string for replacement
-        return str_replace($latinDigits, $persianDigits, (string)$num);
+        if ($result && !empty($result['preferences'])) {
+            return $result['preferences'];
+        }
+        return $default_value;
+    } catch (PDOException $e) {
+        error_log("Error getting user preferences: " . $e->getMessage());
+        return $default_value;
     }
 }
-
+if (!function_exists('toLatinDigitsPhp')) {
+    function toLatinDigitsPhp($num)
+    {
+        if ($num === null || !is_scalar($num)) return '';
+        return str_replace(['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', '٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'], range(0, 9), strval($num));
+    }
+}
 if (!function_exists('gregorianToShamsi')) {
     function gregorianToShamsi($date)
     {
@@ -132,16 +106,143 @@ if (!function_exists('gregorianToShamsi')) {
         }
     }
 }
+// --- Mappings & Available Columns (MUST match) ---
+$status_map_persian = [
+    'pending' => 'در انتظار',
+    'polystyrene' => 'قالب فوم', // Corrected
+    'Mesh' => 'مش بندی',          // Corrected
+    'Concreting' => 'قالب‌بندی/بتن ریزی', // Corrected
+    'Assembly' => 'فیس کوت',       // Corrected
+    'completed' => 'تکمیل شده',
+    // 'Formwork' was in your DB enum but not in your list, add if needed:
+    // 'Formwork' => 'قالب بندی',
+];
+$packing_status_map_persian = [
+    'pending' => 'در انتظار',
+    'assigned' => 'تخصیص یافته',
+    'shipped' => 'ارسال شده'
+];
+$polystyrene_map_persian = [
+    0 => 'انجام نشده',
+    1 => 'انجام شده'
+];
 
-// --- Get Selected Columns ---
-// ... (copy logic from export_excel.php) ...
-$selected_columns_str = trim($_GET['cols'] ?? implode(',', $default_columns));
-$selected_columns = !empty($selected_columns_str) ? explode(',', $selected_columns_str) : $default_columns;
-$selected_columns = array_intersect($selected_columns, array_keys($available_columns));
-if (empty($selected_columns)) $selected_columns = $default_columns;
+// --- Define Available Columns for Display/Selection ---
+$available_columns = [
+    'row_num' => 'شماره ردیف',
+    'address' => 'آدرس',
+    'type' => 'نوع',
+    'area' => 'مساحت (m²)',
+    'width' => 'عرض (mm)',
+    'length' => 'طول (mm)',
+    'formwork_type' => 'نوع قالب',
+    'Proritization' => 'اولویت',
+    'latest_activity' => 'آخرین فعالیت',
+    'assigned_date' => 'تاریخ تولید',
+    'polystyrene' => 'پلی استایرن',
+    'mesh_end_time' => 'پایان مش',
+    'concrete_end_time' => 'پایان بتن',
+    'assembly_end_time' => 'پایان فیس کوت',
+    'inventory_status' => 'موجودی/ارسال شده',
+    'packing_status' => 'وضعیت بسته بندی',
+    'shipping_date' => 'تاریخ ارسال',
+];
 
-// --- Rebuild Filters (Copy the EXACT logic from hpc_panels_manager.php) ---
-// ... (copy logic from export_excel.php) ...
+// --- Handle Column Selection (from $_GET['cols']) ---
+$default_columns = [
+    'row_num',
+    'address',
+    'type',
+    'area',
+    'latest_activity',
+    'assigned_date',
+    'concrete_end_time',
+    'inventory_status',
+    'packing_status',
+    'shipping_date'
+]; // Example print defaults
+$pdf_default_columns = [ // Renamed for clarity
+    'row_num',
+    'address',
+    'type',
+    'area',
+    'latest_activity',
+    'assigned_date',
+    'concrete_end_time',
+    'inventory_status',
+    'packing_status',
+    'shipping_date'
+];
+
+$latest_activity_map_persian = [
+    'assembly_done' => 'فیس کوت انجام شد',
+    'concrete_done' => 'بتن ریزی انجام شد',
+    'mesh_done' => 'مش بندی انجام شد',
+    'pending' => 'شروع نشده / در انتظار',
+];
+
+// Add the list of columns needing Persian date formatting
+$persian_date_columns = ['assigned_date', 'mesh_end_time', 'concrete_end_time', 'assembly_end_time', 'shipping_date']; // Added shipping_date
+// --- Determine Selected Columns (Priority: DB -> URL -> Print Default) ---
+$selected_columns = []; // Initialize
+$current_user_id = $_SESSION['user_id'] ?? null; // Ensure current_user_id is set
+
+// 1. Try to load from User Preferences for the *manager* page
+// Make sure $current_user_id is valid before calling
+if ($current_user_id) {
+    $user_columns_pref_string = getUserPreferences($current_user_id, 'hpc_panels_manager', 'columns', null);
+
+    if (!empty($user_columns_pref_string)) {
+        $selected_columns = explode(',', $user_columns_pref_string);
+        if (count($selected_columns) === 1 && $selected_columns[0] === '') {
+            $selected_columns = [];
+        } else {
+            error_log("[export_pdf] Using columns from DB preferences for user {$current_user_id}.");
+        }
+    }
+} else {
+    error_log("[export_pdf] Cannot load user preferences: user_id not found in session.");
+}
+
+
+// 2. Fallback to URL parameter if DB prefs weren't found or were empty
+if (empty($selected_columns)) {
+    $selected_columns_str_url = trim($_GET['cols'] ?? '');
+    if (!empty($selected_columns_str_url)) {
+        $selected_columns = explode(',', $selected_columns_str_url);
+        error_log("[export_pdf] Using columns from URL parameter ('cols').");
+    }
+}
+
+// 3. Fallback to PDF Defaults if DB and URL provided no columns
+if (empty($selected_columns)) {
+    $selected_columns = $pdf_default_columns; // Use PDF defaults
+    error_log("[export_pdf] Using PDF default columns.");
+}
+
+// --- Final Validation ---
+// (Keep the validation logic exactly as in the print script)
+$validated_columns = [];
+foreach ($selected_columns as $col_key) {
+    if (isset($available_columns[trim($col_key)])) {
+        $validated_columns[] = trim($col_key);
+    } else {
+        error_log("[export_pdf] Warning: Column '{$col_key}' from preferences/URL is not in available_columns, skipping.");
+    }
+}
+$selected_columns = $validated_columns;
+
+// Final fallback check
+if (empty($selected_columns)) {
+    error_log("[export_pdf] Columns empty after validation, falling back to *validated* PDF defaults.");
+    $selected_columns = array_intersect($pdf_default_columns, array_keys($available_columns));
+    if (empty($selected_columns)) {
+        error_log("[export_pdf] CRITICAL: PDF default columns are also invalid or empty after validation.");
+        $selected_columns = ['address']; // Absolute fallback
+    }
+}
+// $selected_columns is now ready
+// --- Process Filters (from $_GET) ---
 $search_params = [];
 $sql_conditions = [];
 
@@ -172,7 +273,7 @@ foreach ($range_filters as $filter_key) {
 }
 
 // Exact Match / Enum Filters
-$exact_match_filters = ['type', 'Proritization', 'status', 'packing_status', 'polystyrene']; // Add type and Proritization
+$exact_match_filters = ['type', 'Proritization', 'packing_status', 'polystyrene']; // Add type and Proritization
 foreach ($exact_match_filters as $filter_key) {
     // Check if filter is set and not an empty string
     if (isset($_GET["filter_$filter_key"]) && $_GET["filter_$filter_key"] !== '') {
@@ -188,9 +289,43 @@ foreach ($exact_match_filters as $filter_key) {
     }
 }
 
+if (isset($_GET["filter_inventory_status"]) && $_GET["filter_inventory_status"] !== '') {
+    $inv_status_filter = $_GET["filter_inventory_status"];
+    if ($inv_status_filter === 'موجود') {
+        // Condition for 'موجود': Concrete is done AND Packing is NOT shipped
+        $sql_conditions[] = "(concrete_end_time IS NOT NULL AND concrete_end_time != '0000-00-00 00:00:00' AND packing_status != 'shipped')";
+        // Note: This assumes 'shipped' is the only status indicating not available. Adjust if null/pending/assigned also mean not shipped.
+        // A potentially safer condition if other packing statuses exist and mean "not shipped":
+        // $sql_conditions[] = "(concrete_end_time IS NOT NULL AND concrete_end_time != '0000-00-00 00:00:00' AND (packing_status IS NULL OR packing_status != 'shipped'))";
+    } elseif ($inv_status_filter === 'ارسال شده') {
+        // Condition for 'ارسال شده': Packing status is 'shipped'
+        $sql_conditions[] = "(packing_status = 'shipped')";
+        // No parameters needed here as values are hardcoded in SQL string
+    }
+    // Add hidden input value to keep filter selection
+    // No need to add to $search_params unless using placeholders, which isn't necessary here.
+}
 
+// Handle NEW "Latest Activity" Filter
+if (isset($_GET["filter_latest_activity"]) && $_GET["filter_latest_activity"] !== '') {
+    $activity_filter = $_GET["filter_latest_activity"];
+    // Define NULL/Empty date check condition string for readability
+    $null_date_check = "IS NULL OR %s = '0000-00-00 00:00:00'";
+    $not_null_date_check = "IS NOT NULL AND %s != '0000-00-00 00:00:00'";
+
+    if ($activity_filter === 'assembly_done') { // 'فیس کوت انجام شد'
+        $sql_conditions[] = sprintf("assembly_end_time $not_null_date_check", "assembly_end_time");
+    } elseif ($activity_filter === 'concrete_done') { // 'بتن ریزی انجام شد'
+        $sql_conditions[] = sprintf("concrete_end_time $not_null_date_check", "concrete_end_time") . " AND (" . sprintf("assembly_end_time $null_date_check", "assembly_end_time") . ")";
+    } elseif ($activity_filter === 'mesh_done') { // 'مش بندی انجام شد'
+        $sql_conditions[] = sprintf("mesh_end_time $not_null_date_check", "mesh_end_time") . " AND (" . sprintf("concrete_end_time $null_date_check", "concrete_end_time") . ")";
+    } elseif ($activity_filter === 'pending') { // 'شروع نشده / در انتظار'
+        $sql_conditions[] = "(" . sprintf("mesh_end_time $null_date_check", "mesh_end_time") . ")"; // Assumes mesh is the first step
+    }
+    // No parameters needed here as values are hardcoded in SQL string
+}
 // Date Range Filters
-$date_filters = ['assigned_date', 'mesh_end_time', 'concrete_end_time', 'assembly_end_time'];
+$date_filters = ['assigned_date', 'mesh_end_time', 'concrete_end_time', 'assembly_end_time', 'shipping_date'];
 foreach ($date_filters as $filter_key) {
     $date_from_j = $_GET["filter_{$filter_key}_from"] ?? '';
     $date_to_j = $_GET["filter_{$filter_key}_to"] ?? '';
@@ -234,19 +369,85 @@ if (!empty($sql_conditions)) {
     $where_clause = " WHERE " . implode(" AND ", $sql_conditions);
 }
 
-// --- Fetch Data ---
-// ... (copy logic from export_excel.php) ...
+// --- Fetch Main Data ---
 $records = [];
+$total_filtered_count = 0; // Initialize total count
 try {
-    $possible_export_cols = implode(',', array_keys($available_columns));
-    $sql_export = "SELECT id, " . $possible_export_cols . " FROM hpc_panels" . $where_clause . " ORDER BY Proritization DESC, assigned_date DESC, id DESC";
-    $stmt_export = $pdo->prepare($sql_export);
-    $stmt_export->execute($search_params);
-    $records = $stmt_export->fetchAll(PDO::FETCH_ASSOC);
+    // Select all columns initially, filtering/display is handled later
+    // Fetch only necessary columns for performance if $records gets very large
+    $sql_main = "SELECT id, address, type, area, width, length, formwork_type, Proritization, assigned_date, polystyrene, mesh_end_time, concrete_end_time, assembly_end_time, packing_status, shipping_date FROM hpc_panels" . $where_clause . " ORDER BY Proritization DESC, assigned_date DESC, id DESC"; // Example order
+    $stmt_main = $pdo->prepare($sql_main);
+    $stmt_main->execute($search_params);
+    $records = $stmt_main->fetchAll(PDO::FETCH_ASSOC);
+    $total_filtered_count = count($records); // Get total count from fetched records
 } catch (PDOException $e) {
-    logError("Error fetching data for PDF export: " . $e->getMessage());
-    die("Error fetching data.");
+    error_log("Error fetching HPC panels: " . $e->getMessage());
+    $_SESSION['error_message'] = "خطا در بارگذاری داده‌های پنل‌ها.";
+    // $records will remain empty, $total_filtered_count will be 0
 }
+
+
+// --- Calculate Counts in PHP from Filtered Data ---
+$packing_status_counts_php = array_fill_keys(array_keys($packing_status_map_persian), 0);
+$inventory_status_counts_php = ['موجود' => 0, 'ارسال شده' => 0]; // Overall Inventory
+$latest_activity_counts_php = array_fill_keys(array_keys($latest_activity_map_persian), 0); // Counts for *latest* step completed
+$overall_mesh_done_count = 0;      // Total ever completed Mesh
+$overall_concrete_done_count = 0;   // Total ever completed Concrete
+$overall_assembly_done_count = 0;  // Total ever completed Assembly
+
+if (!empty($records)) { // Only calculate if there are records
+    foreach ($records as $record) {
+        // --- Check Date Validity ---
+        $mesh_done_valid = !empty($record['mesh_end_time']) && $record['mesh_end_time'] != '0000-00-00 00:00:00';
+        $concrete_done_valid = !empty($record['concrete_end_time']) && $record['concrete_end_time'] != '0000-00-00 00:00:00';
+        $assembly_done_valid = !empty($record['assembly_end_time']) && $record['assembly_end_time'] != '0000-00-00 00:00:00';
+        $packing_status = $record['packing_status'] ?? 'pending'; // Default to 'pending' if null
+
+        // --- 1. Latest Activity Count ---
+        // (Counts where this is the *last* completed major step)
+        if ($assembly_done_valid) {
+            $latest_activity_counts_php['assembly_done']++;
+        } elseif ($concrete_done_valid) {
+            $latest_activity_counts_php['concrete_done']++;
+        } elseif ($mesh_done_valid) {
+            $latest_activity_counts_php['mesh_done']++;
+        } else {
+            $latest_activity_counts_php['pending']++; // Not started Mesh yet
+        }
+
+        // --- 2. Overall Completion Counts ---
+        // (Counts if the step was *ever* completed, regardless of later steps)
+        if ($mesh_done_valid) {
+            $overall_mesh_done_count++;
+        }
+        if ($concrete_done_valid) {
+            $overall_concrete_done_count++;
+        }
+        if ($assembly_done_valid) {
+            $overall_assembly_done_count++;
+        }
+
+        // --- 3. Packing Status Count (Overall) ---
+        if (isset($packing_status_counts_php[$packing_status])) {
+            $packing_status_counts_php[$packing_status]++;
+        }
+
+        // --- 4. Inventory Status Count (Overall) ---
+        if ($packing_status === 'shipped') {
+            $inventory_status_counts_php['ارسال شده']++;
+        } elseif ($concrete_done_valid && $packing_status !== 'shipped') {
+            // Note: Inventory 'موجود' requires concrete to be done.
+            $inventory_status_counts_php['موجود']++;
+        }
+    }
+
+    // Optional: Remove status keys with zero counts if desired for display
+    // $packing_status_counts_php = array_filter($packing_status_counts_php);
+    // $inventory_status_counts_php = array_filter($inventory_status_counts_php);
+    // $latest_activity_counts_php = array_filter($latest_activity_counts_php);
+    // Keep overall counts even if zero, perhaps more informative here.
+}
+
 
 
 // --- Create PDF ---
@@ -292,9 +493,9 @@ $pdf = new MYPDF('L', PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
 
 // set document information
 $pdf->SetCreator(PDF_CREATOR);
-$pdf->SetAuthor('Your Application Name');
-$pdf->SetTitle('HPC Panels Report');
-$pdf->SetSubject('Filtered HPC Panels Data');
+$pdf->SetAuthor('برنامه کارخانه بتن');
+$pdf->SetTitle('گزارش پنل های HPC');
+$pdf->SetSubject('اطلاعات پنل های فیلتر شده');
 
 // set default header/footer data
 $pdf->SetHeaderData('', 0, '', '', array(0, 0, 0), array(255, 255, 255));
@@ -333,6 +534,7 @@ $html = '<table border="1" cellpadding="4" cellspacing="0" style="border-collaps
 $html .= '<thead style="background-color:#f2f2f2; font-weight:bold;"><tr>';
 foreach ($selected_columns as $col_key) {
     $header_text = $available_columns[$col_key] ?? $col_key;
+    // Use htmlspecialchars on header text
     $html .= '<th style="text-align:center;">' . htmlspecialchars($header_text) . '</th>';
 }
 $html .= '</tr></thead>';
@@ -342,37 +544,67 @@ $html .= '<tbody>';
 if (empty($records)) {
     $html .= '<tr><td colspan="' . count($selected_columns) . '" style="text-align:center;">رکوردی یافت نشد.</td></tr>';
 } else {
+    $row_number = 1; // Initialize row number
     foreach ($records as $record) {
         $html .= '<tr>';
         foreach ($selected_columns as $col_key) {
             $value = $record[$col_key] ?? null;
-            $formatted_value = '-'; // Default for null
+            $formatted_value = '-'; // Default for null or special calculated columns initially
 
-            if ($value !== null) {
+            // --- Handle Special Calculated Columns First ---
+            if ($col_key === 'row_num') {
+                $formatted_value = $row_number;
+            } elseif ($col_key === 'inventory_status') {
+                $concrete_end = !empty($record['concrete_end_time']) && $record['concrete_end_time'] != '0000-00-00 00:00:00';
+                $packing_status = $record['packing_status'] ?? null;
+                if ($packing_status === 'shipped') {
+                    $formatted_value = 'ارسال شده';
+                } elseif ($concrete_end && $packing_status !== 'shipped') {
+                    $formatted_value = 'موجود';
+                } // else remains '-'
+            } elseif ($col_key === 'latest_activity') {
+                $assembly_done = !empty($record['assembly_end_time']) && $record['assembly_end_time'] != '0000-00-00 00:00:00';
+                $concrete_done = !empty($record['concrete_end_time']) && $record['concrete_end_time'] != '0000-00-00 00:00:00';
+                $mesh_done = !empty($record['mesh_end_time']) && $record['mesh_end_time'] != '0000-00-00 00:00:00';
+
+                if ($assembly_done) {
+                    $formatted_value = $latest_activity_map_persian['assembly_done'];
+                } elseif ($concrete_done) {
+                    $formatted_value = $latest_activity_map_persian['concrete_done'];
+                } elseif ($mesh_done) {
+                    $formatted_value = $latest_activity_map_persian['mesh_done'];
+                } else {
+                    $formatted_value = $latest_activity_map_persian['pending'];
+                }
+            }
+            // --- Handle Standard DB Columns ---
+            elseif ($value !== null) {
                 $formatted_value = $value; // Start with raw value
-                // Apply formatting similar to the main page
-                if (in_array($col_key, ['assigned_date', 'mesh_end_time', 'concrete_end_time', 'assembly_end_time'])) {
+                // Use the $persian_date_columns array
+                if (in_array($col_key, $persian_date_columns)) {
                     $date_part = explode(' ', $value)[0];
+                    // Use function_exists for safety
                     $formatted_value = function_exists('gregorianToShamsi') ? gregorianToShamsi($date_part) : $date_part;
                     if (empty($formatted_value)) $formatted_value = '-';
                 } elseif ($col_key === 'polystyrene') {
                     $formatted_value = $polystyrene_map_persian[$value] ?? $value;
-                } elseif ($col_key === 'status') {
-                    $formatted_value = $status_map_persian[$value] ?? $value;
-                } elseif ($col_key === 'packing_status') {
+                }
+                // Removed old 'status' check
+                elseif ($col_key === 'packing_status') {
                     $formatted_value = $packing_status_map_persian[$value] ?? $value;
                 } elseif (is_numeric($value) && $col_key === 'area') {
                     $formatted_value = number_format((float)$value, 3);
                 } elseif (is_numeric($value) && ($col_key === 'width' || $col_key === 'length')) {
                     $formatted_value = number_format((float)$value, 0);
                 }
-                // Always escape for HTML
-                $formatted_value = htmlspecialchars((string)$formatted_value);
+                // Default case handled by starting with $value
             }
 
-            $html .= '<td style="text-align:center;">' . $formatted_value . '</td>';
+            // Always escape the final value for HTML safety before adding to cell
+            $html .= '<td style="text-align:center;">' . htmlspecialchars((string)$formatted_value) . '</td>';
         }
         $html .= '</tr>';
+        $row_number++; // Increment row number
     }
 }
 $html .= '</tbody></table>';
@@ -392,4 +624,3 @@ ob_end_clean();
 $pdf->Output($filename, 'D');
 
 exit;
-?>

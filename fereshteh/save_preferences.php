@@ -1,13 +1,43 @@
 <?php
 // save_preferences.php
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
-if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+ob_start();
+header('Content-Type: text/html; charset=utf-8');
+require_once __DIR__ . '/../../sercon/bootstrap.php';
+require_once 'includes/jdf.php';
+secureSession();
+$expected_project_key = 'fereshteh'; // HARDCODED FOR THIS FILE
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
 
-// Check authentication
-if (!isset($_SESSION['user_id'])) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Not authenticated']);
-    exit;
+if (!isLoggedIn()) {
+    header('Location: /login.php');
+    exit();
+}
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Concrete test manager accessed with incorrect project context. Session: {$current_project_config_key}, Expected: {$expected_project_key}, User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+// --- Authentication ---
+$allroles = ['admin', 'supervisor', 'planner', 'cnc_operator', 'superuser', 'user']; // Adjust as needed
+// Define roles that can VIEW this page
+$viewRoles = ['admin', 'supervisor', 'planner', 'user', 'superuser']; // Example: Allow users to view
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || !in_array($_SESSION['role'], $viewRoles)) {
+    // Redirect to login or an access denied page
+    header('Location: login.php');
+    exit('Access Denied.');
+}
+$current_user_id = $_SESSION['user_id'];
+// --- End Authorization ---
+$user_id = $_SESSION['user_id'];
+$pdo = null; // Initialize
+try {
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/hpc_panels_manager.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
 }
 
 // Validate input
@@ -22,17 +52,7 @@ if (
     exit;
 }
 
-// Connect to database
-try {
-    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_EMULATE_PREPARES => false
-    ]);
-} catch (PDOException $e) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Database error']);
-    exit;
-}
+
 
 $user_id = $_SESSION['user_id'];
 $page = $_POST['page'];

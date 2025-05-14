@@ -94,10 +94,14 @@ try {
     logError("Configuration or Connection error in {$expected_project_key}/admin_panel_search.php: " . $e->getMessage());
     die("خطای پیکربندی یا اتصال پایگاه داده پروژه رخ داد.");
 }
-
+if ($_SESSION['current_project_config_key'] == 'fereshteh') {
+    $pageTitle = "جستجو و فیلتر پنل ها - فرشته";
+} else {
+    $pageTitle = "جستجو و فیلتر پنل ها - آراد";
+}
 // --- HTML Starts Here ---
 // Update title to include project name from session
-$pageTitle = "جستجو و فیلتر پنل ها - " . escapeHtml($_SESSION['current_project_name'] ?? 'پروژه');
+//$pageTitle = "جستجو و فیلتر پنل ها - " . escapeHtml($_SESSION['current_project_name'] ?? 'پروژه');
 
 // Include the project-specific header file. Assumes header.php is in the same folder (Fereshteh/ or Arad/)
 require_once __DIR__ . '/header.php';

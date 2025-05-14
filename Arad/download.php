@@ -3,7 +3,7 @@
 
 // --- Configuration and Functions ---
 // Adjust paths VERY carefully based on download.php's actual location relative to sercon/ and includes/
-$config_path = __DIR__ . '/../../sercon/config_fereshteh.php'; // If sercon is one level above where download.php is
+require_once __DIR__ . '/../../sercon/bootstrap.php'; 
 $functions_path = __DIR__ . '/includes/functions.php'; // If includes is in the same dir as download.php
 
 // Check and include config

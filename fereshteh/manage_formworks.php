@@ -9,7 +9,6 @@ $current_file_path = __DIR__;
 $expected_project_key = null;
 if (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Fereshteh') !== false) {
     $expected_project_key = 'fereshteh';
-
 } elseif (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Arad') !== false) {
     $expected_project_key = 'arad';
 } else {
@@ -44,8 +43,8 @@ if ($_SESSION['current_project_config_key'] !== $expected_project_key) {
 // --- End Authorization ---
 // --- Handle POST Request for Changing Available Count ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_available_count') {
-     // ****** ADD ROLE CHECK ******
-     if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    // ****** ADD ROLE CHECK ******
+    if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
         // Not an admin or role not set in session
         error_log("Permission Denied: User ID " . ($_SESSION['user_id'] ?? 'N/A') . " (Role: " . ($_SESSION['role'] ?? 'N/A') . ") attempted to change formwork count.");
         header("Location: manage_formworks.php?error=5"); // Use a new error code for permission denied
@@ -73,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $stmt_update = $pdo->prepare("UPDATE available_formworks SET available_count = :new_count WHERE formwork_type = :type");
                     $stmt_update->execute([':new_count' => $newAvailableCount, ':type' => $typeToChange]);
                     $pdo->commit();
-                    
+
                     // Pass the changed formwork type as highlighted parameter
                     header("Location: manage_formworks.php?updated=1&highlighted_type=" . urlencode($typeToChange) . "&action=" . ($change > 0 ? "increment" : "decrement"));
                     exit();
@@ -127,11 +126,10 @@ try {
             $availableTypeCount++;
         }
         if ($fw['available_count'] == 0) {
-             $fullyUnavailableTypeCount++;
+            $fullyUnavailableTypeCount++;
         }
     }
     $totalUnavailableInstances = $totalInstances - $totalAvailableInstances;
-
 } catch (PDOException $e) {
     error_log("Error fetching formwork availability: " . $e->getMessage());
     die("Database error loading formwork list.");
@@ -140,8 +138,16 @@ try {
 // Get highlighted item if present
 $highlightedType = isset($_GET['highlighted_type']) ? $_GET['highlighted_type'] : null;
 $highlightAction = isset($_GET['action']) ? $_GET['action'] : null;
-
-$pageTitle = 'مدیریت موجودی قالب‌ها - ' . escapeHtml($_SESSION['current_project_name'] ?? 'پروژه');;
+if ($_SESSION['current_project_name'] == 'Fereshteh') {
+    $project_name = 'پروژه فرشته';
+} elseif ($_SESSION['current_project_name'] == 'Arad') {
+    $project_name = ' پروژه آراد';
+} else {
+    $project_name = $_SESSION['current_project_name'];
+}
+// --- End Authorization ---
+// Set the page title *before* including the header.
+$pageTitle = 'مدیریت موجودی قالب‌ها - ' . $project_name;
 require_once 'header.php'; // Include your standard header
 
 // Add JS for highlighting animation
@@ -156,7 +162,6 @@ echo '<script>
 ?>
 
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold mb-6 text-gray-800"><?php echo $pageTitle; ?></h1>
 
     <?php if (isset($_GET['updated'])): ?>
         <div class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded flex items-center">
@@ -177,7 +182,7 @@ echo '<script>
             </div>
         </div>
     <?php endif; ?>
-    
+
     <?php if (isset($_GET['error'])): ?>
         <?php
         $errMsg = "خطا در به‌روزرسانی موجودی.";
@@ -196,12 +201,12 @@ echo '<script>
 
     <!-- Summary Stats -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-         <div class="bg-gray-100 p-4 rounded-lg shadow text-center">
+        <div class="bg-gray-100 p-4 rounded-lg shadow text-center">
             <div class="text-3xl font-bold text-gray-800"><?php echo $totalTypes; ?></div>
             <div class="text-sm text-gray-600">کل انواع قالب</div>
         </div>
         <div class="bg-blue-100 p-4 rounded-lg shadow text-center">
-             <div class="text-3xl font-bold text-blue-800"><?php echo $totalInstances; ?></div>
+            <div class="text-3xl font-bold text-blue-800"><?php echo $totalInstances; ?></div>
             <div class="text-sm text-blue-600">کل تعداد قالب‌ها (همه انواع)</div>
         </div>
         <div class="bg-green-100 p-4 rounded-lg shadow text-center">
@@ -213,7 +218,7 @@ echo '<script>
             <div class="text-sm text-red-600">تعداد قالب‌های خارج از دسترس</div>
         </div>
     </div>
-     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div class="bg-yellow-100 p-4 rounded-lg shadow text-center">
             <div class="text-xl font-bold text-yellow-800"><?php echo $availableTypeCount; ?></div>
             <div class="text-sm text-yellow-600">تعداد انواع قالب که حداقل یکی در دسترس دارند</div>
@@ -252,12 +257,13 @@ echo '<script>
             <table class="min-w-full divide-y divide-gray-200" id="formwork-table">
                 <thead class="bg-gray-50">
                     <tr>
-                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نوع قالب</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نوع قالب</th>
                         <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">وضعیت</th>
                         <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">موجودی (در دسترس / کل)</th>
                         <!-- Modify Header if only Admin can see actions -->
                         <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <?php echo (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') ? 'عملیات' : 'جزئیات'; // Change header text ?>
+                            <?php echo (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') ? 'عملیات' : 'جزئیات'; // Change header text 
+                            ?>
                         </th>
                     </tr>
                 </thead>
@@ -268,23 +274,23 @@ echo '<script>
                         </tr>
                     <?php else: ?>
                         <?php
-                         // Check admin role once before the loop for efficiency
-                         $isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+                        // Check admin role once before the loop for efficiency
+                        $isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
                         ?>
                         <?php foreach ($formworks as $fw):
                             $canMakeUnavailable = $fw['available_count'] > 0;
                             $canMakeAvailable = $fw['available_count'] < $fw['total_count'];
                             $availabilityRatio = $fw['total_count'] > 0 ? ($fw['available_count'] / $fw['total_count']) * 100 : 0;
-                             // --- Calculate combined disable states ---
-                             $disableDecrement = !$canMakeUnavailable || !$isAdmin;
-                             $disableIncrement = !$canMakeAvailable || !$isAdmin;
-                             $permissionTitle = !$isAdmin ? 'فقط مدیر می‌تواند ویرایش کند' : ''; // Tooltip for non-admins
-                            
+                            // --- Calculate combined disable states ---
+                            $disableDecrement = !$canMakeUnavailable || !$isAdmin;
+                            $disableIncrement = !$canMakeAvailable || !$isAdmin;
+                            $permissionTitle = !$isAdmin ? 'فقط مدیر می‌تواند ویرایش کند' : ''; // Tooltip for non-admins
+
                             // Determine availability class
                             $rowClass = '';
                             $availabilityClass = '';
                             $availabilityText = '';
-                            
+
                             if ($fw['available_count'] == 0) {
                                 $rowClass = 'formwork-unavailable bg-red-50';
                                 $availabilityClass = 'bg-red-100 text-red-800';
@@ -298,14 +304,14 @@ echo '<script>
                                 $availabilityClass = 'bg-yellow-100 text-yellow-800';
                                 $availabilityText = 'موجودی جزئی';
                             }
-                            
+
                             // Check if this row should be highlighted
                             $isHighlighted = ($highlightedType === $fw['formwork_type']);
                             if ($isHighlighted) {
                                 $rowClass .= ' transition-all duration-1000';
                             }
                         ?>
-                            <tr id="<?php echo $isHighlighted ? 'highlighted-row' : ''; ?>" 
+                            <tr id="<?php echo $isHighlighted ? 'highlighted-row' : ''; ?>"
                                 class="<?php echo $rowClass; ?> <?php echo $isHighlighted ? 'ring-2 ring-offset-2 ring-blue-500' : ''; ?>"
                                 data-formwork-type="<?php echo htmlspecialchars($fw['formwork_type']); ?>">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -321,12 +327,12 @@ echo '<script>
                                     <div class="flex items-center">
                                         <div class="w-full bg-gray-200 rounded-full h-2.5 mr-2">
                                             <div class="h-2.5 rounded-full 
-                                                <?php 
-                                                    if ($availabilityRatio == 0) echo 'bg-red-500';
-                                                    elseif ($availabilityRatio < 50) echo 'bg-orange-500';
-                                                    elseif ($availabilityRatio < 100) echo 'bg-yellow-500';
-                                                    else echo 'bg-green-500';
-                                                ?>" 
+                                                <?php
+                                                if ($availabilityRatio == 0) echo 'bg-red-500';
+                                                elseif ($availabilityRatio < 50) echo 'bg-orange-500';
+                                                elseif ($availabilityRatio < 100) echo 'bg-yellow-500';
+                                                else echo 'bg-green-500';
+                                                ?>"
                                                 style="width: <?php echo $availabilityRatio; ?>%">
                                             </div>
                                         </div>
@@ -338,41 +344,43 @@ echo '<script>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2 space-x-reverse">
-                                <?php if ($isAdmin): // Only show buttons for admin ?>
+                                    <?php if ($isAdmin): // Only show buttons for admin 
+                                    ?>
                                         <!-- Make One Unavailable Button -->
                                         <form method="POST" action="manage_formworks.php" class="inline-block">
-                                        <input type="hidden" name="action" value="change_available_count">
-                                        <input type="hidden" name="formwork_type" value="<?php echo htmlspecialchars($fw['formwork_type']); ?>">
-                                        <input type="hidden" name="change" value="-1">
-                                        <button type="submit"
+                                            <input type="hidden" name="action" value="change_available_count">
+                                            <input type="hidden" name="formwork_type" value="<?php echo htmlspecialchars($fw['formwork_type']); ?>">
+                                            <input type="hidden" name="change" value="-1">
+                                            <button type="submit"
                                                 class="text-red-600 hover:text-red-900 transition duration-150 ease-in-out px-3 py-1 bg-red-100 hover:bg-red-200 border border-red-300 rounded shadow-sm text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                                                 <?php echo $disableDecrement ? 'disabled' : ''; ?>
                                                 title="<?php echo $permissionTitle; ?>">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
-                                            </svg>
-                                            خارج از دسترس
-                                        </button>
-                                    </form>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                                                </svg>
+                                                خارج از دسترس
+                                            </button>
+                                        </form>
 
-                                    <!-- Make One Available Button -->
-                                    <form method="POST" action="manage_formworks.php" class="inline-block">
-                                        <input type="hidden" name="action" value="change_available_count">
-                                        <input type="hidden" name="formwork_type" value="<?php echo htmlspecialchars($fw['formwork_type']); ?>">
-                                        <input type="hidden" name="change" value="1">
-                                        <button type="submit"
+                                        <!-- Make One Available Button -->
+                                        <form method="POST" action="manage_formworks.php" class="inline-block">
+                                            <input type="hidden" name="action" value="change_available_count">
+                                            <input type="hidden" name="formwork_type" value="<?php echo htmlspecialchars($fw['formwork_type']); ?>">
+                                            <input type="hidden" name="change" value="1">
+                                            <button type="submit"
                                                 class="text-green-600 hover:text-green-900 transition duration-150 ease-in-out px-3 py-1 bg-green-100 hover:bg-green-200 border border-green-300 rounded shadow-sm text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                                                 <?php echo $disableIncrement ? 'disabled' : ''; ?>
-                                                    title="<?php echo $permissionTitle; ?>">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                            </svg>
-                                            در دسترس
-                                        </button>
-                                    </form>
-                                    <?php else: // Optional: Show something else for non-admins ?>
-                                         <span class="text-xs text-gray-500 italic">فقط مشاهده</span>
-                                     <?php endif; ?>
+                                                title="<?php echo $permissionTitle; ?>">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                                </svg>
+                                                در دسترس
+                                            </button>
+                                        </form>
+                                    <?php else: // Optional: Show something else for non-admins 
+                                    ?>
+                                        <span class="text-xs text-gray-500 italic">فقط مشاهده</span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -385,112 +393,113 @@ echo '<script>
 
 <!-- JavaScript for interactivity -->
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    // Filter functionality
-    const showAll = document.getElementById('show-all');
-    const showOnlyAvailable = document.getElementById('show-only-available');
-    const showOnlyUnavailable = document.getElementById('show-only-unavailable');
-    const showPartiallyAvailable = document.getElementById('show-partially-available');
-    const searchInput = document.getElementById('formwork-search');
-    
-    // Highlight active filter
-    function setActiveFilter(activeButton) {
-        [showAll, showOnlyAvailable, showOnlyUnavailable, showPartiallyAvailable].forEach(btn => {
-            if (btn === activeButton) {
-                btn.classList.add('ring-2', 'ring-offset-2');
-                if (btn === showAll) btn.classList.add('ring-gray-500');
-                if (btn === showOnlyAvailable) btn.classList.add('ring-green-500');
-                if (btn === showOnlyUnavailable) btn.classList.add('ring-red-500');
-                if (btn === showPartiallyAvailable) btn.classList.add('ring-yellow-500');
-            } else {
-                btn.classList.remove('ring-2', 'ring-offset-2', 'ring-gray-500', 'ring-green-500', 'ring-red-500', 'ring-yellow-500');
-            }
-        });
-    }
-    
-    // Filter and search function
-    function applyFilters() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const rows = document.querySelectorAll('#formwork-table tbody tr');
-        
-        rows.forEach(row => {
-            const formworkType = row.querySelector('td:first-child').textContent.toLowerCase();
-            const isFullyAvailable = row.classList.contains('formwork-fully-available');
-            const isUnavailable = row.classList.contains('formwork-unavailable');
-            const isPartiallyAvailable = row.classList.contains('formwork-partially-available');
-            
-            let shouldShow = true;
-            
-            // Apply active filter
-            if (showOnlyAvailable.classList.contains('ring-2') && !isFullyAvailable && !isPartiallyAvailable) {
-                shouldShow = false;
-            } else if (showOnlyUnavailable.classList.contains('ring-2') && !isUnavailable) {
-                shouldShow = false;
-            } else if (showPartiallyAvailable.classList.contains('ring-2') && !isPartiallyAvailable) {
-                shouldShow = false;
-            }
-            
-            // Apply search filter
-            if (searchTerm && !formworkType.includes(searchTerm)) {
-                shouldShow = false;
-            }
-            
-            row.style.display = shouldShow ? '' : 'none';
-        });
-        
-        // Show "no results" message if needed
-        const visibleRows = document.querySelectorAll('#formwork-table tbody tr:not([style*="display: none"])');
-        const noResultsRow = document.querySelector('#no-results-row');
-        
-        if (visibleRows.length === 0) {
-            if (!noResultsRow) {
-                const tbody = document.querySelector('#formwork-table tbody');
-                const tr = document.createElement('tr');
-                tr.id = 'no-results-row';
-                tr.innerHTML = '<td colspan="4" class="px-6 py-4 text-center text-gray-500">هیچ نتیجه‌ای یافت نشد</td>';
-                tbody.appendChild(tr);
-            } else {
-                noResultsRow.style.display = '';
-            }
-        } else if (noResultsRow) {
-            noResultsRow.style.display = 'none';
+    document.addEventListener('DOMContentLoaded', function() {
+        // Filter functionality
+        const showAll = document.getElementById('show-all');
+        const showOnlyAvailable = document.getElementById('show-only-available');
+        const showOnlyUnavailable = document.getElementById('show-only-unavailable');
+        const showPartiallyAvailable = document.getElementById('show-partially-available');
+        const searchInput = document.getElementById('formwork-search');
+
+        // Highlight active filter
+        function setActiveFilter(activeButton) {
+            [showAll, showOnlyAvailable, showOnlyUnavailable, showPartiallyAvailable].forEach(btn => {
+                if (btn === activeButton) {
+                    btn.classList.add('ring-2', 'ring-offset-2');
+                    if (btn === showAll) btn.classList.add('ring-gray-500');
+                    if (btn === showOnlyAvailable) btn.classList.add('ring-green-500');
+                    if (btn === showOnlyUnavailable) btn.classList.add('ring-red-500');
+                    if (btn === showPartiallyAvailable) btn.classList.add('ring-yellow-500');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-offset-2', 'ring-gray-500', 'ring-green-500', 'ring-red-500', 'ring-yellow-500');
+                }
+            });
         }
-    }
-    
-    // Event listeners
-    showAll.addEventListener('click', function() {
+
+        // Filter and search function
+        function applyFilters() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const rows = document.querySelectorAll('#formwork-table tbody tr');
+
+            rows.forEach(row => {
+                const formworkType = row.querySelector('td:first-child').textContent.toLowerCase();
+                const isFullyAvailable = row.classList.contains('formwork-fully-available');
+                const isUnavailable = row.classList.contains('formwork-unavailable');
+                const isPartiallyAvailable = row.classList.contains('formwork-partially-available');
+
+                let shouldShow = true;
+
+                // Apply active filter
+                if (showOnlyAvailable.classList.contains('ring-2') && !isFullyAvailable && !isPartiallyAvailable) {
+                    shouldShow = false;
+                } else if (showOnlyUnavailable.classList.contains('ring-2') && !isUnavailable) {
+                    shouldShow = false;
+                } else if (showPartiallyAvailable.classList.contains('ring-2') && !isPartiallyAvailable) {
+                    shouldShow = false;
+                }
+
+                // Apply search filter
+                if (searchTerm && !formworkType.includes(searchTerm)) {
+                    shouldShow = false;
+                }
+
+                row.style.display = shouldShow ? '' : 'none';
+            });
+
+            // Show "no results" message if needed
+            const visibleRows = document.querySelectorAll('#formwork-table tbody tr:not([style*="display: none"])');
+            const noResultsRow = document.querySelector('#no-results-row');
+
+            if (visibleRows.length === 0) {
+                if (!noResultsRow) {
+                    const tbody = document.querySelector('#formwork-table tbody');
+                    const tr = document.createElement('tr');
+                    tr.id = 'no-results-row';
+                    tr.innerHTML = '<td colspan="4" class="px-6 py-4 text-center text-gray-500">هیچ نتیجه‌ای یافت نشد</td>';
+                    tbody.appendChild(tr);
+                } else {
+                    noResultsRow.style.display = '';
+                }
+            } else if (noResultsRow) {
+                noResultsRow.style.display = 'none';
+            }
+        }
+
+        // Event listeners
+        showAll.addEventListener('click', function() {
+            setActiveFilter(showAll);
+            applyFilters();
+        });
+
+        showOnlyAvailable.addEventListener('click', function() {
+            setActiveFilter(showOnlyAvailable);
+            applyFilters();
+        });
+
+        showOnlyUnavailable.addEventListener('click', function() {
+            setActiveFilter(showOnlyUnavailable);
+            applyFilters();
+        });
+
+        showPartiallyAvailable.addEventListener('click', function() {
+            setActiveFilter(showPartiallyAvailable);
+            applyFilters();
+        });
+
+        searchInput.addEventListener('input', applyFilters);
+
+        // Initialize with all showing
         setActiveFilter(showAll);
-        applyFilters();
+
+        // If there's a highlighted row, make sure we wait until animation is done
+        const highlightedRow = document.getElementById('highlighted-row');
+        if (highlightedRow) {
+            setTimeout(function() {
+                highlightedRow.classList.remove('ring-2', 'ring-offset-2', 'ring-blue-500');
+            }, 3000); // Remove highlight after 3 seconds
+        }
     });
-    
-    showOnlyAvailable.addEventListener('click', function() {
-        setActiveFilter(showOnlyAvailable);
-        applyFilters();
-    });
-    
-    showOnlyUnavailable.addEventListener('click', function() {
-        setActiveFilter(showOnlyUnavailable);
-        applyFilters();
-    });
-    
-    showPartiallyAvailable.addEventListener('click', function() {
-        setActiveFilter(showPartiallyAvailable);
-        applyFilters();
-    });
-    
-    searchInput.addEventListener('input', applyFilters);
-    
-    // Initialize with all showing
-    setActiveFilter(showAll);
-    
-    // If there's a highlighted row, make sure we wait until animation is done
-    const highlightedRow = document.getElementById('highlighted-row');
-    if (highlightedRow) {
-        setTimeout(function() {
-            highlightedRow.classList.remove('ring-2', 'ring-offset-2', 'ring-blue-500');
-        }, 3000); // Remove highlight after 3 seconds
-    }
-});
 </script>
 
-<?php require_once 'footer.php'; // Include your standard footer ?>
+<?php require_once 'footer.php'; // Include your standard footer 
+?>

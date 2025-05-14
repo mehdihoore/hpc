@@ -25,7 +25,7 @@ if ($current_project_config_key !== $expected_project_key) {
 // 4. Check user role access for this specific page
 
 // --- End Authorization ---
-require_once 'includes/jdf.php'; // For gregorianToShamsi / jalali_to_gregorian
+
 if (session_status() !== PHP_SESSION_ACTIVE)
     session_start();
 // Authentication Check (Still important)
