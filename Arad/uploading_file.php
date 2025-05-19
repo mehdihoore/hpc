@@ -70,6 +70,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 ?>
 
 <html>
+
 <body>
     <h2>Upload Image to a Specified Directory</h2>
     <form action="uploading_file.php" method="post" enctype="multipart/form-data">
@@ -79,4 +80,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <input type="submit" value="Upload Image" name="submit">
     </form>
 </body>
+
 </html>

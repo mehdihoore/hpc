@@ -968,7 +968,9 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
     <title><?php echo htmlspecialchars($pageTitle); ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
+
+
+    <link rel="stylesheet" href="/assets/css/persian-datepicker-dark.min.css">
     <style>
         :root {
             --bs-primary: #0d6efd;

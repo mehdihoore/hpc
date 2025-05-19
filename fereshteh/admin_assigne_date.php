@@ -60,30 +60,34 @@ if ($_SESSION['current_project_config_key'] !== $expected_project_key) {
     header('Location: /select_project.php?msg=context_mismatch');
     exit();
 }
+
 // --- PanelScheduler Class (Modified scheduleMultiplePanels) ---
+
+
 class PanelScheduler
 {
     private PDO $pdo;
-    private int $userId;
-    private array $dailyProcessCapacities;
+    private ?int $userId; // Nullable if scheduling can be system-initiated without a user
+    private array $dailyProcessCapacities; // General capacities like F-H-1 => 1
     private array $progressCols;
+
+    // New constants for daily limits
+    private const MAX_PANELS_THURSDAY = 6;
+    private const MAX_PANELS_OTHER_WEEKDAY = 12;
 
     public function __construct(PDO $pdo, ?int $userId, array $dailyProcessCapacities, array $progressCols)
     {
         $this->pdo = $pdo;
-        $this->userId = (int) $userId;
-        $this->dailyProcessCapacities = $dailyProcessCapacities;
+        $this->userId = $userId; // Can be null
+        $this->dailyProcessCapacities = $dailyProcessCapacities; // These are per formwork type
         $this->progressCols = $progressCols;
     }
 
-    // --- getAvailableInstanceCounts, getAssignmentsCountByBaseTypeAndDate, checkPanelsProgress  ---
-    /**
-     * Fetches the *currently available* counts for each formwork type.
-     * Reads from the `available_formworks` table.
-     * Only includes types with an available_count > 0.
-     *
-     * @return array<string, int> Associative array [formwork_type => available_count].
-     */
+    private function getBaseFormworkTypeExternal($type)
+    { // Using the global helper
+        return getBaseFormworkType($type);
+    }
+
     private function getAvailableInstanceCounts(): array
     {
         $currentAvailableCounts = [];
@@ -117,14 +121,71 @@ class PanelScheduler
         return $currentAvailableCounts;
     }
 
-    /**
-     * Counts the number of panels assigned per base formwork type per date within a range.
-     * Reads from the `hpc_panels` table.
-     *
-     * @param string $startDate Start date in 'Y-m-d' format.
-     * @param string $endDate End date in 'Y-m-d' format.
-     * @return array<string, array<string, int>> Nested array [base_type => [date => usage_count]].
-     */
+    private function isFriday(DateTime $date): bool
+    {
+        return $date->format('N') == 5; // 5 = Friday
+    }
+
+    private function isThursday(DateTime $date): bool
+    {
+        return $date->format('N') == 4; // 4 = Thursday
+    }
+
+    // Fetches UNASSIGNED, PLAN_CHECKED=1 panels, ordered by priority
+    private function getCandidatePanelsToSchedule(): array
+    {
+        $stmt = $this->pdo->query(
+            "SELECT id, address, formwork_type, Proritization
+             FROM hpc_panels
+             WHERE plan_checked = 1 AND assigned_date IS NULL AND status != 'completed' /* Or other relevant statuses */
+             ORDER BY Proritization ASC, id ASC" // Higher priority (P1) first
+        );
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Gets count of panels already scheduled on a specific date
+    private function getScheduledPanelCountForDate(string $dateStr): int
+    {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM hpc_panels WHERE assigned_date = :date");
+        $stmt->execute([':date' => $dateStr]);
+        return (int)$stmt->fetchColumn();
+    }
+
+    // Gets count of formwork types used on a specific date
+    private function getFormworkUsageOnDate(string $dateStr): array
+    {
+        $usage = [];
+        $stmt = $this->pdo->prepare(
+            "SELECT formwork_type, COUNT(*) as count
+             FROM hpc_panels
+             WHERE assigned_date = :date AND formwork_type IS NOT NULL
+             GROUP BY formwork_type"
+        );
+        $stmt->execute([':date' => $dateStr]);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($results as $row) {
+            $baseType = $this->getBaseFormworkTypeExternal($row['formwork_type']);
+            if ($baseType) {
+                $usage[$baseType] = ($usage[$baseType] ?? 0) + (int)$row['count'];
+            }
+        }
+        return $usage;
+    }
+
+    // Gets available formwork instances (total, not per day)
+    private function getAvailableFormworkInstances(): array
+    {
+        $stmt = $this->pdo->query("SELECT formwork_type, available_count FROM available_formworks WHERE available_count > 0");
+        $available = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_KEY_PAIR) as $type => $count) {
+            $baseType = $this->getBaseFormworkTypeExternal($type);
+            if ($baseType) {
+                $available[$baseType] = ($available[$baseType] ?? 0) + (int)$count;
+            }
+        }
+        return $available;
+    }
+
     private function getAssignmentsCountByBaseTypeAndDate(string $startDate, string $endDate): array
     {
         $usage = [];
@@ -162,11 +223,8 @@ class PanelScheduler
     }
 
     /**
-     * Checks if panels have existing progress data.
-     *
-     * @param array<int> $panelIds An array of panel IDs to check.
-     * @return array<int, bool> Associative array [panel_id => has_progress (true/false)].
-     * @throws PDOException If a database error occurs during the check.
+     * New method to automatically schedule panels for a given target date from the sidebar.
+     * This will be called by a NEW AJAX action.
      */
     private function checkPanelsProgress(array $panelIds): array
     {
@@ -174,65 +232,325 @@ class PanelScheduler
         if (empty($panelIds)) {
             return $panelProgressStatus;
         }
-
-        // Initialize all panels as having no progress
         foreach ($panelIds as $id) {
             $panelProgressStatus[$id] = false;
         }
-
-        // Build the SELECT part dynamically for progress columns
         $progressColsSql = implode(', ', array_map(fn($col) => "`" . $col . "`", $this->progressCols));
-        // Create placeholders for the IN clause
         $placeholders = rtrim(str_repeat('?,', count($panelIds)), ',');
-
         try {
             $stmtCheck = $this->pdo->prepare("SELECT id, $progressColsSql FROM hpc_panels WHERE id IN ($placeholders)");
-            // PDO automatically handles binding integers correctly here
             $stmtCheck->execute($panelIds);
-
             while ($row = $stmtCheck->fetch(PDO::FETCH_ASSOC)) {
                 $panelId = $row['id'];
                 foreach ($this->progressCols as $col) {
-                    // Check if column exists and has a non-empty value
                     if (isset($row[$col]) && !empty($row[$col])) {
                         $panelProgressStatus[$panelId] = true;
-                        break; // Found progress for this panel, move to next row
+                        break;
                     }
                 }
             }
         } catch (PDOException $e) {
-            // Re-throw the exception to be caught by the calling method (scheduleMultiplePanels)
-            error_log("Error checking progress for bulk schedule: " . $e->getMessage());
-            throw $e; // Propagate the exception
+            error_log("Error checking progress for panel shift: " . $e->getMessage());
+            throw $e; // Rethrow to be caught by the main try-catch
         }
-
         return $panelProgressStatus;
     }
 
 
-    /**
-     * Attempts to schedule multiple panels within a given date range.
-     * Considers availability, limits, progress, and creates TWO orders ('east', 'west') per panel.
-     *
-     * @param array<array{'id': int, 'formwork_type': ?string}> $panels Array of panels (IDs) to schedule.
-     * @param string $startDate Start date in 'Y-m-d' format.
-     * @param string $endDate End date in 'Y-m-d' format.
-     * @return array{'success': bool, 'scheduled': array, 'unscheduled': array, 'error': ?string, 'createdOrders': array} Result array.
-     */
+    public function shiftScheduledPanels(string $fromDateStr, int $shiftDays, ?int $currentUserId): array
+    {
+        if ($shiftDays == 0) {
+            return ['success' => true, 'message' => 'No shift requested (0 days).', 'shifted' => [], 'failed' => []];
+        }
+
+        $shiftedPanels = [];
+        $failedPanels = [];
+        $todayStr = (new DateTime())->format('Y-m-d'); // Get current date
+
+        try {
+            $pdoWhereClauses = ["assigned_date >= :fromDate", "(status IS NULL OR status NOT IN ('completed', 'cancelled'))"];
+            $pdoParams = [':fromDate' => $fromDateStr];
+
+            // If shifting backwards, only consider panels currently scheduled in the future
+            if ($shiftDays < 0) {
+                $pdoWhereClauses[] = "assigned_date > :today_for_negative_shift_filter"; // Strictly greater than today
+                $pdoParams[':today_for_negative_shift_filter'] = $todayStr;
+            }
+
+            $whereSql = implode(" AND ", $pdoWhereClauses);
+
+            $stmtFetch = $this->pdo->prepare(
+                "SELECT id, address, assigned_date
+                 FROM hpc_panels
+                 WHERE $whereSql
+                 ORDER BY assigned_date ASC, id ASC"
+            );
+            $stmtFetch->execute($pdoParams);
+            $panelsToShiftCandidate = $stmtFetch->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($panelsToShiftCandidate)) {
+                $message = 'No panels found to shift on or after the specified date';
+                if ($shiftDays < 0) {
+                    $message .= ' that are also scheduled for a future date.';
+                }
+                return ['success' => true, 'message' => $message, 'shifted' => [], 'failed' => []];
+            }
+
+            $panelIdsToCheck = array_column($panelsToShiftCandidate, 'id');
+            $progressStatuses = $this->checkPanelsProgress($panelIdsToCheck);
+
+            $this->pdo->beginTransaction();
+
+            $stmtUpdate = $this->pdo->prepare(
+                "UPDATE hpc_panels
+                 SET assigned_date = :new_assigned_date,
+                     planned_finish_date = :new_planned_finish_date,
+                     planned_finish_user_id = :user_id
+                 WHERE id = :panel_id"
+            );
+
+            foreach ($panelsToShiftCandidate as $panel) {
+                $panelId = $panel['id'];
+
+                if (isset($progressStatuses[$panelId]) && $progressStatuses[$panelId] === true) {
+                    $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'Panel has progress, not shifted.'];
+                    continue;
+                }
+
+                try {
+                    $originalAssignedDateObj = new DateTime($panel['assigned_date']);
+                    $newPotentialAssignedDateObj = (clone $originalAssignedDateObj)->modify(($shiftDays >= 0 ? '+' : '') . $shiftDays . ' days');
+                    $maxAttempts = 7; // Try for a week to find a non-Friday
+                    $attempt = 0;
+                    while ($this->isFriday($newPotentialAssignedDateObj) && $attempt < $maxAttempts) {
+                        $adjustment = ($shiftDays >= 0) ? '+1 day' : '-1 day'; // Keep original shift intent for adjustment
+                        $newPotentialAssignedDateObj->modify($adjustment);
+                        $attempt++;
+                    }
+
+                    // Rule: Avoid Fridays
+                    if ($this->isFriday($newPotentialAssignedDateObj)) {
+                        $adjustmentDirection = ($shiftDays >= 0) ? '+1 day' : '-1 day'; // Keep original shift intent
+                        $newPotentialAssignedDateObj->modify($adjustmentDirection);
+
+                        // After adjustment, re-check if it's still Friday OR if it became a past date (for negative shifts)
+                        if ($this->isFriday($newPotentialAssignedDateObj)) {
+                            $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'Friday avoidance resulted in another Friday.'];
+                            continue;
+                        }
+                        if ($shiftDays < 0 && $newPotentialAssignedDateObj->format('Y-m-d') < $todayStr) {
+                            $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'Friday avoidance resulted in a past date, not allowed.'];
+                            continue;
+                        }
+                    }
+
+                    // Rule: New assigned date cannot be in the past (less than today)
+                    if ($shiftDays < 0 && $newPotentialAssignedDateObj->format('Y-m-d') < $todayStr) {
+                        $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'Shift results in a past date (' . $newPotentialAssignedDateObj->format('Y-m-d') . '), not allowed. Original: ' . $panel['assigned_date']];
+                        continue;
+                    }
+
+
+
+                    $newAssignedDateStr = $newPotentialAssignedDateObj->format('Y-m-d');
+                    $newPlannedFinishDateStr = (clone $newPotentialAssignedDateObj)->modify('+1 day')->format('Y-m-d');
+
+                    if ($stmtUpdate->execute([
+                        ':new_assigned_date' => $newAssignedDateStr,
+                        ':new_planned_finish_date' => $newPlannedFinishDateStr,
+                        ':user_id' => $currentUserId,
+                        ':panel_id' => $panelId
+                    ])) {
+                        if ($stmtUpdate->rowCount() > 0) {
+                            $shiftedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'old_date' => $panel['assigned_date'], 'new_date' => $newAssignedDateStr];
+                        } else {
+                            $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'Panel not updated (no change/not found).'];
+                        }
+                    } else {
+                        $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'DB update failed. Error: ' . implode(' ', $stmtUpdate->errorInfo())];
+                    }
+                } catch (Exception $e) {
+                    error_log("Error processing panel ID {$panelId} during shift: " . $e->getMessage());
+                    $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'Processing error: ' . $e->getMessage()];
+                }
+            }
+
+            $this->pdo->commit();
+            return [
+                'success' => true,
+                'message' => 'Shift operation completed.',
+                'shifted' => $shiftedPanels,
+                'failed' => $failedPanels
+            ];
+        } catch (PDOException | Exception $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            error_log("Error in shiftScheduledPanels: " . $e->getMessage());
+            // Consolidate failed panels if an exception occurred mid-processing
+            if (isset($panelsToShiftCandidate) && is_array($panelsToShiftCandidate)) {
+                foreach ($panelsToShiftCandidate as $p) {
+                    $isAccounted = false;
+                    foreach ($shiftedPanels as $s) if ($s['panel_id'] == $p['id']) $isAccounted = true;
+                    foreach ($failedPanels as $f) if ($f['panel_id'] == $p['id']) $isAccounted = true;
+                    if (!$isAccounted) {
+                        $failedPanels[] = ['panel_id' => $p['id'], 'address' => $p['address'], 'reason' => 'Not processed due to overall operation error.'];
+                    }
+                }
+            }
+            return ['success' => false, 'error' => 'An error occurred: ' . $e->getMessage(), 'shifted' => [], 'failed' => $failedPanels];
+        }
+    }
+
+    public function autoScheduleForTargetDate(string $targetDateStr): array
+    {
+        $scheduledOnTargetDate = [];
+        $rescheduledFromTargetDate = []; // Tracks panels moved OFF the targetDate
+        $failedToSchedule = [];
+
+        try {
+            $targetDateObj = new DateTime($targetDateStr);
+        } catch (Exception $e) {
+            return ['success' => false, 'error' => 'Invalid target date format.'];
+        }
+
+        if ($this->isFriday($targetDateObj)) {
+            return ['success' => false, 'error' => 'Target date cannot be a Friday.', 'target_date_invalid' => true];
+        }
+
+        $dailyPanelLimit = $this->isThursday($targetDateObj) ? self::MAX_PANELS_THURSDAY : self::MAX_PANELS_OTHER_WEEKDAY;
+
+        $this->pdo->beginTransaction();
+        try {
+            // --- Stage 1: Attempt to schedule new panels ---
+            $candidatePanels = $this->getCandidatePanelsToSchedule();
+            $currentPanelsOnTargetDate = $this->getScheduledPanelCountForDate($targetDateStr);
+            $formworkUsageOnTargetDate = $this->getFormworkUsageOnDate($targetDateStr);
+            $availableFormworkInstances = $this->getAvailableFormworkInstances(); // Total available inventory
+
+            $slotsFilledToday = $currentPanelsOnTargetDate;
+
+            foreach ($candidatePanels as $candidate) {
+                if ($slotsFilledToday >= $dailyPanelLimit) {
+                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => 'Daily panel limit reached for target date.'];
+                    continue; // No more slots today
+                }
+
+                // Check progress for this candidate
+                $progressStmt = $this->pdo->prepare("SELECT " . implode(', ', $this->progressCols) . " FROM hpc_panels WHERE id = ?");
+                $progressStmt->execute([$candidate['id']]);
+                $progressData = $progressStmt->fetch(PDO::FETCH_ASSOC);
+                $hasProgress = false;
+                if ($progressData) {
+                    foreach ($this->progressCols as $col) {
+                        if (!empty($progressData[$col])) {
+                            $hasProgress = true;
+                            break;
+                        }
+                    }
+                }
+                if ($hasProgress) {
+                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => 'Has existing progress.'];
+                    continue;
+                }
+
+                // Check formwork type capacity for this specific panel
+                $baseCandidateFormworkType = $this->getBaseFormworkTypeExternal($candidate['formwork_type']);
+                if (!$baseCandidateFormworkType) {
+                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => 'Invalid formwork type.'];
+                    continue;
+                }
+
+                $formworkTypeDailyLimit = $this->dailyProcessCapacities[$baseCandidateFormworkType] ?? 0;
+                $formworkTypeUsageToday = $formworkUsageOnTargetDate[$baseCandidateFormworkType] ?? 0;
+                $totalOfTypeAvailable = $availableFormworkInstances[$baseCandidateFormworkType] ?? 0;
+
+
+                // Check if we have an instance of this formwork type available overall
+                // AND if adding one more to today doesn't exceed its specific daily process limit
+                // AND if adding one more doesn't exceed the total number of available instances of that type (inventory check)
+                // The inventory check is tricky: `getFormworkUsageOnDate` needs to be accurate for overall usage.
+                // For this specific method, let's simplify: the dailyProcessCapacities is key.
+                // We also need to ensure that the total number of *this specific formwork type* used on this day
+                // does not exceed the number of physical instances of that formwork available.
+
+                if ($formworkTypeDailyLimit <= 0) {
+                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => "No daily processing capacity for formwork {$baseCandidateFormworkType}."];
+                    continue;
+                }
+                if ($formworkTypeUsageToday >= $formworkTypeDailyLimit) {
+                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => "Daily limit for formwork {$baseCandidateFormworkType} reached on target date."];
+                    continue;
+                }
+                // More advanced: check against total available instances if `formworkTypeDailyLimit` could be higher than total stock
+                if ($formworkTypeUsageToday >= $totalOfTypeAvailable) {
+                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => "All available instances of formwork {$baseCandidateFormworkType} are already in use or scheduled."];
+                    continue;
+                }
+
+
+                // If all checks pass, schedule this panel
+                $updateStmt = $this->pdo->prepare(
+                    "UPDATE hpc_panels SET assigned_date = :assigned_date, planned_finish_date = :planned_finish_date, planned_finish_user_id = :user_id
+                     WHERE id = :panel_id"
+                );
+                $plannedFinishDate = (clone $targetDateObj)->modify('+1 day')->format('Y-m-d');
+                if ($updateStmt->execute([
+                    ':assigned_date' => $targetDateStr,
+                    ':planned_finish_date' => $plannedFinishDate,
+                    ':user_id' => $this->userId,
+                    ':panel_id' => $candidate['id']
+                ])) {
+                    $scheduledOnTargetDate[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'assigned_to' => $targetDateStr];
+                    $slotsFilledToday++;
+                    $formworkUsageOnTargetDate[$baseCandidateFormworkType] = ($formworkUsageOnTargetDate[$baseCandidateFormworkType] ?? 0) + 1;
+                } else {
+                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => 'DB update failed.'];
+                }
+            } // End foreach candidatePanel
+
+            // --- Stage 2: Reschedule lowest priority panels if new high-priority ones couldn't fit (Complex) ---
+            // This part is very tricky and can lead to cascading effects.
+            // For now, this example will NOT implement the automatic rescheduling of existing panels.
+            // It will simply fill available slots.
+            // To implement rescheduling:
+            // 1. If $slotsFilledToday was already >= $dailyPanelLimit before starting,
+            //    OR if after scheduling some new ones, higher priority candidates still exist but no slots left:
+            // 2. Get panels ALREADY scheduled on $targetDateStr, ordered by LOWEST priority (e.g., P12 before P1).
+            // 3. For each of these, try to find the NEXT available valid day (not Friday, respects its own day limits).
+            // 4. If a new slot is found, UPDATE that panel's assigned_date. Add to $rescheduledFromTargetDate.
+            // 5. This frees up a slot on $targetDateStr. Potentially re-run Stage 1 for remaining high-priority candidates.
+            // This needs careful loop control and state management.
+
+            $this->pdo->commit();
+            return [
+                'success' => true,
+                'scheduled_new' => $scheduledOnTargetDate,
+                'rescheduled_existing' => $rescheduledFromTargetDate, // Will be empty for now
+                'failed_to_schedule' => $failedToSchedule,
+                'message' => "Auto-scheduling complete for {$targetDateStr}."
+            ];
+        } catch (PDOException | Exception $e) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            error_log("Error in autoScheduleForTargetDate ({$targetDateStr}): " . $e->getMessage());
+            return ['success' => false, 'error' => 'An error occurred during auto-scheduling: ' . $e->getMessage()];
+        }
+    }
+
+    // The old scheduleMultiplePanels is still used by the "زمانبندی خودکار" button.
+    // Keep it as it was, or if the button should also use the new logic, then this old one can be removed/refactored.
+    // For now, I'm assuming the button uses the old logic.
     public function scheduleMultiplePanels(array $panels, string $startDate, string $endDate): array
     {
+
         $assignmentsMade = [];
         $unscheduledPanels = [];
-        $error = null;
-        // Store created order numbers: [panel_id => ['east' => ORD-XXXX, 'west' => ORD-YYYY]]
         $createdOrdersInfo = [];
 
         try {
-            // 1. Get Availability & Usage (Unchanged logic)
             $currentAvailableCounts = $this->getAvailableInstanceCounts();
             $assignmentsUsage = $this->getAssignmentsCountByBaseTypeAndDate($startDate, $endDate);
 
-            // 2. Prepare Date Range (Unchanged logic)
             $dateRange = [];
             $current = new DateTime($startDate);
             $end = new DateTime($endDate);
@@ -241,228 +559,159 @@ class PanelScheduler
                 $current->modify('+1 day');
             }
             if (empty($dateRange)) {
-                return ['success' => false, 'error' => 'Invalid date range.', 'scheduled' => [], 'unscheduled' => $panels, 'createdOrders' => []];
+                return ['success' => false, 'error' => 'Invalid date range.', 'scheduled' => [], 'unscheduled' => array_map(fn($p) => ['panel_id' => $p['id'] ?? '?', 'reason' => 'Invalid date range'], $panels), 'createdOrders' => []];
             }
 
-            // 3. Fetch Panel Details (Formwork Type) & Check Progress
             $panelIds = array_column($panels, 'id');
             $panelDetailsFromDB = [];
             if (!empty($panelIds)) {
                 $placeholders = rtrim(str_repeat('?,', count($panelIds)), ',');
                 $progressColsSql = implode(', ', array_map(fn($col) => "`" . $col . "`", $this->progressCols));
-                try {
-                    $stmtDetails = $this->pdo->prepare("SELECT id, formwork_type, $progressColsSql FROM hpc_panels WHERE id IN ($placeholders)");
-                    $stmtDetails->execute($panelIds);
-                    while ($row = $stmtDetails->fetch(PDO::FETCH_ASSOC)) {
-                        $panelId = $row['id'];
-                        $hasProgress = false;
-                        foreach ($this->progressCols as $col) {
-                            if (!empty($row[$col])) {
-                                $hasProgress = true;
-                                break;
-                            }
+                $stmtDetails = $this->pdo->prepare("SELECT id, formwork_type, $progressColsSql FROM hpc_panels WHERE id IN ($placeholders)");
+                $stmtDetails->execute($panelIds);
+                while ($row = $stmtDetails->fetch(PDO::FETCH_ASSOC)) {
+                    $panelId = $row['id'];
+                    $hasProgress = false;
+                    foreach ($this->progressCols as $col) {
+                        if (!empty($row[$col])) {
+                            $hasProgress = true;
+                            break;
                         }
-                        $panelDetailsFromDB[$panelId] = [
-                            'formwork_type' => $row['formwork_type'],
-                            'has_progress' => $hasProgress
-                        ];
                     }
-                } catch (PDOException $e) {
-                    throw $e; /* Rethrow DB errors */
+                    $panelDetailsFromDB[$panelId] = [
+                        'formwork_type' => $row['formwork_type'],
+                        'has_progress' => $hasProgress
+                    ];
                 }
             }
 
-            // 4. Iterate through panels and find slots
-            foreach ($panels as $panel) {
-                $panelId = $panel['id'] ?? null;
+            foreach ($panels as $panelInput) {
+                $panelId = $panelInput['id'] ?? null;
                 if (!$panelId || !isset($panelDetailsFromDB[$panelId])) {
-                    $unscheduledPanels[] = ['panel' => $panel, 'reason' => 'Panel ID invalid or not found in DB'];
+                    $unscheduledPanels[] = ['panel_id' => $panelId ?? '?', 'reason' => 'Panel ID invalid or details not found'];
                     continue;
                 }
-
                 $panelDetail = $panelDetailsFromDB[$panelId];
-                $basePanelFormworkType = getBaseFormworkType($panelDetail['formwork_type']);
+                $basePanelFormworkType = $this->getBaseFormworkTypeExternal($panelDetail['formwork_type']);
 
-                // --- Validation & Progress Skip ---
                 if (!$basePanelFormworkType) {
-                    $unscheduledPanels[] = ['panel' => ['id' => $panelId], 'reason' => 'Invalid/missing Formwork Type'];
+                    $unscheduledPanels[] = ['panel_id' => $panelId, 'reason' => 'Invalid/missing Formwork Type in DB'];
                     continue;
                 }
                 if ($panelDetail['has_progress']) {
-                    $unscheduledPanels[] = ['panel' => ['id' => $panelId], 'reason' => 'Skipped: Existing progress data found.'];
+                    $unscheduledPanels[] = ['panel_id' => $panelId, 'reason' => 'Skipped: Existing progress data found.'];
                     continue;
                 }
-
-                // --- Capacity Checks (Unchanged logic) ---
                 $currentlyAvailableOfType = $currentAvailableCounts[$basePanelFormworkType] ?? 0;
                 if ($currentlyAvailableOfType <= 0) {
-                    $unscheduledPanels[] = ['panel' => ['id' => $panelId], 'reason' => "No available instances for type '{$basePanelFormworkType}'"];
+                    $unscheduledPanels[] = ['panel_id' => $panelId, 'reason' => "No available instances for type '{$basePanelFormworkType}'"];
                     continue;
                 }
                 $dailyProcessLimit = $this->dailyProcessCapacities[$basePanelFormworkType] ?? 0;
                 if ($dailyProcessLimit <= 0) {
-                    error_log("Scheduling Warning: Daily process capacity zero/undefined for '{$basePanelFormworkType}' (Panel ID: {$panelId}).");
-                    $unscheduledPanels[] = ['panel' => ['id' => $panelId], 'reason' => "Daily processing capacity not defined for '{$basePanelFormworkType}'"];
+                    $unscheduledPanels[] = ['panel_id' => $panelId, 'reason' => "Daily processing capacity not defined for '{$basePanelFormworkType}'"];
                     continue;
                 }
-
-
-                // --- Find an Available Date Slot ---
                 $scheduledThisPanel = false;
                 foreach ($dateRange as $date) {
                     $currentUsageOnDate = $assignmentsUsage[$basePanelFormworkType][$date] ?? 0;
                     if ($currentUsageOnDate < $currentlyAvailableOfType && $currentUsageOnDate < $dailyProcessLimit) {
-                        // Found a slot! Mark for assignment.
-                        $assignmentsMade[] = [
-                            'panel_id' => $panelId,
-                            'assigned_date' => $date
-                        ];
-                        if (!isset($assignmentsUsage[$basePanelFormworkType])) {
-                            $assignmentsUsage[$basePanelFormworkType] = [];
-                        }
-                        $assignmentsUsage[$basePanelFormworkType][$date] = $currentUsageOnDate + 1;
+                        $assignmentsMade[] = ['panel_id' => $panelId, 'assigned_date' => $date];
+                        $assignmentsUsage[$basePanelFormworkType][$date] = ($assignmentsUsage[$basePanelFormworkType][$date] ?? 0) + 1;
                         $scheduledThisPanel = true;
                         break;
                     }
-                } // End date range loop
-
-                if (!$scheduledThisPanel) {
-                    $lastDateChecked = end($dateRange);
-                    $lastDateUsage = $assignmentsUsage[$basePanelFormworkType][$lastDateChecked] ?? 0;
-                    $reason = "No capacity for '{$basePanelFormworkType}' in {$startDate}-{$endDate}. ";
-                    if ($lastDateUsage >= $dailyProcessLimit) {
-                        $reason .= "Daily limit ({$dailyProcessLimit}) reached.";
-                    } elseif ($lastDateUsage >= $currentlyAvailableOfType) {
-                        $reason .= "All available instances ({$currentlyAvailableOfType}) used.";
-                    } else {
-                        $reason .= "(Limit: {$dailyProcessLimit}/day, Avail: {$currentlyAvailableOfType})";
-                    }
-                    $unscheduledPanels[] = ['panel' => ['id' => $panelId], 'reason' => $reason];
                 }
-            } // End panel loop
+                if (!$scheduledThisPanel) {
+                    $unscheduledPanels[] = ['panel_id' => $panelId, 'reason' => "ظرفیت قالب :  '{$basePanelFormworkType}' برای تاریخ {$startDate}-{$endDate} پر است."];
+                }
+            }
 
-            // 5. Perform DB Update (Panel Assignment + TWO Order Creations with Delivery Date)
             if (!empty($assignmentsMade)) {
                 $this->pdo->beginTransaction();
                 try {
-                    // Prepare statements outside the loop
                     $stmtUpdatePanel = $this->pdo->prepare(
                         "UPDATE hpc_panels
-                                     SET assigned_date = :assigned_date,
-                                        planned_finish_date = DATE_ADD(:assigned_date, INTERVAL 1 DAY),
-                                        planned_finish_user_id = :userId
-                                         WHERE id = :panel_id"
+                         SET assigned_date = :assigned_date,
+                            planned_finish_date = :planned_finish_date_val,
+                            planned_finish_user_id = :userId
+                         WHERE id = :panel_id"
                     );
                     $stmtCheckOrder = $this->pdo->prepare("SELECT 1 FROM polystyrene_orders WHERE hpc_panel_id = ? AND order_type = ? AND status = 'ordered' LIMIT 1");
                     $stmtGetMaxOrder = $this->pdo->prepare("SELECT MAX(CAST(SUBSTRING(order_number, 5) AS UNSIGNED)) FROM polystyrene_orders");
-                    // ***** ADD required_delivery_date to INSERT *****
                     $stmtInsertOrder = $this->pdo->prepare(
                         "INSERT INTO polystyrene_orders (hpc_panel_id, order_type, status, order_number, created_at, required_delivery_date)
-                                      VALUES (?, ?, 'ordered', ?, NOW(), ?)" // 5 placeholders now
+                          VALUES (?, ?, 'ordered', ?, NOW(), ?)"
                     );
-
-                    // Get the starting point for order numbers
                     $stmtGetMaxOrder->execute();
                     $maxOrderNumber = $stmtGetMaxOrder->fetchColumn();
-                    $nextOrderNum = ($maxOrderNumber === null) ? 1 : $maxOrderNumber + 1;
+                    $nextOrderNum = ($maxOrderNumber === null) ? 1 : (int)$maxOrderNumber + 1;
 
                     foreach ($assignmentsMade as $assignment) {
                         $panelId = $assignment['panel_id'];
                         $assignedDate = $assignment['assigned_date'];
+                        $plannedFinishDatePhp = (new DateTime($assignedDate))->modify('+1 day')->format('Y-m-d');
+                        $requiredDeliveryDate = (new DateTime($assignedDate))->modify('-1 day')->format('Y-m-d');
+
+                        $stmtUpdatePanel->bindValue(':assigned_date', $assignedDate, PDO::PARAM_STR);
+                        $stmtUpdatePanel->bindValue(':planned_finish_date_val', $plannedFinishDatePhp, PDO::PARAM_STR);
+                        $stmtUpdatePanel->bindValue(':userId', $this->userId, PDO::PARAM_INT);
+                        $stmtUpdatePanel->bindValue(':panel_id', $panelId, PDO::PARAM_INT);
+                        if (!$stmtUpdatePanel->execute()) {
+                            throw new PDOException("DB Update failed for panel ID: $panelId");
+                        }
                         $panelOrders = ['east' => null, 'west' => null];
-
-                        // *** Calculate Required Delivery Date ***
-                        try {
-                            $assignedDateTime = new DateTime($assignedDate);
-                            $assignedDateTime->modify('-1 day');
-                            $requiredDeliveryDate = $assignedDateTime->format('Y-m-d');
-                        } catch (Exception $e) {
-                            // Handle error if date calculation fails (unlikely with valid assignedDate)
-                            error_log("Error calculating delivery date for panel {$panelId}, assigned {$assignedDate}: " . $e->getMessage());
-                            throw new PDOException("Failed to calculate delivery date for panel {$panelId}."); // Fail transaction
-                        }
-                        // ***************************************
-
-                        // a) Update the panel
-                        $stmtUpdatePanel->execute([':panel_id' => $panelId, ':assigned_date' => $assignedDate, ':userId' => $this->userId]);
-
-                        // b) Create 'east' order if missing
-                        $stmtCheckOrder->execute([$panelId, 'east']);
-                        if ($stmtCheckOrder->fetchColumn() === false) {
-                            $eastOrderNumber = "ORD-" . str_pad((string)$nextOrderNum, 4, '0', STR_PAD_LEFT);
-                            // ***** ADD requiredDeliveryDate to execute *****
-                            if ($stmtInsertOrder->execute([$panelId, 'east', $eastOrderNumber, $requiredDeliveryDate])) { // 4 params now
-                                $panelOrders['east'] = $eastOrderNumber;
+                        foreach (['east', 'west'] as $orderType) {
+                            $stmtCheckOrder->execute([$panelId, $orderType]);
+                            if ($stmtCheckOrder->fetchColumn() === false) {
+                                $orderNumber = "ORD-" . str_pad((string)$nextOrderNum, 4, '0', STR_PAD_LEFT);
+                                if (!$stmtInsertOrder->execute([$panelId, $orderType, $orderNumber, $requiredDeliveryDate])) {
+                                    throw new PDOException("DB Insert {$orderType} order failed for panel ID: $panelId");
+                                }
+                                $panelOrders[$orderType] = $orderNumber;
                                 $nextOrderNum++;
-                            } else {
-                                throw new PDOException("Failed to insert EAST order for panel ID: $panelId");
                             }
                         }
-
-                        // c) Create 'west' order if missing
-                        $stmtCheckOrder->execute([$panelId, 'west']);
-                        if ($stmtCheckOrder->fetchColumn() === false) {
-                            $westOrderNumber = "ORD-" . str_pad((string)$nextOrderNum, 4, '0', STR_PAD_LEFT);
-                            // ***** ADD requiredDeliveryDate to execute *****
-                            if ($stmtInsertOrder->execute([$panelId, 'west', $westOrderNumber, $requiredDeliveryDate])) { // 4 params now
-                                $panelOrders['west'] = $westOrderNumber;
-                                $nextOrderNum++;
-                            } else {
-                                throw new PDOException("Failed to insert WEST order for panel ID: $panelId");
-                            }
+                        if ($panelOrders['east'] || $panelOrders['west']) {
+                            $createdOrdersInfo[$panelId] = $panelOrders;
                         }
-
-                        $createdOrdersInfo[$panelId] = $panelOrders;
-                    } // end foreach assignment
-
+                    }
                     $this->pdo->commit();
-                } catch (PDOException | Exception $e) { // Catch PDO and DateTime exceptions
-                    if ($this->pdo->inTransaction()) {
-                        $this->pdo->rollBack();
+                } catch (PDOException | Exception $e) {
+                    if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+                    error_log("TRANSACTION FAILED in PanelScheduler (old scheduleMultiplePanels): " . $e->getMessage());
+                    $dbFailedPanelIds = array_column($assignmentsMade, 'panel_id');
+                    $tempUnscheduled = $unscheduledPanels; // Keep pre-check failures
+                    foreach ($panels as $inputPanelItem) {
+                        $currentPanelId = $inputPanelItem['id'] ?? null;
+                        if ($currentPanelId && in_array($currentPanelId, $dbFailedPanelIds)) {
+                            $isAlreadyMarked = false;
+                            foreach ($tempUnscheduled as $uP) if (($uP['panel_id'] ?? null) == $currentPanelId) $isAlreadyMarked = true;
+                            if (!$isAlreadyMarked) $tempUnscheduled[] = ['panel_id' => $currentPanelId, 'reason' => 'DB Transaction Failed'];
+                        }
                     }
-                    error_log("DB update/order creation failed during bulk schedule: " . $e->getMessage());
-                    // Reset unscheduled list based on failure
-                    $finalUnscheduled = $unscheduledPanels;
-                    foreach ($assignmentsMade as $failedAssignment) {
-                        $originalPanel = ['id' => $failedAssignment['panel_id']];
-                        $finalUnscheduled[] = ['panel' => $originalPanel, 'reason' => 'DB Update/Order Failed'];
-                    }
-                    // Ensure the return array structure matches expectations even on failure
-                    $finalUnscheduledFormatted = [];
-                    foreach ($finalUnscheduled as $item) {
-                        $finalUnscheduledFormatted[] = [
-                            'panel_id' => $item['panel']['id'] ?? '?',
-                            'reason' => $item['reason'] ?? 'Unknown'
-                        ];
-                    }
-                    return ['success' => false, 'error' => 'Database update or order creation failed.', 'scheduled' => [], 'unscheduled' => $finalUnscheduledFormatted, 'createdOrders' => []];
+                    $unscheduledPanels = $tempUnscheduled;
+                    return ['success' => false, 'error' => 'Database update/order creation failed. Check logs.', 'scheduled' => [], 'unscheduled' => $unscheduledPanels, 'createdOrders' => []];
                 }
-            } // end if assignmentsMade
-
-            // Format unscheduled panels to just include ID and reason
-            $finalUnscheduledFormatted = [];
-            foreach ($unscheduledPanels as $item) {
-                $finalUnscheduledFormatted[] = [
-                    'panel_id' => $item['panel']['id'] ?? '?',
-                    'reason' => $item['reason'] ?? 'Unknown'
-                ];
             }
-
-
-            return ['success' => true, 'scheduled' => $assignmentsMade, 'unscheduled' => $finalUnscheduledFormatted, 'error' => null, 'createdOrders' => $createdOrdersInfo];
+            return [
+                'success' => true,
+                'scheduled' => $assignmentsMade,
+                'unscheduled' => $unscheduledPanels,
+                'error' => null,
+                'createdOrders' => $createdOrdersInfo
+            ];
         } catch (PDOException $e) {
-            $error = 'Database error during scheduling preparation: ' . $e->getMessage();
-            error_log($error);
-            return ['success' => false, 'error' => $error, 'scheduled' => [], 'unscheduled' => array_map(fn($p) => (['panel_id' => $p['id'] ?? '?', 'reason' => 'DB Error Prep']), $panels), 'createdOrders' => []];
+            $errorMsg = 'DB error during scheduling prep (old scheduleMultiplePanels): ' . $e->getMessage();
+            error_log($errorMsg);
+            return ['success' => false, 'error' => $errorMsg, 'scheduled' => [], 'unscheduled' => array_map(fn($p) => ['panel_id' => $p['id'] ?? '?', 'reason' => 'DB Prep Error'], $panels), 'createdOrders' => []];
         } catch (Exception $e) {
-            $error = 'Unexpected error during scheduling: ' . $e->getMessage();
-            error_log($error);
-            return ['success' => false, 'error' => $error, 'scheduled' => [], 'unscheduled' => array_map(fn($p) => (['panel_id' => $p['id'] ?? '?', 'reason' => 'Unexpected Error']), $panels), 'createdOrders' => []];
+            $errorMsg = 'Unexpected error during scheduling prep (old scheduleMultiplePanels): ' . $e->getMessage();
+            error_log($errorMsg);
+            return ['success' => false, 'error' => $errorMsg, 'scheduled' => [], 'unscheduled' => array_map(fn($p) => ['panel_id' => $p['id'] ?? '?', 'reason' => 'Unexpected Prep Error'], $panels), 'createdOrders' => []];
         }
-    } // end scheduleMultiplePanels
-
+    }
 } // End PanelScheduler Class
-
 // Function to check if user can edit (centralized logic)
 function userCanEdit(?string $userRole): bool
 {
@@ -495,9 +744,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $response = ['success' => false, 'error' => 'User not logged in.'];
             goto send_response;
         }
+        // --- ACTION: getMorePanels (NEW) ---
+        if ($action === 'getMorePanels') {
+            $page = filter_input(INPUT_POST, 'page', FILTER_VALIDATE_INT, ['options' => ['default' => 1, 'min_range' => 1]]);
+            $panelsPerPage = filter_input(INPUT_POST, 'panelsPerPage', FILTER_VALIDATE_INT, ['options' => ['default' => 50, 'min_range' => 10]]);
 
+            $searchText = $_POST['searchText'] ?? '';
+            $selectedType = $_POST['selectedType'] ?? '';
+            $selectedPriority = $_POST['selectedPriority'] ?? '';
+            $assignmentStatus = $_POST['assignmentStatus'] ?? '';
+            $selectedFormwork = $_POST['selectedFormwork'] ?? '';
+
+            $offset = ($page - 1) * $panelsPerPage;
+
+            $baseQuerySelect = "SELECT hp.id, hp.address, hp.status, hp.assigned_date, hp.type, hp.area, hp.width, hp.length, hp.Proritization, hp.formwork_type ";
+            $baseQueryFromWhere = "FROM hpc_panels hp WHERE hp.plan_checked = 1";
+
+            $whereClauses = [];
+            $queryParams = [];
+
+            if (!empty($searchText)) {
+                $whereClauses[] = "hp.address LIKE :searchText";
+                $queryParams[':searchText'] = '%' . $searchText . '%';
+            }
+            if (!empty($selectedType)) {
+                $whereClauses[] = "hp.type = :selectedType";
+                $queryParams[':selectedType'] = $selectedType;
+            }
+            if ($selectedPriority !== '') {
+                if ($selectedPriority === 'IS_NULL_PRIORITY_PLACEHOLDER') { // Special value for NULL/empty priority
+                    $whereClauses[] = "(hp.Proritization IS NULL OR hp.Proritization = '')";
+                } else {
+                    $whereClauses[] = "hp.Proritization = :selectedPriority";
+                    $queryParams[':selectedPriority'] = $selectedPriority;
+                }
+            }
+            if (!empty($assignmentStatus)) {
+                if ($assignmentStatus === 'assigned') {
+                    $whereClauses[] = "hp.assigned_date IS NOT NULL";
+                } elseif ($assignmentStatus === 'unassigned') {
+                    $whereClauses[] = "hp.assigned_date IS NULL";
+                }
+            }
+            if (!empty($selectedFormwork)) {
+                // Assuming formwork_type in DB might contain instance details.
+                // This will match if the base type is at the beginning.
+                $whereClauses[] = "hp.formwork_type LIKE :selectedFormworkBase";
+                $queryParams[':selectedFormworkBase'] = $selectedFormwork . '%';
+            }
+
+            $queryFilterString = "";
+            if (!empty($whereClauses)) {
+                $queryFilterString = " AND " . implode(" AND ", $whereClauses);
+            }
+
+            $countQuery = "SELECT COUNT(*) " . $baseQueryFromWhere . $queryFilterString;
+            $dataQuery = $baseQuerySelect . $baseQueryFromWhere . $queryFilterString . " ORDER BY hp.Proritization ASC, hp.id DESC LIMIT :limit OFFSET :offset";
+
+            try {
+                $stmtTotal = $pdo->prepare($countQuery);
+                $stmtTotal->execute($queryParams);
+                $totalFilteredPanels = (int)$stmtTotal->fetchColumn();
+
+                $stmtData = $pdo->prepare($dataQuery);
+                foreach ($queryParams as $key => $value) {
+                    $stmtData->bindValue($key, $value);
+                }
+                $stmtData->bindValue(':limit', $panelsPerPage, PDO::PARAM_INT);
+                $stmtData->bindValue(':offset', $offset, PDO::PARAM_INT);
+                $stmtData->execute();
+                $panels = $stmtData->fetchAll(PDO::FETCH_ASSOC);
+
+                foreach ($panels as &$panel) { // Add baseFormworkType for easier JS handling
+                    $panel['baseFormworkType'] = getBaseFormworkType($panel['formwork_type']);
+                }
+                unset($panel);
+
+                $httpStatusCode = 200;
+                $response = [
+                    'success' => true,
+                    'panels' => $panels,
+                    'totalFiltered' => $totalFilteredPanels,
+                    'currentPage' => $page,
+                    'hasMore' => ($offset + count($panels)) < $totalFilteredPanels
+                ];
+            } catch (PDOException $e) {
+                error_log("DB Error getMorePanels: " . $e->getMessage());
+                $httpStatusCode = 500;
+                $response = ['success' => false, 'error' => 'Database error fetching more panels.'];
+            }
+        }
         // --- ACTION: updatePanelDate (Handles Single Assignment/Unassignment, Progress, and TWO Orders) ---
-        if ($action === 'updatePanelDate') {
+        elseif ($action === 'updatePanelDate') {
             // *** ROLE CHECK ***
             if (!$canEdit) {
                 $httpStatusCode = 403; // Forbidden
@@ -555,7 +893,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $response = [
                     'success' => false,
                     'progress_exists' => true,
-                    'error' => 'Panel has progress. Confirm to clear progress and update.'
+                    'error' => 'پنل دارای پیشرفت است و نمی توان تاریخ آن را تغییر داد.'
                 ];
                 goto send_response;
             }
@@ -593,7 +931,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 // 2. Handle polystyrene_orders Table
                 if ($date !== null) {
                     // --- Assigning/Updating Date: Create 'east' and 'west' Orders if missing ---
-                    $message = "Panel assignment updated.";
+                    $message = "تخصیص پنل به‌روزرسانی شد.";
                     $orderTypesToHandle = ['east', 'west'];
                     $stmtCheckOrder = $pdo->prepare("SELECT 1 FROM polystyrene_orders WHERE hpc_panel_id = ? AND order_type = ? AND status = 'ordered' LIMIT 1");
                     $stmtGetMaxOrder = $pdo->prepare("SELECT MAX(CAST(SUBSTRING(order_number, 5) AS UNSIGNED)) FROM polystyrene_orders");
@@ -656,13 +994,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         if ($ordersUpdatedCount > 0) $message .= " and";
                         else $message .= ".";
                     }
-                    if ($ordersUpdatedCount > 0) {
-                        $message .= ($ordersCreatedCount > 0 ? " " : " "); // Add space if needed
-                        $message .= "updated delivery date for {$ordersUpdatedCount} existing order(s).";
-                    }
-                    if ($ordersCreatedCount == 0 && $ordersUpdatedCount == 0) {
-                        $message .= " (East/West 'ordered' orders already existed with the correct delivery date).";
-                    }
+                    // Do not append any additional messages regarding order updates or creations.
                 } else {
                     // --- Unassigning Date: Delete BOTH 'pending' Orders ---
                     $message = 'Panel unassigned.';
@@ -795,8 +1127,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $response = ['success' => false, 'available' => false, 'error' => 'خطای پایگاه داده هنگام بررسی در دسترس بودن.'];
                 }
             }
-        }
+        } elseif ($action === 'autoScheduleForDate') { // NEW ACTION
+            if (!$canEdit) {
+                $httpStatusCode = 403;
+                $response = ['success' => false, 'error' => 'Permission denied.'];
+                goto send_response;
+            }
+            $targetDate = $_POST['targetDate'] ?? null; // Expects 'YYYY-MM-DD'
 
+            if (!$targetDate || DateTime::createFromFormat('Y-m-d', $targetDate) === false) {
+                $httpStatusCode = 400;
+                $response = ['success' => false, 'error' => 'Invalid target date provided.'];
+            } else {
+                // Ensure PanelScheduler class is available/included
+                $scheduler = new PanelScheduler($pdo, (int)$current_user_id, $formworkDailyCapacity, $progressColumns);
+                $result = $scheduler->autoScheduleForTargetDate($targetDate); // Call the new method
+
+                // Set HTTP status code based on result
+                $httpStatusCode = 200; // Default to 200
+                if (isset($result['success']) && !$result['success']) {
+                    $httpStatusCode = (isset($result['target_date_invalid']) && $result['target_date_invalid']) ? 400 : 500; // 400 for client error, 500 for server
+                }
+                $response = $result;
+            }
+        }
         // --- ACTION: scheduleMultiplePanels (Uses PanelScheduler - modified) ---
         elseif ($action === 'scheduleMultiplePanels') {
             // *** ROLE CHECK ***
@@ -857,7 +1211,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $response = $result;
                 }
             }
+        } elseif ($action === 'shiftScheduledPanels') {
+            if (!$canEdit) {
+                $httpStatusCode = 403;
+                $response = ['success' => false, 'error' => 'Permission denied.'];
+                goto send_response;
+            }
+
+            $fromDate = $_POST['fromDate'] ?? null; // Expects 'YYYY-MM-DD'
+            $shiftDays = filter_input(INPUT_POST, 'shiftDays', FILTER_VALIDATE_INT);
+
+            if (!$fromDate || DateTime::createFromFormat('Y-m-d', $fromDate) === false) {
+                $httpStatusCode = 400;
+                $response = ['success' => false, 'error' => 'Invalid "from date" provided.'];
+            } elseif ($shiftDays === null || $shiftDays === false) { // filter_input returns false on failure, null if not set
+                $httpStatusCode = 400;
+                $response = ['success' => false, 'error' => 'Invalid number of days to shift. Must be an integer.'];
+            } elseif ($shiftDays == 0) {
+                $httpStatusCode = 200; // Or 400 if you consider 0 an invalid input for a shift
+                $response = ['success' => true, 'message' => 'No shift requested (0 days).', 'shifted' => [], 'failed' => []];
+            } else {
+                $scheduler = new PanelScheduler($pdo, (int)$current_user_id, $formworkDailyCapacity, $progressColumns);
+                $result = $scheduler->shiftScheduledPanels($fromDate, (int)$shiftDays, (int)$current_user_id);
+                $httpStatusCode = $result['success'] ? 200 : 500; // Or 400 for specific validation errors from method
+                $response = $result;
+            }
         }
+
 
         // --- ACTION: getAssignedPanels (Unchanged - Title is already just address) ---
         elseif ($action === 'getAssignedPanels') {
@@ -939,23 +1319,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 // =========================================================================
 try {
     $pdo = getProjectDBConnection();
-    // --- Determine Edit Permission for Page Load ---
     $page_load_user_id = $_SESSION['user_id'] ?? null;
-    $page_load_user_role = $_SESSION['role'] ?? null; // Get role from session
-
+    $page_load_user_role = $_SESSION['role'] ?? null;
     $userCanEditPageLoad = userCanEdit($page_load_user_role);
-    // --- End Determine Edit Permission ---
 
+    $panelsPerPage = 50; // Configurable: Number of panels to load initially and per "load more"
+    $currentPage = 1; // For initial load
 
+    // Get grand total count of all plan_checked=1 panels
+    $stmtGrandTotal = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE plan_checked = 1");
+    $grandTotalPanels = (int)$stmtGrandTotal->fetchColumn();
 
-    // Fetch the 'type' column as it's needed for order creation later
-    $stmt = $pdo->query("SELECT hp.id, hp.address, hp.status, hp.assigned_date, hp.type, hp.area, hp.width, hp.length, hp.Proritization, hp.formwork_type
+    // Fetch first page of panels (no filters applied on initial load, shows highest priority)
+    $offset = ($currentPage - 1) * $panelsPerPage;
+    $stmt = $pdo->prepare("SELECT hp.id, hp.address, hp.status, hp.assigned_date, hp.type, hp.area, hp.width, hp.length, hp.Proritization, hp.formwork_type
                          FROM hpc_panels hp
                          WHERE hp.plan_checked = 1
-                         ORDER BY hp.Proritization ASC, hp.id DESC");
-    $allPanels = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $priorities = empty($allPanels) ? [] : array_unique(array_column($allPanels, 'Proritization'));
-    sort($priorities);
+                         ORDER BY hp.Proritization ASC, hp.id DESC
+                         LIMIT :limit OFFSET :offset");
+    $stmt->bindValue(':limit', $panelsPerPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    $initialPanels = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // For filter dropdowns, get all unique values from the entire dataset.
+    // This might be slow on very large datasets; consider optimizing if needed.
+    $stmtAllForFilters = $pdo->query("SELECT DISTINCT type, Proritization, formwork_type FROM hpc_panels WHERE plan_checked = 1");
+    $filterData = $stmtAllForFilters->fetchAll(PDO::FETCH_ASSOC);
+
+    $typesForFilter = array_values(array_unique(array_filter(array_column($filterData, 'type')))); // Filter out empty/null types
+    sort($typesForFilter);
+
+    $prioritiesForFilter = array_values(array_unique(array_column($filterData, 'Proritization')));
+    // Custom sort to handle nulls/empty strings for "بدون اولویت" appearing correctly if desired
+    usort($prioritiesForFilter, function ($a, $b) {
+        if ($a === null || $a === '') return -1; // Empty/null comes first or last
+        if ($b === null || $b === '') return 1;
+        return $a <=> $b;
+    });
+
+    $formworkTypesForFilter = array_values(array_unique(array_map('getBaseFormworkType', array_column($filterData, 'formwork_type'))));
+    $formworkTypesForFilter = array_filter($formworkTypesForFilter); // Remove nulls from getBaseFormworkType
+    sort($formworkTypesForFilter);
+
     $pdo = null;
 } catch (PDOException $e) {
     error_log("Fatal DB Error fetching panel list: " . $e->getMessage());
@@ -967,6 +1373,7 @@ require_once 'header.php';
 ?>
 <script>
     const USER_CAN_EDIT = <?php echo $userCanEditPageLoad ? 'true' : 'false'; ?>;
+    const PANELS_PER_PAGE = <?php echo $panelsPerPage; ?>;
 </script>
 <!-- Styling (Unchanged) -->
 <style>
@@ -1048,6 +1455,17 @@ require_once 'header.php';
         /* Lighter blue on hover (indigo-50) */
     }
 
+
+
+    .panel-item.panel-selected {
+        background-color: #bfdbfe !important;
+        /* Tailwind's blue-200 */
+        border: 1px solid #60a5fa !important;
+        /* Tailwind's blue-400 */
+        box-shadow: 0 0 0 2px #3b82f6;
+        /* Ring effect, blue-500 */
+    }
+
     a {
         color: #111827;
         text-decoration: none;
@@ -1062,22 +1480,30 @@ require_once 'header.php';
             <!-- Panel List -->
             <div class="bg-white p-4 rounded-lg shadow">
                 <h3 class="text-lg font-bold mb-4 text-gray-700">پنل‌های آماده</h3>
-                <div id="panelStats" class="text-sm text-gray-500 mb-3 border-b pb-2">نمایش: <span id="visibleCount" class="font-semibold text-gray-700">0</span> / <span id="totalCount" class="font-semibold text-gray-700"><?php echo count($allPanels); ?></span></div>
-                <!-- Added max-height and overflow-y-auto -->
-                <!-- Add read-only class conditionally -->
-                <div id="external-events" class="external-events space-y-2 max-h-[calc(100vh-450px)] md:max-h-[60vh] overflow-y-auto pr-2 <?php echo !$userCanEditPageLoad ? 'read-only' : ''; ?>">
-                    <?php if (empty($allPanels)): ?> <p class="text-center text-gray-500 italic">هیچ پنل آماده‌ای یافت نشد.</p>
-                        <?php else: foreach ($allPanels as $panel):
+                <!-- Updated Panel Stats Area -->
+                <div id="panelStats" class="text-sm text-gray-500 mb-3 border-b pb-2">
+                    نمایش: <span id="visibleCountEl" class="font-semibold text-gray-700">0</span>
+                    (از <span id="loadedPanelsCountEl" class="font-semibold text-gray-700">0</span>)
+                    / <span id="totalFilteredPanelsCountEl" class="font-semibold text-gray-700">0</span>
+                    <span class="text-xs block mt-1">کل پنل‌های آماده: <span id="grandTotalPanelsCountEl"><?php echo $grandTotalPanels; ?></span></span>
+                </div>
+
+                <div id="external-events"
+                    class="external-events space-y-2 max-h-[calc(100vh-480px)] md:max-h-[55vh] overflow-y-auto pr-2 <?php echo !$userCanEditPageLoad ? 'read-only-list' : ''; ?>"
+                    data-grand-total-panels="<?php echo $grandTotalPanels; ?>">
+                    <?php if (empty($initialPanels)): ?>
+                        <p class="text-center text-gray-500 italic">هیچ پنل آماده‌ای یافت نشد.</p>
+                        <?php else:
+                        foreach ($initialPanels as $panel):
                             $assigned = $panel['assigned_date'] ? 'true' : 'false';
                             $baseFormworkType = getBaseFormworkType($panel['formwork_type']);
-                            // Determine classes based on assignment AND edit permissions
                             $panelClasses = 'panel-item p-2 rounded shadow-sm';
                             if ($assigned === 'true') {
-                                $panelClasses .= ' bg-gray-200 text-gray-500 cursor-not-allowed'; // Assigned is always non-interactive
+                                $panelClasses .= ' bg-gray-200 text-gray-500 cursor-not-allowed';
                             } elseif (!$userCanEditPageLoad) {
-                                $panelClasses .= ' bg-blue-100 text-blue-800 read-only'; // Unassigned but read-only user
+                                $panelClasses .= ' bg-blue-100 text-blue-800 read-only-item'; // Differentiate read-only item
                             } else {
-                                $panelClasses .= ' bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-move'; // Editable and unassigned
+                                $panelClasses .= ' bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-grab'; // cursor-grab for draggable
                             }
                         ?>
                             <div class="<?php echo $panelClasses; ?>"
@@ -1098,40 +1524,48 @@ require_once 'header.php';
                     <?php endforeach;
                     endif; ?>
                 </div>
+                <!-- Load More Button -->
+                <div id="loadMoreContainer" class="mt-4 text-center <?php echo ($grandTotalPanels <= $panelsPerPage) ? 'hidden' : ''; ?>">
+                    <button id="loadMorePanelsBtn" type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded shadow-sm disabled:opacity-50">
+                        بارگذاری بیشتر
+                    </button>
+                </div>
             </div>
-            <!-- Filters (Unchanged) -->
-            <!-- Filters (Unchanged) -->
+
+            <!-- Filters -->
             <div class="bg-white p-4 rounded-lg shadow">
                 <h3 class="text-lg font-bold mb-4 text-gray-700">جستجو و فیلتر</h3>
                 <div class="space-y-3">
                     <div><label for="searchInput" class="block text-sm font-medium text-gray-600 mb-1">آدرس</label><input type="text" id="searchInput" class="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm" placeholder="..."></div>
                     <div><label for="typeFilter" class="block text-sm font-medium text-gray-600 mb-1">نوع</label><select id="typeFilter" class="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm">
-                            <option value="">همه</option><?php $types = empty($allPanels) ? [] : array_unique(array_column($allPanels, 'type'));
-                                                            foreach ($types as $type): if ($type): ?><option value="<?php echo htmlspecialchars($type); ?>"><?php echo htmlspecialchars($type); ?></option><?php endif;
-                                                                                                                                                                                                    endforeach; ?>
+                            <option value="">همه</option>
+                            <?php foreach ($typesForFilter as $type): ?>
+                                <option value="<?php echo htmlspecialchars($type); ?>"><?php echo htmlspecialchars($type); ?></option>
+                            <?php endforeach; ?>
                         </select></div>
                     <div><label for="priorityFilter" class="block text-sm font-medium text-gray-600 mb-1">اولویت</label><select id="priorityFilter" class="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm">
-                            <option value="">همه</option><?php foreach ($priorities as $priority): $displayPriority = ($priority === null || $priority === '') ? 'بدون اولویت' : htmlspecialchars($priority);
-                                                                $valuePriority = ($priority === null) ? '' : htmlspecialchars($priority); ?><option value="<?php echo $valuePriority; ?>"><?php echo $displayPriority; ?></option><?php endforeach; ?>
+                            <option value="">همه</option>
+                            <option value="IS_NULL_PRIORITY_PLACEHOLDER">بدون اولویت</option> <!-- For NULL/Empty priorities -->
+                            <?php foreach ($prioritiesForFilter as $priority):
+                                if ($priority !== null && $priority !== ''): // Avoid duplicating "بدون اولویت"
+                            ?>
+                                    <option value="<?php echo htmlspecialchars($priority); ?>"><?php echo htmlspecialchars($priority); ?></option>
+                            <?php endif;
+                            endforeach; ?>
                         </select></div>
                     <div><label for="assignmentFilter" class="block text-sm font-medium text-gray-600 mb-1">وضعیت</label><select id="assignmentFilter" class="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm">
                             <option value="">همه</option>
                             <option value="assigned">تخصیص داده</option>
                             <option value="unassigned">تخصیص داده نشده</option>
                         </select></div>
+
                     <div>
                         <label for="formworkFilter" class="block text-sm font-medium text-gray-600 mb-1">نوع قالب</label>
                         <select id="formworkFilter" class="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm">
                             <option value="">همه</option>
-                            <?php
-                            $formworkTypes = empty($allPanels) ? [] : array_unique(array_map('getBaseFormworkType', array_column($allPanels, 'formwork_type')));
-                            sort($formworkTypes);
-                            foreach ($formworkTypes as $type):
-                                if ($type):
-                            ?>
-                                    <option value="<?php echo htmlspecialchars($type); ?>"><?php echo htmlspecialchars($type); ?></option>
-                            <?php endif;
-                            endforeach; ?>
+                            <?php foreach ($formworkTypesForFilter as $type): ?>
+                                <option value="<?php echo htmlspecialchars($type); ?>"><?php echo htmlspecialchars($type); ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="pt-2 border-t border-gray-200">
@@ -1165,6 +1599,26 @@ require_once 'header.php';
                         <span class="button-text">زمانبندی پنل‌های نمایش داده شده</span>
                     </button>
                     <div id="bulkScheduleResult" class="mt-2 text-sm p-2 rounded border bg-gray-50 border-gray-200 min-h-[3em]"></div>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow mt-4">
+                <h3 class="text-lg font-bold mb-4 text-gray-700">جابجایی پنل‌های زمان‌بندی شده</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label for="shiftFromDate" class="block text-sm font-medium text-gray-600 mb-1">جابجایی پنل‌ها از تاریخ</label>
+                        <input type="text" id="shiftFromDate" class="w-full p-2 border border-gray-300 rounded persian-datepicker shadow-sm" placeholder="YYYY/MM/DD" <?php echo !$userCanEditPageLoad ? 'disabled' : ''; ?>>
+                    </div>
+                    <div>
+                        <label for="shiftDays" class="block text-sm font-medium text-gray-600 mb-1">تعداد روزهای جابجایی (مثبت برای آینده، منفی برای گذشته)</label>
+                        <input type="number" id="shiftDays" class="w-full p-2 border border-gray-300 rounded shadow-sm" value="1" <?php echo !$userCanEditPageLoad ? 'disabled' : ''; ?>>
+                    </div>
+                    <button id="executeShiftBtn" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition duration-150 ease-in-out flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" <?php echo !$userCanEditPageLoad ? 'disabled' : ''; ?>>
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.566.379-1.566 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.566 2.6 1.566 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.566-.379 1.566-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="button-text">اجرای جابجایی</span>
+                    </button>
+                    <div id="shiftResult" class="mt-2 text-sm p-2 rounded border bg-gray-50 border-gray-200 min-h-[3em]"></div>
                 </div>
             </div>
         </div>
@@ -1250,6 +1704,49 @@ require_once 'header.php';
             transform: rotate(360deg)
         }
     }
+
+    .panel-item.panel-selected {
+        background-color: #bfdbfe !important;
+        /* Tailwind's blue-200 */
+        border: 1px solid #60a5fa !important;
+        /* Tailwind's blue-400 */
+        box-shadow: 0 0 0 2px #3b82f6;
+        /* Ring effect, blue-500 */
+    }
+
+    a {
+        color: #111827;
+        text-decoration: none;
+    }
+
+    .fc-event {
+        transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out, border-color 0.15s ease-in-out;
+        border: 2px solid transparent !important;
+        /* Default transparent border to prevent layout shifts when selected border is added */
+        /* box-sizing: border-box; /* Ensures border doesn't add to element size if not already set */
+    }
+
+    /* 2. When multi-selection mode is active, dim unselected events */
+    body.calendar-multi-selecting .fc-event:not(.calendar-event-selected) {
+        opacity: 0.60 !important;
+        /* Make it a bit more dimmed */
+    }
+
+    /* 3. Styling for SELECTED events */
+    .fc-event.calendar-event-selected {
+        background-color: lime !important;
+        /* Very obvious color */
+        border: 5px dashed red !important;
+        transform: scale(1.1) !important;
+        opacity: 1 !important;
+        z-index: 1000 !important;
+        /* Even higher z-index */
+    }
+
+    /* And ensure the non-selected are definitely dimmed */
+    body.calendar-multi-selecting .fc-event:not(.calendar-event-selected) {
+        opacity: 0.4 !important;
+    }
 </style>
 
 <script>
@@ -1270,16 +1767,24 @@ require_once 'header.php';
         } else {
             console.warn("PersianDatepicker missing.");
         }
-        const calendarEl = document.getElementById('calendar'),
-            externalEventsContainer = document.getElementById('external-events'),
-            searchInput = document.getElementById('searchInput'),
-            typeFilter = document.getElementById('typeFilter'),
-            priorityFilter = document.getElementById('priorityFilter'),
-            assignmentFilter = document.getElementById('assignmentFilter'),
-            visibleCountEl = document.getElementById('visibleCount'),
-            totalCountEl = document.getElementById('totalCount'),
-            bulkScheduleResultEl = document.getElementById('bulkScheduleResult'),
-            bulkScheduleBtn = document.getElementById('bulkScheduleBtn');
+        const calendarEl = document.getElementById('calendar');
+        const externalEventsContainer = document.getElementById('external-events');
+        const searchInput = document.getElementById('searchInput');
+        const typeFilter = document.getElementById('typeFilter');
+        const priorityFilter = document.getElementById('priorityFilter');
+        const assignmentFilter = document.getElementById('assignmentFilter');
+        const formworkFilter = document.getElementById('formworkFilter'); // Added
+
+        // Panel Stats Elements
+        const visibleCountEl = document.getElementById('visibleCountEl');
+        const loadedPanelsCountEl = document.getElementById('loadedPanelsCountEl');
+        const totalFilteredPanelsCountEl = document.getElementById('totalFilteredPanelsCountEl');
+        const grandTotalPanelsCountEl = document.getElementById('grandTotalPanelsCountEl'); // Already has initial value from PHP
+
+        const bulkScheduleResultEl = document.getElementById('bulkScheduleResult');
+        const bulkScheduleBtn = document.getElementById('bulkScheduleBtn');
+        const loadMoreBtn = document.getElementById('loadMorePanelsBtn');
+        const loadMoreContainer = document.getElementById('loadMoreContainer');
         const md = typeof MobileDetect !== 'undefined' ? new MobileDetect(window.navigator.userAgent) : null;
         const isMobile = md ? md.mobile() !== null : window.innerWidth < 768;
         const togglePriorityColorBtn = document.getElementById('togglePriorityColorBtn');
@@ -1289,6 +1794,173 @@ require_once 'header.php';
         let priorityColoringEnabled = true;
         const defaultEventColor = '#3b82f6'; // Default blue
         let selectedLegendPriorities = new Set(); // Use a Set to store selected priorities like 'P1', 'P6'
+        let selectedCalendarEventIds = new Set();
+        const CALENDAR_EVENT_SELECTED_CLASS = 'calendar-event-selected';
+        const BODY_MULTI_SELECTING_CLASS = 'calendar-multi-selecting';
+        const shiftFromDateEl = document.getElementById('shiftFromDate');
+        const shiftDaysEl = document.getElementById('shiftDays');
+        const executeShiftBtn = document.getElementById('executeShiftBtn');
+        const shiftResultEl = document.getElementById('shiftResult');
+
+        if (executeShiftBtn && shiftFromDateEl && shiftDaysEl && shiftResultEl) {
+            // Initialize persianDatepicker for the new input if not already covered
+            if (typeof $.fn.persianDatepicker === 'function' && $(shiftFromDateEl).data('datepicker') === undefined) {
+                $(shiftFromDateEl).persianDatepicker({
+                    format: 'YYYY/MM/DD',
+                    autoClose: true,
+                    initialValue: false,
+                    calendar: {
+                        persian: {
+                            locale: 'fa',
+                            leapYearMode: 'astronomical'
+                        }
+                    }
+                });
+            }
+
+
+            executeShiftBtn.addEventListener('click', async function() {
+                if (!USER_CAN_EDIT) return;
+
+                const fromDateJalali = shiftFromDateEl.value;
+                const shiftDays = parseInt(shiftDaysEl.value, 10);
+
+                if (!fromDateJalali) {
+                    alert("لطفا 'تاریخ شروع جابجایی' را انتخاب کنید.");
+                    return;
+                }
+                if (isNaN(shiftDays)) {
+                    alert("لطفا 'تعداد روزهای جابجایی' را به صورت عددی وارد کنید.");
+                    return;
+                }
+                if (shiftDays === 0) {
+                    alert("تعداد روزهای جابجایی نمی‌تواند صفر باشد.");
+                    if (shiftResultEl) shiftResultEl.innerHTML = '<p>جابجایی صفر روز درخواست شد. عملیاتی انجام نشد.</p>';
+                    return;
+                }
+
+                let fromDateGregorian;
+                try {
+                    let mFrom = moment(toWesternArabicNumerals(fromDateJalali), 'jYYYY/jMM/jDD');
+                    if (!mFrom.isValid()) {
+                        throw new Error("تاریخ شروع جابجایی معتبر نیست.");
+                    }
+                    fromDateGregorian = mFrom.format('YYYY-MM-DD');
+                } catch (e) {
+                    alert("خطای تاریخ: " + e.message);
+                    return;
+                }
+
+                const direction = shiftDays > 0 ? "به جلو" : "به عقب";
+                const absShiftDays = Math.abs(shiftDays);
+                let confirmMessage = `آیا مطمئن هستید که می‌خواهید تمام پنل‌های زمان‌بندی شده (بدون پیشرفت) از تاریخ ${fromDateJalali} به بعد را ${absShiftDays} روز ${direction} ببرید؟\n(پنل‌ها به روز جمعه منتقل نخواهند شد.`;
+                if (shiftDays < 0) {
+                    confirmMessage += `\nفقط پنل‌های آینده جابجا شده و هیچ پنلی به تاریخی قبل از امروز منتقل نخواهد شد.)`;
+                } else {
+                    confirmMessage += `)`;
+                }
+                if (!confirm(`آیا مطمئن هستید که می‌خواهید تمام پنل‌های زمان‌بندی شده (بدون پیشرفت ثبت شده) از تاریخ ${fromDateJalali} به بعد را ${absShiftDays} روز ${direction} ببرید؟\n(پنل‌ها به روز جمعه منتقل نخواهند شد)`)) {
+                    return;
+                }
+
+                showButtonLoading(this, 'در حال جابجایی...');
+                shiftResultEl.innerHTML = '';
+                shiftResultEl.className = 'mt-2 text-sm p-2 rounded border bg-gray-50 border-gray-200 min-h-[3em]';
+
+
+                try {
+                    const result = await makeAjaxCall({
+                        action: 'shiftScheduledPanels',
+                        fromDate: fromDateGregorian,
+                        shiftDays: shiftDays
+                    });
+
+                    let msg = `<h3>نتایج جابجایی پنل‌ها:</h3>`;
+                    if (result.success) {
+                        msg += `<p class="text-green-600">${result.message || 'عملیات با موفقیت انجام شد.'}</p>`;
+                        if (result.shifted && result.shifted.length > 0) {
+                            msg += `<strong>با موفقیت جابجا شد (${result.shifted.length}):</strong><ul>`;
+                            result.shifted.forEach(p => {
+                                msg += `<li>${p.address || 'ID: '+p.panel_id} (از ${moment(p.old_date).format('jYYYY/jMM/jDD')} به ${moment(p.new_date).format('jYYYY/jMM/jDD')})</li>`;
+                            });
+                            msg += `</ul>`;
+                        } else if (!result.failed || result.failed.length === 0) {
+                            msg += `<p>هیچ پنلی برای جابجایی در محدوده تاریخ مشخص شده یافت نشد یا نیازی به جابجایی نداشت.</p>`;
+                        }
+
+                        if (result.failed && result.failed.length > 0) {
+                            msg += `<strong class="text-red-600">ناموفق در جابجایی / جابجا نشده (${result.failed.length}):</strong><ul>`; // Clarify title
+                            result.failed.forEach(p => msg += `<li>${p.address || 'ID: '+p.panel_id}: ${p.reason}</li>`);
+                            msg += `</ul>`;
+                        }
+                    } else {
+                        msg += `<p class="text-red-600">خطا در عملیات جابجایی: ${result.error || 'خطای ناشناخته از سرور.'}</p>`;
+                    }
+                    shiftResultEl.innerHTML = msg;
+                    shiftResultEl.className = `mt-2 text-sm p-3 rounded border ${ (result.failed && result.failed.length > 0 && result.shifted && result.shifted.length === 0) ? 'border-red-400 bg-red-50' : ((result.failed && result.failed.length > 0) ? 'border-yellow-400 bg-yellow-50' : 'border-green-400 bg-green-50') } min-h-[3em]`;
+
+
+                    calendar.refetchEvents(); // Refresh calendar to show new dates
+                    fetchAndRenderPanels(1, false); // Refresh sidebar panel list as assignments might have changed
+
+                } catch (error) {
+                    console.error("Error in shiftScheduledPanels AJAX call:", error);
+                    shiftResultEl.innerHTML = `<p class="text-red-600">خطای ارتباط با سرور هنگام جابجایی.</p>`;
+                    shiftResultEl.className = 'mt-2 text-sm p-3 rounded border border-red-400 bg-red-50 min-h-[3em]';
+                    alert("خطا در اجرای جابجایی.");
+                } finally {
+                    hideButtonLoading(this);
+                }
+            });
+        }
+
+        function updateGlobalSelectionVisualState() {
+            if (selectedCalendarEventIds.size > 0) {
+                document.body.classList.add(BODY_MULTI_SELECTING_CLASS);
+            } else {
+                document.body.classList.remove(BODY_MULTI_SELECTING_CLASS);
+            }
+            // This function just manages the body class.
+            // Individual event styling is now primarily handled by eventClassNames.
+        }
+
+        function toggleEventElementSelection(eventEl, shouldBeSelected) {
+            if (eventEl) {
+                if (shouldBeSelected) {
+                    eventEl.classList.add(CALENDAR_EVENT_SELECTED_CLASS);
+                } else {
+                    eventEl.classList.remove(CALENDAR_EVENT_SELECTED_CLASS);
+                }
+            } else {
+                console.warn("toggleEventElementSelection: eventEl is null/undefined");
+            }
+        }
+
+        // --- Helper: Clear Calendar Selection ---
+        function clearCalendarSelection() {
+            // Deselect all visually (if their elements are available)
+            selectedCalendarEventIds.forEach(eventId => {
+                const eventObj = calendar.getEventById(eventId.toString());
+                if (eventObj && eventObj.el) { // Check if .el exists
+                    toggleEventElementSelection(eventObj.el, false);
+                }
+            });
+            selectedCalendarEventIds.clear();
+            updateGlobalSelectionVisualState(); // Update body class
+            console.log("Calendar selection cleared.");
+
+            // To ensure FullCalendar re-evaluates eventClassNames for previously selected items:
+            // This is a bit of a "nudge".
+            calendar.getEvents().forEach(event => {
+                if (event.el && event.el.classList.contains(CALENDAR_EVENT_SELECTED_CLASS)) {
+                    // If it still has the class after our direct removal attempt (e.g. element was not found),
+                    // triggering a property change might help FullCalendar re-render it.
+                    event.setExtendedProp('_clear_trigger', Math.random());
+                }
+            });
+            // Alternatively, a full calendar.render() is the most forceful way, but use sparingly.
+        }
+
 
         // --- Helper Function to Get Color Based on Priority ---
         // (Generates colors from Red to Violet using HSL)
@@ -1496,6 +2168,277 @@ require_once 'header.php';
             }
         }
 
+        // --- Pagination & Filtering State ---
+        let currentPage = 1;
+        let isLoadingMorePanels = false;
+        let currentFilters = {
+            searchText: '',
+            selectedType: '',
+            selectedPriority: '',
+            assignmentStatus: '',
+            selectedFormwork: ''
+        };
+        let lastSelectedPanelFromList = null; // For shift-click selection
+
+        // --- Helper: Debounce ---
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), delay);
+            };
+        }
+
+        // --- Helper: Create Panel Element (from JS data) ---
+        function createPanelElement(panel) {
+            const assigned = panel.assigned_date ? 'true' : 'false';
+            const baseFormworkType = panel.baseFormworkType; // Provided by PHP AJAX
+
+            let panelClasses = 'panel-item p-2 rounded shadow-sm';
+            if (assigned === 'true') {
+                panelClasses += ' bg-gray-200 text-gray-500 cursor-not-allowed';
+            } else if (!USER_CAN_EDIT) {
+                panelClasses += ' bg-blue-100 text-blue-800 read-only-item';
+            } else {
+                panelClasses += ' bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-grab';
+            }
+
+            const div = document.createElement('div');
+            div.className = panelClasses;
+            div.dataset.panelId = panel.id;
+            div.dataset.panelType = panel.type || '';
+            div.dataset.panelAssigned = assigned;
+            div.dataset.panelWidth = panel.width || '';
+            div.dataset.panelLength = panel.length || '';
+            div.dataset.panelPriority = panel.Proritization || '';
+            div.dataset.panelFormwork = baseFormworkType || '';
+
+            const priorityDisplay = (panel.Proritization === null || panel.Proritization === '') ? 'N/A' : panel.Proritization;
+            const addressDisplay = panel.address || 'N/A';
+            const typeDisplay = panel.type || 'N/A';
+            const areaDisplay = panel.area || 'N/A';
+            const widthDisplay = panel.width || 'N/A';
+            const lengthDisplay = panel.length || 'N/A';
+
+
+            div.innerHTML = `
+            <div class="font-semibold text-sm break-words">${addressDisplay}</div>
+            <div class="text-xs mt-1 text-gray-600">
+                قالب: <span class="font-medium">${baseFormworkType || 'N/A'}</span> |
+                اولویت: <span class="font-medium">${priorityDisplay}</span>
+            </div>
+            <div class="text-xs text-gray-500">${typeDisplay} | ${areaDisplay}m² | W:${widthDisplay} L:${lengthDisplay}</div>
+        `;
+            return div;
+        }
+
+        // --- Helper: Add Touch Listeners to Panel Items ---
+        function handlePanelTouchStart() {
+            if (USER_CAN_EDIT && this.classList.contains('cursor-grab')) this.classList.add('opacity-75', 'scale-105');
+        }
+
+        function handlePanelTouchEnd() {
+            if (USER_CAN_EDIT && this.classList.contains('cursor-grab')) this.classList.remove('opacity-75', 'scale-105');
+        }
+
+        function addTouchListenersToPanelItems(panelElements) {
+            if (!USER_CAN_EDIT) return;
+            panelElements.forEach(p => {
+                if (p.classList.contains('read-only-item') || p.dataset.panelAssigned === 'true') return;
+                p.removeEventListener('touchstart', handlePanelTouchStart); // Prevent duplicates
+                p.removeEventListener('touchend', handlePanelTouchEnd);
+                p.addEventListener('touchstart', handlePanelTouchStart, {
+                    passive: true
+                });
+                p.addEventListener('touchend', handlePanelTouchEnd, {
+                    passive: true
+                });
+            });
+        }
+
+
+        // --- Core: Fetch and Render Panels ---
+        async function fetchAndRenderPanels(page = 1, loadMore = false) {
+            if (isLoadingMorePanels) return;
+            isLoadingMorePanels = true;
+            if (loadMoreBtn) loadMoreBtn.disabled = true;
+            if (!loadMore) showGlobalLoading('در حال جستجو...');
+            else showGlobalLoading('بارگذاری بیشتر...');
+
+
+            currentFilters.searchText = searchInput.value.trim(); // No toLowerCase here, backend handles
+            currentFilters.selectedType = typeFilter.value;
+            currentFilters.selectedPriority = priorityFilter.value;
+            currentFilters.assignmentStatus = assignmentFilter.value;
+            currentFilters.selectedFormwork = formworkFilter.value;
+
+            try {
+                const data = await makeAjaxCall({
+                    action: 'getMorePanels',
+                    page: page,
+                    panelsPerPage: PANELS_PER_PAGE,
+                    ...currentFilters
+                });
+
+                if (data.success) {
+                    if (!loadMore) {
+                        externalEventsContainer.innerHTML = ''; // Clear for new search/filter
+                        lastSelectedPanelFromList = null; // Reset shift-click selection
+                    }
+                    const newElements = [];
+                    data.panels.forEach(panel => {
+                        const el = createPanelElement(panel);
+                        externalEventsContainer.appendChild(el);
+                        newElements.push(el);
+                    });
+                    addTouchListenersToPanelItems(newElements);
+
+
+                    currentPage = data.currentPage;
+                    const currentlyLoadedInDOM = externalEventsContainer.children.length;
+                    if (loadedPanelsCountEl) loadedPanelsCountEl.textContent = currentlyLoadedInDOM;
+                    if (totalFilteredPanelsCountEl) totalFilteredPanelsCountEl.textContent = data.totalFiltered;
+
+                    if (loadMoreContainer) {
+                        loadMoreContainer.classList.toggle('hidden', !data.hasMore);
+                    }
+
+                    applyClientSideSearchHighlightingAndCount(); // Update visible count and highlight
+
+                } else {
+                    alert('خطا در بارگذاری پنل‌ها: ' + (data.error || 'خطای ناشناخته'));
+                }
+            } catch (error) {
+                console.error("Error fetching panels:", error);
+                // makeAjaxCall should have alerted
+            } finally {
+                isLoadingMorePanels = false;
+                if (loadMoreBtn) loadMoreBtn.disabled = false;
+                hideGlobalLoading();
+            }
+        }
+
+        // --- Client-side Search Highlighting & Visible Count (after server filters) ---
+        function applyClientSideSearchHighlightingAndCount() {
+            const searchText = searchInput.value.toLowerCase().trim();
+            const allPanelElements = externalEventsContainer.querySelectorAll('.panel-item');
+            let currentVisibleCount = 0;
+
+            allPanelElements.forEach(panel => {
+                const addressNode = panel.querySelector('.font-semibold');
+                const address = (addressNode?.textContent || '').toLowerCase();
+                let showBasedOnSearch = true;
+
+                if (searchText && !address.includes(searchText)) {
+                    showBasedOnSearch = false;
+                }
+                panel.classList.toggle('hidden', !showBasedOnSearch);
+
+                if (showBasedOnSearch) {
+                    currentVisibleCount++;
+                    if (addressNode) {
+                        const originalText = addressNode.dataset.originalText || addressNode.textContent || '';
+                        if (searchText && !addressNode.dataset.originalText) addressNode.dataset.originalText = originalText;
+                        if (searchText) {
+                            const regex = new RegExp(searchText.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+                            addressNode.innerHTML = (addressNode.dataset.originalText || originalText).replace(regex, '<span class="search-highlight bg-yellow-200 px-0 py-0">$&</span>');
+                        } else if (addressNode.dataset.originalText) {
+                            addressNode.innerHTML = addressNode.dataset.originalText;
+                            delete addressNode.dataset.originalText;
+                        }
+                    }
+                } else {
+                    if (addressNode && addressNode.dataset.originalText) {
+                        addressNode.innerHTML = addressNode.dataset.originalText;
+                        delete addressNode.dataset.originalText;
+                    } else if (addressNode && addressNode.querySelector('.search-highlight')) {
+                        addressNode.innerHTML = addressNode.textContent || '';
+                    }
+                }
+            });
+            if (visibleCountEl) visibleCountEl.textContent = currentVisibleCount;
+        }
+
+        // --- Initialize Draggable for External Events (Panel List) ---
+        let fcDraggableInstance = null;
+
+        function initializeExternalEventDragging() {
+            if (fcDraggableInstance) { // Destroy previous instance if exists
+                // fcDraggableInstance.destroy(); // FullCalendar Draggable doesn't have a formal destroy in all versions easily.
+                // Instead, ensure itemSelector correctly targets only current, valid items.
+            }
+            if (externalEventsContainer && USER_CAN_EDIT) {
+                fcDraggableInstance = new FullCalendar.Draggable(externalEventsContainer, {
+                    // Critical: only target items that are NOT assigned and NOT read-only (if user can edit)
+                    // And ensure they are not hidden by client-side search!
+                    itemSelector: '.panel-item:not([data-panel-assigned="true"]):not(.read-only-item):not(.hidden)',
+                    eventData: function(eventEl) {
+                        const address = eventEl.querySelector('.font-semibold')?.innerText || 'پنل';
+                        return {
+                            title: address,
+                            extendedProps: {
+                                panelId: eventEl.getAttribute('data-panel-id'),
+                                formworkType: eventEl.getAttribute('data-panel-formwork'),
+                                address: address
+                            }
+                            // DO NOT set create: false here if you want it to be a "copy"
+                        };
+                    },
+                });
+                addTouchListenersToPanelItems(externalEventsContainer.querySelectorAll('.panel-item:not([data-panel-assigned="true"]):not(.read-only-item)'));
+            } else if (externalEventsContainer) { // Read-only user
+                externalEventsContainer.querySelectorAll('.panel-item:not([data-panel-assigned="true"])').forEach(p => {
+                    p.style.cursor = 'default';
+                });
+            }
+        }
+
+        function updateSelectedCalendarEventVisuals() {
+            let hasSelection = false;
+            console.log("--- updateSelectedCalendarEventVisuals ---"); // Log when function is called
+            calendar.getEvents().forEach(event => {
+                const el = event.el;
+                console.log("Event ID:", event.id, "event.el:", el); // What IS event.el?
+
+                if (el) { // Make sure el is not null
+                    if (selectedCalendarEventIds.has(event.id)) {
+                        console.log("ADDING class to el for event ID:", event.id, el.classList);
+                        el.classList.add(CALENDAR_EVENT_SELECTED_CLASS);
+                        console.log("   Class list AFTER ADD:", el.classList);
+                        hasSelection = true;
+                    } else {
+                        if (el.classList.contains(CALENDAR_EVENT_SELECTED_CLASS)) { // Only log if removing
+                            console.log("REMOVING class from el for event ID:", event.id, el.classList);
+                            el.classList.remove(CALENDAR_EVENT_SELECTED_CLASS);
+                            console.log("   Class list AFTER REMOVE:", el.classList);
+                        }
+                    }
+                } else {
+                    console.warn("event.el is NULL for event ID:", event.id);
+                }
+            });
+
+            if (hasSelection) {
+                if (!document.body.classList.contains('calendar-multi-selecting')) {
+                    console.log("Adding 'calendar-multi-selecting' to body");
+                    document.body.classList.add('calendar-multi-selecting');
+                }
+            } else {
+                if (document.body.classList.contains('calendar-multi-selecting')) {
+                    console.log("Removing 'calendar-multi-selecting' from body");
+                    document.body.classList.remove('calendar-multi-selecting');
+                }
+            }
+            console.log("Body class list:", document.body.classList);
+            console.log("--- end updateSelectedCalendarEventVisuals ---");
+        }
+        // --- Helper: Clear Calendar Selection ---
+        function clearCalendarSelection() {
+            selectedCalendarEventIds.clear();
+            updateSelectedCalendarEventVisuals(); // This will now also remove the body class
+            console.log("Calendar selection cleared.");
+        }
 
         // --- FullCalendar Init ---
         const calendar = new FullCalendar.Calendar(calendarEl, {
@@ -1522,236 +2465,596 @@ require_once 'header.php';
             // *** Conditional Editability ***
             editable: USER_CAN_EDIT, // Allow moving events only if user can edit
             droppable: USER_CAN_EDIT, // Allow dropping external panels only if user can edit
-
-            eventDragStart: function(info) {
-                if (!USER_CAN_EDIT) return;
-                info.el.classList.add('opacity-50', 'ring-2', 'ring-blue-500');
+            selectable: true, // Allow selecting date ranges on background - useful for unselect
+            selectMirror: true, // Visual cue for date range selection
+            select: function(selectionInfo) {
+                clearCalendarSelection();
+                calendar.unselect();
             },
-            eventDragStop: function(info) {
-                if (!USER_CAN_EDIT) return;
-                info.el.classList.remove('opacity-50', 'ring-2', 'ring-blue-500');
+            dateClick: function(info) {
+                clearCalendarSelection();
+            },
+            eventClassNames: function(arg) {
+                if (selectedCalendarEventIds.has(arg.event.id.toString())) {
+                    return [CALENDAR_EVENT_SELECTED_CLASS];
+                }
+                return [];
+            },
+            eventDidMount: function(info) {
+                // info.event is the event object
+                // info.el is the event's root DOM element
+                console.log("eventDidMount - ID:", info.event.id, "el:", info.el);
+                if (selectedCalendarEventIds.has(info.event.id.toString())) { // Ensure comparing string ID
+                    console.log("   Applying selection class to newly mounted event:", info.event.id);
+                    info.el.classList.add(CALENDAR_EVENT_SELECTED_CLASS);
+                }
+
             },
 
-            // --- Moving an existing event ---
+            eventWillUnmount: function(info) {
+                // Optional: Clean up if needed, though usually not for simple class toggling
+                // console.log("eventWillUnmount - ID:", info.event.id);
+            },
             eventDrop: async function(info) {
                 if (!USER_CAN_EDIT) {
-                    info.revert(); // Immediately revert if user cannot edit
-                    return;
-                }
-                const panelId = info.event.extendedProps.panelId,
-                    newDate = moment(info.event.start).format('YYYY-MM-DD'),
-                    baseFormworkType = info.event.extendedProps.formworkType;
-                if (!baseFormworkType) {
-                    alert('خطا: نوع قالب رویداد نامشخص.');
                     info.revert();
                     return;
                 }
 
-                try {
-                    // 1. Check Availability
-                    const availData = await makeAjaxCall({
-                        action: 'checkFormworkAvailability',
-                        panelId: panelId,
-                        date: newDate,
-                        formworkType: baseFormworkType
-                    });
-                    if (!availData.available) {
-                        alert(`جابجایی ناموفق: ${availData.error || 'ظرفیت تکمیل است.'}`);
-                        info.revert();
-                        return;
-                    }
+                const droppedEvent = info.event;
+                const newDate = moment(droppedEvent.start).format('YYYY-MM-DD');
+                let eventsToMove = []; // Array of { id: panelId, formworkType: baseFormworkType, originalEvent: eventObj }
 
-                    // 2. Attempt Update (handles progress check, panel update, order logic)
-                    let updateData = await makeAjaxCall({
-                        action: 'updatePanelDate',
-                        panelId: panelId,
-                        date: newDate
-                    });
+                showGlobalLoading("در حال جابجایی پنل(ها)...");
 
-                    // 3. Handle Progress Warning
-                    if (updateData.progress_exists) {
-                        if (confirm("این پنل دارای اطلاعات پیشرفت ثبت شده است. برای جابجایی، اطلاعات پیشرفت پاک خواهد شد. ادامه می‌دهید؟")) {
-                            updateData = await makeAjaxCall({
-                                action: 'updatePanelDate',
-                                panelId: panelId,
-                                date: newDate,
-                                forceUpdate: true
+                if (selectedCalendarEventIds.size > 0 && selectedCalendarEventIds.has(droppedEvent.id)) {
+                    // Multi-event drop: move all selected events
+                    console.log(`Multi-drop detected. Processing ${selectedCalendarEventIds.size} events.`);
+                    selectedCalendarEventIds.forEach(eventId => {
+                        const eventObj = calendar.getEventById(eventId);
+                        if (eventObj) {
+                            eventsToMove.push({
+                                id: eventObj.extendedProps.panelId,
+                                formworkType: eventObj.extendedProps.formworkType, // Make sure this is base type
+                                address: eventObj.title, // Or eventObj.extendedProps.address
+                                currentEventObject: eventObj // Keep reference to FullCalendar event
                             });
-                        } else {
-                            info.revert();
-                            return;
                         }
-                    }
-
-                    // 4. Check final update result
-                    if (!updateData.success) {
-                        alert('خطا در به‌روزرسانی نهایی تاریخ: ' + (updateData.error || 'Unknown error after confirmation.'));
-                        info.revert();
-                        return;
-                    }
-                    // Success: Event stays, potentially show success message from updateData.message if needed
-                    // calendar.refetchEvents(); // Might be needed if server changes event props
-
-                } catch (error) {
-                    console.error('Error during event drop:', error);
-                    info.revert();
+                    });
+                } else {
+                    // Single event drop (or an event not part of the current multi-selection was dragged)
+                    // In this case, we should probably only move the one event that was physically dragged.
+                    // And clear any other multi-selection.
+                    clearCalendarSelection(); // Clear selection as we are processing a single non-group drag
+                    console.log("Single event drop detected for panel ID:", droppedEvent.extendedProps.panelId);
+                    eventsToMove.push({
+                        id: droppedEvent.extendedProps.panelId,
+                        formworkType: droppedEvent.extendedProps.formworkType,
+                        address: droppedEvent.title,
+                        currentEventObject: droppedEvent
+                    });
                 }
+
+                if (eventsToMove.length === 0) {
+                    alert("هیچ پنلی برای جابجایی مشخص نشد.");
+                    hideGlobalLoading();
+                    info.revert(); // Revert the visually dragged event
+                    return;
+                }
+
+                // --- Backend Call for Multiple Panel Updates ---
+                // We'll use the existing 'scheduleMultiplePanels' endpoint.
+                // It's designed to take a list of panel IDs and a date range.
+                // For a move, the "old date" handling (unassignment, order deletion) needs to happen
+                // BEFORE the new assignment. This is tricky with a single endpoint.
+
+                // A more robust backend would be:
+                // action: 'moveMultiplePanels'
+                // payload: { panels: [{id, oldDate, formworkType}], newDate }
+
+                // For now, let's try a simplified client-side loop and call 'updatePanelDate' for each.
+                // This is NOT ideal for true multi-update atomicity and can lead to partial updates.
+                // A dedicated backend endpoint is much better.
+
+                let allSucceeded = true;
+                let results = [];
+                let originalEventPositions = new Map(); // Store original positions to revert if needed
+
+                // Store original positions before attempting moves
+                eventsToMove.forEach(eventData => {
+                    originalEventPositions.set(eventData.id, {
+                        start: eventData.currentEventObject.start,
+                        // end: eventData.currentEventObject.end // if you use end dates
+                    });
+                });
+
+
+                for (const eventData of eventsToMove) {
+                    const panelId = eventData.id;
+                    const baseFormworkType = eventData.formworkType;
+
+                    if (!baseFormworkType) {
+                        results.push({
+                            panelId: panelId,
+                            address: eventData.address,
+                            success: false,
+                            error: 'نوع قالب نامشخص.'
+                        });
+                        allSucceeded = false;
+                        continue;
+                    }
+
+                    try {
+                        // 1. Check Availability for this specific panel
+                        const availData = await makeAjaxCall({
+                            action: 'checkFormworkAvailability',
+                            panelId: panelId, // Pass panelId to exclude itself from count if it was already on newDate
+                            date: newDate,
+                            formworkType: baseFormworkType
+                        });
+                        if (!availData.available) {
+                            results.push({
+                                panelId: panelId,
+                                address: eventData.address,
+                                success: false,
+                                error: availData.error || 'ظرفیت تکمیل.'
+                            });
+                            allSucceeded = false;
+                            continue; // Skip this panel
+                        }
+
+                        // 2. Attempt Update (this handles progress check, panel DB update, order logic)
+                        let updateResponse = await makeAjaxCall({
+                            action: 'updatePanelDate', // This action already handles unassign from old + assign to new
+                            panelId: panelId,
+                            date: newDate
+                        });
+
+                        // 3. Handle Progress Warning
+                        if (updateResponse.progress_exists) {
+                            if (confirm(`پنل "${eventData.address}" دارای اطلاعات پیشرفت است. برای جابجایی، پیشرفت پاک خواهد شد. ادامه می‌دهید؟`)) {
+                                updateResponse = await makeAjaxCall({
+                                    action: 'updatePanelDate',
+                                    panelId: panelId,
+                                    date: newDate,
+                                    forceUpdate: true
+                                });
+                            } else {
+                                results.push({
+                                    panelId: panelId,
+                                    address: eventData.address,
+                                    success: false,
+                                    error: 'جابجایی به دلیل وجود پیشرفت لغو شد.'
+                                });
+                                allSucceeded = false;
+                                continue; // Skip this panel, user cancelled
+                            }
+                        }
+
+                        if (!updateResponse.success) {
+                            results.push({
+                                panelId: panelId,
+                                address: eventData.address,
+                                success: false,
+                                error: updateResponse.error || 'خطا در به‌روزرسانی تاریخ.'
+                            });
+                            allSucceeded = false;
+                        } else {
+                            results.push({
+                                panelId: panelId,
+                                address: eventData.address,
+                                success: true,
+                                message: updateResponse.message
+                            });
+                            // FullCalendar might have already moved it visually if it's the primary `info.event`.
+                            // For other selected events, we need to ensure they are moved on the calendar if success.
+                            if (eventData.currentEventObject !== droppedEvent) {
+                                // Calculate the date difference if the original drag was across multiple days
+                                const dateDelta = moment(droppedEvent.start).diff(moment(info.oldEvent.start), 'days');
+                                const originalStartDate = moment(originalEventPositions.get(panelId)?.start);
+                                if (originalStartDate) {
+                                    const newCalculatedStartDate = originalStartDate.clone().add(dateDelta, 'days');
+                                    eventData.currentEventObject.setStart(newCalculatedStartDate.toDate(), {
+                                        maintainDuration: true
+                                    });
+                                    // If you have end dates: eventData.currentEventObject.setEnd(...);
+                                } else { // Fallback if original position not found, just move to newDate
+                                    eventData.currentEventObject.setStart(newDate, {
+                                        maintainDuration: true
+                                    });
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`Error processing panel ${panelId} during multi-drop:`, error);
+                        results.push({
+                            panelId: panelId,
+                            address: eventData.address,
+                            success: false,
+                            error: 'خطای سرور هنگام جابجایی.'
+                        });
+                        allSucceeded = false;
+                    }
+                } // End loop through eventsToMove
+
+                hideGlobalLoading();
+
+                // --- Display Results ---
+                let summaryMessage = "نتایج جابجایی گروهی:\n";
+                let successCount = 0;
+                results.forEach(res => {
+                    if (res.success) {
+                        successCount++;
+                        summaryMessage += `✅ ${res.address}: ${res.message || 'موفق'}\n`;
+                    } else {
+                        summaryMessage += `❌ ${res.address}: ${res.error}\n`;
+                        // Revert failed ones on the calendar
+                        const eventToRevert = eventsToMove.find(e => e.id === res.panelId)?.currentEventObject;
+                        const originalPos = originalEventPositions.get(res.panelId);
+                        if (eventToRevert && originalPos) {
+                            eventToRevert.setStart(originalPos.start, {
+                                maintainDuration: true
+                            });
+                            // if (originalPos.end) eventToRevert.setEnd(originalPos.end);
+                            console.log(`Reverted event ${eventToRevert.id} due to failure.`);
+                        } else if (eventToRevert === droppedEvent) { // If primary dragged event failed
+                            info.revert();
+                        }
+
+                    }
+                });
+                alert(summaryMessage);
+
+                if (successCount > 0 && successCount < eventsToMove.length) {
+                    // Partial success, refetch to ensure calendar is accurate for successful ones
+                    calendar.refetchEvents();
+                } else if (successCount === 0 && eventsToMove.length > 0) {
+                    // All failed, the individual reverts should handle it.
+                    // The primary dragged event info.revert() might also be needed if it was one of the failed.
+                } else if (successCount === eventsToMove.length) {
+                    // All succeeded. Visual updates might have already happened.
+                    // A calendar.refetchEvents() can ensure consistency.
+                    calendar.refetchEvents();
+                }
+
+
+                clearCalendarSelection(); // Clear selection after processing
             },
 
             // --- Clicking to remove an assignment ---
             eventClick: async function(info) {
-                if (!USER_CAN_EDIT) {
-                    // Optional: Show details on click for read-only users?
-                    // alert(`Panel: ${info.event.title}\nDate: ${moment(info.event.start).format('jYYYY/jMM/jDD')}\nType: ${info.event.extendedProps.formworkType}`);
-                    return; // Do nothing if user cannot edit
-                }
-                const panelId = info.event.extendedProps.panelId;
-                const dateStr = moment(info.event.start).isValid() ? moment(info.event.start).format('jYYYY/jMM/jDD') : '?';
-                const title = info.event.title || 'پنل'; // Title is now just the address
+                if (!USER_CAN_EDIT) return;
+                info.jsEvent.preventDefault(); // Prevent default browser action
 
-                if (confirm(`لغو تخصیص پنل "${title}" در ${dateStr}؟\n(این کار سفارش مربوطه را نیز لغو می‌کند)`)) {
-                    try {
-                        let response = await makeAjaxCall({
-                            action: 'updatePanelDate',
-                            panelId: panelId,
-                            date: ''
-                        });
-                        if (response.progress_exists) {
-                            if (confirm("این پنل دارای اطلاعات پیشرفت ثبت شده است. برای لغو تخصیص، اطلاعات پیشرفت پاک خواهد شد. ادامه می‌دهید؟")) {
-                                response = await makeAjaxCall({
+                const clickedEvent = info.event;
+                const clickedEventEl = info.el; // DOM element of the clicked event
+                const clickedEventIdStr = clickedEvent.id.toString();
+
+                console.log("Event clicked:", clickedEventIdStr, "Ctrl/Meta:", info.jsEvent.ctrlKey || info.jsEvent.metaKey);
+
+                if (info.jsEvent.ctrlKey || info.jsEvent.metaKey) {
+                    if (selectedCalendarEventIds.has(clickedEventIdStr)) {
+                        selectedCalendarEventIds.delete(clickedEventIdStr);
+                        toggleEventElementSelection(clickedEventEl, false); // Immediate visual feedback
+                    } else {
+                        selectedCalendarEventIds.add(clickedEventIdStr);
+                        toggleEventElementSelection(clickedEventEl, true); // Immediate visual feedback
+                    }
+                } else { // Normal click
+                    const isOnlySelected = selectedCalendarEventIds.has(clickedEventIdStr) && selectedCalendarEventIds.size === 1;
+
+                    if (isOnlySelected) {
+                        // --- ACTION: UNASSIGN ---
+                        // Clicked on an event that was already the *only* selected one.
+                        console.log("Attempting to unassign event:", clickedEventIdStr);
+                        const panelId = clickedEvent.extendedProps.panelId;
+                        const dateStr = moment(clickedEvent.start).isValid() ? moment(clickedEvent.start).format('jYYYY/jMM/jDD') : '?';
+                        const title = clickedEvent.title || 'پنل';
+
+                        if (confirm(`لغو تخصیص پنل "${title}" در ${dateStr}؟\n(این کار سفارش مربوطه را نیز لغو می‌کند)`)) {
+                            showGlobalLoading("در حال لغو تخصیص...");
+                            let unassignmentSuccessful = false;
+                            try {
+                                let response = await makeAjaxCall({
                                     action: 'updatePanelDate',
                                     panelId: panelId,
-                                    date: '',
+                                    date: ''
+                                });
+                                if (response.progress_exists) {
+                                    if (confirm("این پنل دارای اطلاعات پیشرفت است. برای لغو تخصیص، اطلاعات پیشرفت پاک خواهد شد. ادامه می‌دهید؟")) {
+                                        response = await makeAjaxCall({
+                                            action: 'updatePanelDate',
+                                            panelId: panelId,
+                                            date: '',
+                                            forceUpdate: true
+                                        });
+                                    } else {
+                                        // User cancelled due to progress warning. Do nothing to selection. Event remains selected.
+                                        hideGlobalLoading();
+                                        updateGlobalSelectionVisualState(); // Just ensure body class is correct
+                                        return; // Exit eventClick
+                                    }
+                                }
+                                if (response.success) {
+                                    unassignmentSuccessful = true;
+                                    clickedEvent.remove(); // Remove from FullCalendar's internal model & DOM
+                                    selectedCalendarEventIds.delete(clickedEventIdStr); // Remove from our selection state
+
+                                    // Update corresponding panel in the sidebar list
+                                    const pEl = document.querySelector(`.panel-item[data-panel-id="${panelId}"]`);
+                                    if (pEl) {
+                                        pEl.dataset.panelAssigned = 'false';
+                                        pEl.classList.remove('bg-gray-200', 'text-gray-500', 'cursor-not-allowed', 'panel-selected');
+                                        pEl.classList.add('bg-blue-100', 'text-blue-800', 'hover:bg-blue-200', 'cursor-grab');
+                                    }
+                                    applyClientSideSearchHighlightingAndCount(); // Update sidebar panel list counts
+                                    console.log("Unassigned and removed:", clickedEventIdStr);
+                                } else {
+                                    alert('خطا در لغو تخصیص: ' + (response.error || 'Unknown error.'));
+                                    // Unassignment failed, event remains on calendar and should remain selected.
+                                    // No change to selectedCalendarEventIds needed as it was already the only one.
+                                }
+                            } catch (error) {
+                                console.error('Error during event unassignment:', error);
+                                alert('خطای اساسی در لغو تخصیص.');
+                                // On fundamental error, assume it's still selected.
+                            } finally {
+                                hideGlobalLoading();
+                            }
+                            // After unassignment attempt, whether successful or not, the selection state
+                            // (selectedCalendarEventIds and body class) needs to reflect reality.
+                            // If successful, it was deleted. If failed/cancelled, it should still be the only selected.
+                        } else {
+                            // User cancelled the unassignment confirmation. Event remains selected.
+                            console.log("Unassignment confirm cancelled by user for", clickedEventIdStr);
+                        }
+                    } else {
+                        // Clear other selections visually and from the Set, then select this one.
+                        selectedCalendarEventIds.forEach(idToDeselect => {
+                            if (idToDeselect !== clickedEventIdStr) {
+                                const eventToDeselect = calendar.getEventById(idToDeselect);
+                                if (eventToDeselect && eventToDeselect.el) {
+                                    toggleEventElementSelection(eventToDeselect.el, false);
+                                }
+                            }
+                        });
+                        selectedCalendarEventIds.clear();
+                        selectedCalendarEventIds.add(clickedEventIdStr);
+                        toggleEventElementSelection(clickedEventEl, true); // Ensure this one is visually selected
+                    }
+                }
+                updateGlobalSelectionVisualState(); // Update body class
+            },
+            // --- Dropping an external panel ---
+            drop: async function(info) {
+                if (!info.date || !USER_CAN_EDIT) return;
+
+                clearCalendarSelection(); // Clear any calendar multi-selection
+
+                const draggedEl = info.draggedEl; // The single element physically dragged
+                const targetDate = moment(info.date).format('YYYY-MM-DD');
+                let panelsToProcessClientInfo = []; // Array of {id, formworkType, address, element}
+
+                if (draggedEl.dataset.panelAssigned === 'true' || draggedEl.classList.contains('read-only-item')) {
+                    console.warn("Attempted to drop an invalid panel.", draggedEl);
+                    return;
+                }
+
+                const selectedPanelElements = Array.from(
+                    externalEventsContainer.querySelectorAll('.panel-item.panel-selected:not([data-panel-assigned="true"]):not(.read-only-item):not(.hidden)')
+                );
+
+                if (selectedPanelElements.length > 0 && selectedPanelElements.includes(draggedEl)) {
+                    panelsToProcessClientInfo = selectedPanelElements.map(el => ({
+                        id: el.dataset.panelId,
+                        formworkType: el.dataset.panelFormwork,
+                        address: el.querySelector('.font-semibold')?.innerText || 'پنل',
+                        element: el
+                    }));
+                } else {
+                    panelsToProcessClientInfo.push({
+                        id: draggedEl.dataset.panelId,
+                        formworkType: draggedEl.dataset.panelFormwork,
+                        address: draggedEl.querySelector('.font-semibold')?.innerText || 'پنل',
+                        element: draggedEl
+                    });
+                }
+
+                panelsToProcessClientInfo = panelsToProcessClientInfo.filter(p => p.id && p.formworkType);
+
+                if (panelsToProcessClientInfo.length === 0) {
+                    alert('هیچ پنل معتبری برای تخصیص انتخاب نشده است.');
+                    return;
+                }
+
+                if (panelsToProcessClientInfo.length > 1) {
+                    if (!confirm(`آیا از تخصیص ${panelsToProcessClientInfo.length} پنل به تاریخ ${moment(targetDate).format('jYYYY/jMM/jDD')} اطمینان دارید؟ (هر پنل جداگانه بررسی می‌شود)`)) {
+                        return;
+                    }
+                }
+
+                showGlobalLoading(`در حال تخصیص ${panelsToProcessClientInfo.length} پنل...`);
+                bulkScheduleResultEl.innerHTML = ''; // Clear previous results
+                bulkScheduleResultEl.className = 'mt-2 text-sm p-2 rounded border bg-gray-50 border-gray-200 min-h-[3em]';
+
+                let resultsSummary = [];
+                let overallSuccessCount = 0;
+
+                for (const panelInfo of panelsToProcessClientInfo) {
+                    const panelId = panelInfo.id;
+                    const baseFormworkType = panelInfo.formworkType;
+                    const panelAddress = panelInfo.address;
+                    const panelElement = panelInfo.element;
+
+                    try {
+                        // 1. Client-side check for formwork type (already done when creating panelsToProcessClientInfo)
+                        if (!baseFormworkType) {
+                            resultsSummary.push({
+                                address: panelAddress,
+                                success: false,
+                                reason: 'نوع قالب نامشخص.'
+                            });
+                            panelElement.classList.remove('panel-selected'); // Deselect if failed
+                            continue;
+                        }
+
+                        // 2. AJAX Call to checkFormworkAvailability (as in original single drop)
+                        const availData = await makeAjaxCall({
+                            action: 'checkFormworkAvailability',
+                            panelId: null, // For new assignment, panelId is not relevant for *this* check here
+                            date: targetDate,
+                            formworkType: baseFormworkType
+                        });
+
+                        if (!availData.available) {
+                            resultsSummary.push({
+                                address: panelAddress,
+                                success: false,
+                                reason: availData.error || 'ظرفیت تکمیل.'
+                            });
+                            panelElement.classList.remove('panel-selected'); // Deselect if failed
+                            continue;
+                        }
+
+                        // 3. AJAX Call to updatePanelDate (this handles progress, panel update, orders)
+                        let updateData = await makeAjaxCall({
+                            action: 'updatePanelDate',
+                            panelId: panelId,
+                            date: targetDate
+                        });
+
+                        // 4. Handle Progress Warning (if `updatePanelDate` returns progress_exists)
+                        if (updateData.progress_exists) {
+                            if (confirm(`پنل "${panelAddress}" دارای اطلاعات پیشرفت است. برای تخصیص، اطلاعات پیشرفت پاک خواهد شد. ادامه می‌دهید؟`)) {
+                                updateData = await makeAjaxCall({
+                                    action: 'updatePanelDate',
+                                    panelId: panelId,
+                                    date: targetDate,
                                     forceUpdate: true
                                 });
                             } else {
-                                return;
+                                resultsSummary.push({
+                                    address: panelAddress,
+                                    success: false,
+                                    reason: 'تخصیص به دلیل وجود پیشرفت لغو شد.'
+                                });
+                                panelElement.classList.remove('panel-selected'); // Deselect if failed
+                                continue; // User cancelled
                             }
                         }
-                        if (response.success) {
-                            info.event.remove();
-                            const pEl = document.querySelector(`.panel-item[data-panel-id="${panelId}"]`);
-                            if (pEl) {
-                                pEl.setAttribute('data-panel-assigned', 'false');
-                                // Reset classes for editable state
-                                pEl.className = pEl.className.replace(/bg-gray-\d+00|text-gray-\d+00|cursor-not-allowed/g, '').trim() + ' bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-move';
-                            }
-                            filterPanels();
+
+                        // 5. Check final update result from updatePanelDate
+                        if (!updateData.success) {
+                            resultsSummary.push({
+                                address: panelAddress,
+                                success: false,
+                                reason: updateData.error || 'خطا در ذخیره تاریخ.'
+                            });
+                            panelElement.classList.remove('panel-selected'); // Deselect if failed
                         } else {
-                            alert('خطا در لغو تخصیص: ' + (response.error || 'Unknown error after confirmation.'));
+                            // SUCCESS for this panel
+                            overallSuccessCount++;
+                            resultsSummary.push({
+                                address: panelAddress,
+                                success: true,
+                                message: updateData.message
+                            });
+
+                            // Update UI for this specific panelElement
+                            panelElement.dataset.panelAssigned = 'true';
+                            panelElement.classList.remove('panel-selected', 'bg-blue-100', 'text-blue-800', 'hover:bg-blue-200', 'cursor-grab');
+                            panelElement.classList.add('bg-gray-200', 'text-gray-500', 'cursor-not-allowed');
+                            // No need to remove 'panel-item' class
+
+                            // Add event to calendar (if not already added by some other mechanism - updatePanelDate doesn't add to calendar)
+                            // We need to manually add it here since updatePanelDate is a generic backend.
+                            const calendarEvent = calendar.getEventById(panelId.toString()); // Check if event already exists by chance
+                            if (!calendarEvent) {
+                                calendar.addEvent({
+                                    id: panelId.toString(), // Ensure event has an ID
+                                    title: panelAddress,
+                                    start: targetDate,
+                                    extendedProps: {
+                                        panelId: panelId,
+                                        address: panelAddress,
+                                        formworkType: baseFormworkType,
+                                        // You might want to fetch other props if needed, or rely on refetchEvents later
+                                    },
+                                    // backgroundColor: '#22c55e', // Example: Green for newly added
+                                    // borderColor: '#16a34a'
+                                });
+                            } else { // If event somehow exists, update its date (shouldn't happen for new drop)
+                                calendarEvent.setStart(targetDate);
+                            }
                         }
                     } catch (error) {
-                        console.error('Error event click:', error);
+                        console.error(`Error processing panel ${panelAddress} (ID: ${panelId}) during drop:`, error);
+                        resultsSummary.push({
+                            address: panelAddress,
+                            success: false,
+                            reason: 'خطای کلاینت یا شبکه: ' + error.message
+                        });
+                        panelElement.classList.remove('panel-selected');
                     }
-                }
-            },
+                } // End loop through panelsToProcessClientInfo
 
-            // --- Dropping an external panel ---
-            drop: async function(info) {
-                if (!info.date) return;
-                const draggedEl = info.draggedEl,
-                    panelId = draggedEl.getAttribute('data-panel-id'),
-                    date = moment(info.date).format('YYYY-MM-DD'),
-                    panelAddress = (draggedEl.querySelector('.font-semibold')?.innerText || 'پنل'), // Get address directly
-                    baseFormworkType = draggedEl.getAttribute('data-panel-formwork');
+                hideGlobalLoading();
 
-                if (!baseFormworkType) {
-                    alert('خطا: نوع قالب پنل مشخص نیست.');
-                    return;
-                }
-                if (draggedEl.getAttribute('data-panel-assigned') === 'true') {
-                    alert('این پنل قبلاً تخصیص داده شده.');
-                    return;
-                }
-
-                try {
-                    // 1. Check Availability
-                    const availData = await makeAjaxCall({
-                        action: 'checkFormworkAvailability',
-                        panelId: null,
-                        date: date,
-                        formworkType: baseFormworkType
-                    });
-                    if (!availData.available) {
-                        alert(`تخصیص ناموفق: ${availData.error || 'ظرفیت تکمیل.'}`);
-                        return;
+                // Display summary message
+                let summaryMsgHtml = '';
+                let failedCount = 0;
+                resultsSummary.forEach(res => {
+                    if (res.success) {
+                        summaryMsgHtml += `<div class="text-green-700">✅ ${res.address}: ${res.message || 'موفق'}</div>`;
+                    } else {
+                        failedCount++;
+                        summaryMsgHtml += `<div class="text-red-700">❌ ${res.address}: ${res.reason}</div>`;
                     }
+                });
 
-                    // 2. Attempt Assignment (handles progress check, panel update, order creation)
-                    let updateData = await makeAjaxCall({
-                        action: 'updatePanelDate',
-                        panelId: panelId,
-                        date: date
-                    });
-
-                    // 3. Handle Progress Warning (Unlikely for new drop, but defensive)
-                    if (updateData.progress_exists) {
-                        if (confirm("هشدار: این پنل (که در حال تخصیص است) ظاهراً اطلاعات پیشرفت دارد. برای ادامه، اطلاعات پیشرفت پاک خواهد شد. ادامه می‌دهید؟")) {
-                            updateData = await makeAjaxCall({
-                                action: 'updatePanelDate',
-                                panelId: panelId,
-                                date: date,
-                                forceUpdate: true
-                            });
-                        } else {
-                            return;
-                        } // User cancelled drop
-                    }
-
-                    // 4. Check final update result
-                    if (!updateData.success) {
-                        alert('خطا در ذخیره تاریخ: ' + (updateData.error || 'Unknown error after confirmation.'));
-                        return;
-                    }
-
-                    // 5. Update UI: Mark panel as assigned, add event to calendar
-                    draggedEl.setAttribute('data-panel-assigned', 'true');
-                    draggedEl.className = draggedEl.className.replace(/bg-blue-\d+00|text-blue-\d+00|hover:bg-blue-\d+00|cursor-move|read-only/g, '').trim() + ' bg-gray-200 text-gray-500 cursor-not-allowed';
-
-                    // --- MODIFICATION HERE: Title is ONLY address ---
-                    calendar.addEvent({
-                        title: panelAddress, // Use address only
-                        start: date,
-                        extendedProps: {
-                            panelId: panelId,
-                            address: panelAddress, // Still store address if needed
-                            formworkType: baseFormworkType,
-
-                            // You might want to fetch/add other extendedProps like panelType here if needed later
-                        },
-                        backgroundColor: '#22c55e', // Example color for newly added
-                        borderColor: '#16a34a',
-                        textColor: '#ffffff'
-                    });
-                    filterPanels(); // Update list visibility
-
-                } catch (error) {
-                    console.error('Error drop:', error);
+                let cls = 'border-gray-300 bg-gray-100';
+                if (overallSuccessCount > 0 && failedCount > 0) {
+                    cls = 'border-yellow-400 bg-yellow-50';
+                } else if (overallSuccessCount > 0 && failedCount === 0) {
+                    cls = 'border-green-400 bg-green-50';
+                } else if (failedCount > 0 && overallSuccessCount === 0) {
+                    cls = 'border-red-400 bg-red-50';
                 }
-            },
 
+                bulkScheduleResultEl.innerHTML = `<div class="font-semibold mb-2">نتایج تخصیص ${panelsToProcessClientInfo.length} پنل:</div>${summaryMsgHtml}`;
+                bulkScheduleResultEl.className = `mt-2 text-sm p-3 rounded border ${cls} min-h-[3em]`;
+
+                // Refresh FullCalendar events from server to ensure consistency, especially if some failed
+                // or if extendedProps need to be fully up-to-date.
+                if (overallSuccessCount > 0) { // Only refetch if at least one was successful
+                    calendar.refetchEvents();
+                }
+
+                applyClientSideSearchHighlightingAndCount(); // Update panel list counts/visibility
+                initializeExternalEventDragging(); // Re-initialize draggable for list items
+
+            }, // End drop callback
             // --- Fetch Initial Events ---
             events: function(fetchInfo, successCallback, failureCallback) {
-                // Using makeAjaxCall for consistency and error handling
                 makeAjaxCall({
                         action: 'getAssignedPanels'
                     })
                     .then(response => {
-                        // makeAjaxCall already checks for basic {error:..., success:false}
                         if (Array.isArray(response)) {
-                            successCallback(response); // Pass the array of events
-                            // IMPORTANT: Apply legend filter AFTER events are loaded/refetched
-                            setTimeout(() => filterCalendarEventsByLegend(), 0);
+                            const eventsWithFcIds = response.map(event => ({
+                                ...event,
+                                id: event.extendedProps.panelId.toString()
+                            }));
+                            successCallback(eventsWithFcIds);
+                            setTimeout(updateGlobalSelectionVisualState, 50);
                         } else {
-                            // This case should ideally be caught by makeAjaxCall's checks
-                            console.error("Invalid event data format received:", response);
-                            failureCallback(new Error("فرمت نامعتبر رویداد از سرور"));
+                            console.error("Invalid event data format:", response);
+                            failureCallback(new Error("فرمت نامعتبر رویداد"));
                         }
                     })
                     .catch(error => {
-                        // Error already alerted by makeAjaxCall, just pass to FullCalendar
                         console.error("Failed to fetch events:", error);
-                        failureCallback(error); // Pass the error object
+                        failureCallback(error);
                     });
             },
 
@@ -1767,32 +3070,28 @@ require_once 'header.php';
                 const priority = props.priority;
                 const formworkType = props.formworkType || 'N/A';
                 const width = props.width ? 'W: ' + parseInt(props.width) + ' mm' : 'N/A';
-
-                // Title is already just the address from the event data
                 const address = arg.event.title;
-                // Determine color based on panel status or formwork type if needed
-                // --- Determine Background Color ---
-                let bgColor = defaultEventColor; // Start with default
+                let bgColor = defaultEventColor;
                 if (priorityColoringEnabled) {
-                    bgColor = getPriorityColor(priority); // Use priority color if enabled
+                    bgColor = getPriorityColor(priority);
                 }
-                // Use event's own background color property if set (FullCalendar uses this)
-                // Or fallback to our calculated color
                 const finalBgColor = arg.event.backgroundColor || bgColor;
 
                 let divEl = document.createElement('div');
+                // Add a data-event-id attribute for easier debugging if needed
+                divEl.setAttribute('data-event-id', arg.event.id);
                 divEl.className = 'fc-event-main-frame p-1 text-xs w-full overflow-hidden calendar-event-item ' +
-                    (!USER_CAN_EDIT ? 'read-only-event' : '');
+                    (!USER_CAN_EDIT ? 'read-only-event' : ''); // Apply class during render
                 divEl.style.cssText = `
-                    background-color:${finalBgColor};
-                    color:#fff;
-                    border-radius:3px;
-                    height:auto;
-                    min-height:60px;
-                    display:flex;
-                    flex-direction:column;
-                    ${USER_CAN_EDIT ? 'cursor:pointer;' : 'cursor:default;'}
-                `; // Tooltip showing more details on hover
+                background-color:${finalBgColor};
+                color:#fff;
+                border-radius:3px;
+                height:auto;
+                min-height:60px;
+                display:flex;
+                flex-direction:column;
+                ${USER_CAN_EDIT ? 'cursor:pointer;' : 'cursor:default;'}
+            `;
                 divEl.title = `آدرس: ${address}\nاولویت: ${priority}\nقالب: ${formworkType}\nعرض پنل: ${width}`;
 
                 const addressDiv = document.createElement('div');
@@ -1807,7 +3106,6 @@ require_once 'header.php';
                 widthDiv.className = 'fc-event-detail';
                 widthDiv.textContent = width;
 
-                // Append each line to the container
                 divEl.appendChild(addressDiv);
                 divEl.appendChild(formworkDiv);
                 divEl.appendChild(widthDiv);
@@ -1819,142 +3117,172 @@ require_once 'header.php';
 
         }); // End FullCalendar Init
 
+        calendar.render();
 
-        // --- Draggable External Events Init (Unchanged) ---
+        function handleFilterChange() {
+            currentPage = 1; // Reset to first page for new filter criteria
+            fetchAndRenderPanels(1, false); // false = not "loading more", it's a new query
+        }
+
+        if (searchInput) searchInput.addEventListener('input', debounce(applyClientSideSearchHighlightingAndCount, 300)); // Client-side search only highlights
+        // Server-side search on filter change:
+        if (searchInput) searchInput.addEventListener('change', handleFilterChange); // When user finishes typing (blur/enter)
+
+        if (typeFilter) typeFilter.addEventListener('change', handleFilterChange);
+        if (priorityFilter) priorityFilter.addEventListener('change', handleFilterChange);
+        if (assignmentFilter) assignmentFilter.addEventListener('change', handleFilterChange);
+        if (formworkFilter) formworkFilter.addEventListener('change', handleFilterChange);
+
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => {
+                fetchAndRenderPanels(currentPage + 1, true);
+            });
+        }
+
+        // --- Multi-select in Panel List ---
         if (externalEventsContainer && USER_CAN_EDIT) {
-            console.log("Initializing Draggable for editable user.");
-            new FullCalendar.Draggable(externalEventsContainer, {
-                itemSelector: '.panel-item:not([data-panel-assigned="true"]):not(.read-only)', // Exclude assigned and read-only styled items
-                eventData: function(eventEl) {
-                    // --- MODIFICATION HERE: Title is ONLY address ---
-                    const address = eventEl.querySelector('.font-semibold')?.innerText || 'پنل';
-                    return {
-                        title: address, // Just the address for the temporary event being dragged
-                        extendedProps: {
-                            panelId: eventEl.getAttribute('data-panel-id'),
-                            formworkType: eventEl.getAttribute('data-panel-formwork'),
-                            address: address // Store address here too
-                            // Optionally add panelType: eventEl.getAttribute('data-panel-type')
+            externalEventsContainer.addEventListener('click', function(e) {
+                console.log("Panel list click detected. Target:", e.target, "Ctrl:", e.ctrlKey, "Shift:", e.shiftKey); // DEBUG
+
+                let panelItem = e.target;
+                if (!panelItem.classList.contains('panel-item')) {
+                    panelItem = panelItem.closest('.panel-item');
+                }
+                console.log("Resolved panelItem:", panelItem); // DEBUG
+
+                if (!panelItem || panelItem.dataset.panelAssigned === 'true' || panelItem.classList.contains('read-only-item') || panelItem.classList.contains('hidden')) {
+                    console.log("Panel item is invalid for selection or hidden."); // DEBUG
+                    return;
+                }
+
+
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey) { // Normal click
+                    const wasSelected = panelItem.classList.contains('panel-selected');
+                    externalEventsContainer.querySelectorAll('.panel-item.panel-selected').forEach(p => {
+                        p.classList.remove('panel-selected');
+                    });
+                    if (!wasSelected) panelItem.classList.add('panel-selected'); // Select if it wasn't the one causing deselection
+                    lastSelectedPanelFromList = panelItem.classList.contains('panel-selected') ? panelItem : null;
+                } else if (e.ctrlKey || e.metaKey) { // Ctrl/Cmd click
+                    panelItem.classList.toggle('panel-selected');
+                    if (panelItem.classList.contains('panel-selected')) {
+                        lastSelectedPanelFromList = panelItem;
+                    } else if (lastSelectedPanelFromList === panelItem) {
+                        // If deselected the last one, find another selected one to be 'lastSelected' or null
+                        const currentSelected = externalEventsContainer.querySelector('.panel-item.panel-selected');
+                        lastSelectedPanelFromList = currentSelected;
+                    }
+                } else if (e.shiftKey && lastSelectedPanelFromList && lastSelectedPanelFromList !== panelItem) { // Shift click
+                    const allVisibleItems = Array.from(externalEventsContainer.querySelectorAll('.panel-item:not([data-panel-assigned="true"]):not(.read-only-item):not(.hidden)'));
+                    const currentIndex = allVisibleItems.indexOf(panelItem);
+                    const lastIndex = allVisibleItems.indexOf(lastSelectedPanelFromList);
+
+                    if (currentIndex !== -1 && lastIndex !== -1) {
+                        const start = Math.min(currentIndex, lastIndex);
+                        const end = Math.max(currentIndex, lastIndex);
+
+                        // Don't deselect others on shift-click, just add to selection
+                        // externalEventsContainer.querySelectorAll('.panel-item.panel-selected').forEach(p => p.classList.remove('panel-selected'));
+
+                        for (let i = start; i <= end; i++) {
+                            if (allVisibleItems[i]) {
+                                allVisibleItems[i].classList.add('panel-selected');
+                            }
                         }
-                    };
-                },
-            });
-            // Touch feedback (Unchanged)
-            document.querySelectorAll('.panel-item:not([data-panel-assigned="true"]):not(.read-only)').forEach(p => {
-                p.addEventListener('touchstart', function() {
-                    this.classList.add('opacity-75', 'scale-105');
-                }, {
-                    passive: true
-                });
-                p.addEventListener('touchend', function() {
-                    this.classList.remove('opacity-75', 'scale-105');
-                }, {
-                    passive: true
-                });
-            });
-        } else if (externalEventsContainer) {
-            console.log("Skipping Draggable initialization for read-only user.");
-            // Ensure non-editable panels have default cursor if Draggable isn't initialized
-            externalEventsContainer.querySelectorAll('.panel-item:not([data-panel-assigned="true"])').forEach(p => {
-                p.style.cursor = 'default';
+                    }
+                    // panelItem becomes the new lastSelected for further shift clicks from this point
+                    lastSelectedPanelFromList = panelItem;
+                }
+                // If simple click on an already selected item, it becomes the last selected for shift
+                if (panelItem.classList.contains('panel-selected') && !e.shiftKey) {
+                    lastSelectedPanelFromList = panelItem;
+                }
+                const selectedNow = Array.from(externalEventsContainer.querySelectorAll('.panel-item.panel-selected'));
+                console.log("Currently selected panels:", selectedNow.length, selectedNow.map(p => p.dataset.panelId)); // DEBUG
             });
         }
 
-        // --- Filtering Logic (Unchanged) ---
-        function filterPanels() {
-            const searchText = searchInput.value.toLowerCase().trim(),
-                selectedType = typeFilter.value.toLowerCase(),
-                selectedPriority = priorityFilter.value,
-                assignmentStatus = assignmentFilter.value,
-                selectedFormwork = formworkFilter.value.toLowerCase();
-            const allPanelElements = document.querySelectorAll('#external-events .panel-item');
-            let visiblePanelsCount = 0;
-            allPanelElements.forEach(panel => {
-                const addressNode = panel.querySelector('.font-semibold'),
-                    address = (addressNode?.textContent || '').toLowerCase(),
-                    type = (panel.getAttribute('data-panel-type') ?? '').toLowerCase(),
-                    priority = panel.getAttribute('data-panel-priority') ?? "",
-                    isAssigned = panel.getAttribute('data-panel-assigned') === 'true',
-                    formwork = (panel.getAttribute('data-panel-formwork') ?? '').toLowerCase();
-                let show = true;
-                if (searchText && !address.includes(searchText)) show = false;
-                if (show && selectedType && type !== selectedType) show = false;
-                if (show && selectedPriority && priority !== selectedPriority) show = false;
-                if (show && assignmentStatus) {
-                    const shouldBeAssigned = assignmentStatus === 'assigned';
-                    if (isAssigned !== shouldBeAssigned) show = false;
-                }
-                if (show && selectedFormwork && formwork !== selectedFormwork) show = false;
-                panel.classList.toggle('hidden', !show);
-                if (show) {
-                    visiblePanelsCount++;
-                    if (addressNode) {
-                        const originalText = addressNode.dataset.originalText || addressNode.textContent || '';
-                        if (searchText && !addressNode.dataset.originalText) addressNode.dataset.originalText = originalText;
-                        if (searchText) {
-                            const regex = new RegExp(searchText.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
-                            addressNode.innerHTML = (addressNode.dataset.originalText || originalText).replace(regex, '<span class="search-highlight bg-yellow-200 px-0 py-0">$&</span>');
-                        } else if (addressNode.dataset.originalText) {
-                            addressNode.innerHTML = addressNode.dataset.originalText;
-                            delete addressNode.dataset.originalText;
-                        }
-                    }
-                } else {
-                    if (addressNode && addressNode.dataset.originalText) {
-                        addressNode.innerHTML = addressNode.dataset.originalText;
-                        delete addressNode.dataset.originalText;
-                    } else if (addressNode && addressNode.querySelector('.search-highlight')) {
-                        addressNode.innerHTML = addressNode.textContent || '';
-                    }
-                }
-            });
-            visibleCountEl.textContent = visiblePanelsCount;
-            totalCountEl.textContent = allPanelElements.length;
+        function toWesternArabicNumerals(str) {
+            if (typeof str !== 'string') return str;
+            const persianNumbers = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
+            const arabicNumbers = [/٠/g, /١/g, /٢/g, /٣/g, /٤/g, /٥/g, /٦/g, /٧/g, /٨/g, /٩/g]; // Also handle standard Arabic if needed
+            for (let i = 0; i < 10; i++) {
+                str = str.replace(persianNumbers[i], i).replace(arabicNumbers[i], i);
+            }
+            return str;
         }
-        if (searchInput) searchInput.addEventListener('input', filterPanels);
-        if (typeFilter) typeFilter.addEventListener('change', filterPanels);
-        if (priorityFilter) priorityFilter.addEventListener('change', filterPanels);
-        if (assignmentFilter) assignmentFilter.addEventListener('change', filterPanels);
-        if (formworkFilter) formworkFilter.addEventListener('change', filterPanels);
-
         // --- Bulk Scheduling (Updated Confirmation and Result Message Handling) ---
         bulkScheduleBtn.addEventListener('click', async function() {
-            if (!USER_CAN_EDIT) return; // Extra safeguard in JS
+            if (!USER_CAN_EDIT) return;
             showButtonLoading(this);
             bulkScheduleResultEl.textContent = '';
-            bulkScheduleResultEl.className = 'mt-2 text-sm p-2 rounded border bg-gray-50 border-gray-200';
-            const startDateInput = document.getElementById('bulkStartDate').value;
-            const endDateInput = document.getElementById('bulkEndDate').value;
-            if (!startDateInput || !endDateInput) {
+            bulkScheduleResultEl.className = 'mt-2 text-sm p-2 rounded border bg-gray-50 border-gray-200'; // Reset class
+
+            let startDateInputVal = document.getElementById('bulkStartDate').value;
+            let endDateInputVal = document.getElementById('bulkEndDate').value;
+
+            console.log("Raw Bulk Start Date (Original):", startDateInputVal);
+            console.log("Raw Bulk End Date (Original):", endDateInputVal);
+
+            // Convert to Western Arabic numerals
+            startDateInputVal = toWesternArabicNumerals(startDateInputVal);
+            endDateInputVal = toWesternArabicNumerals(endDateInputVal);
+
+            console.log("Raw Bulk Start Date (Converted):", startDateInputVal); // Should be e.g., "1404/02/24"
+            console.log("Raw Bulk End Date (Converted):", endDateInputVal); // Should be e.g., "1404/02/26"
+
+            if (!startDateInputVal || !endDateInputVal) {
                 alert('لطفاً تاریخ شروع و پایان را انتخاب کنید.');
                 hideButtonLoading(this);
                 return;
             }
-            let startDate, endDate;
+
+            let mStartDate, mEndDate, startDate, endDate;
+
             try {
-                startDate = moment(startDateInput, 'jYYYY/jMM/jDD').format('YYYY-MM-DD');
-                endDate = moment(endDateInput, 'jYYYY/jMM/jDD').format('YYYY-MM-DD');
-                if (!moment(startDate).isValid() || !moment(endDate).isValid() || moment(startDate).isAfter(endDate)) throw new Error("تاریخ نامعتبر یا شروع بعد از پایان.");
+                // Parse using moment() with the explicit Jalali format
+                // moment-jalaali extends the global moment object
+                mStartDate = moment(startDateInputVal, 'jYYYY/jMM/jDD');
+                mEndDate = moment(endDateInputVal, 'jYYYY/jMM/jDD');
+
+                console.log("Moment object for Start Date (after parsing):", mStartDate); // DEBUG
+                console.log("Moment object for End Date (after parsing):", mEndDate); // DEBUG
+
+                if (!mStartDate.isValid() || !mEndDate.isValid()) {
+                    throw new Error("یکی از تاریخ‌های وارد شده معتبر نیست. لطفاً از انتخابگر تاریخ استفاده کنید یا فرمت صحیح (مثال: ۱۴۰۳/۰۱/۱۵) را وارد نمایید.");
+                }
+                if (mStartDate.isAfter(mEndDate)) {
+                    throw new Error("تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد.");
+                }
+
+                // Convert to Gregorian YYYY-MM-DD for the backend
+                startDate = mStartDate.format('YYYY-MM-DD');
+                endDate = mEndDate.format('YYYY-MM-DD');
+
+                console.log("Parsed Gregorian Start for AJAX:", startDate);
+                console.log("Parsed Gregorian End for AJAX:", endDate);
+
             } catch (e) {
-                alert('خطا تاریخ: ' + e.message);
+                alert('خطای تاریخ: ' + e.message);
+                console.error("Date parsing/validation error in bulk schedule:", e, "Input Start:", startDateInputVal, "Input End:", endDateInputVal);
                 hideButtonLoading(this);
                 return;
             }
 
-            const panelsToSchedule = Array.from(document.querySelectorAll('#external-events .panel-item:not(.hidden):not([data-panel-assigned="true"]):not(.read-only)')) // Ensure we don't select read-only styled ones
+            // --- Collect panels to schedule ---
+            const panelsToSchedulePayload = Array.from(externalEventsContainer.querySelectorAll('.panel-item:not(.hidden):not([data-panel-assigned="true"]):not(.read-only-item)'))
                 .map(p => ({
-                    id: p.getAttribute('data-panel-id')
-                })) // Only need IDs
+                    id: p.dataset.panelId
+                }))
                 .filter(p => p.id);
 
-            if (panelsToSchedule.length === 0) {
+            if (panelsToSchedulePayload.length === 0) { // Check the correct variable
                 alert('هیچ پنل واجد شرایطی (نمایش داده شده و تخصیص نیافته) برای زمانبندی خودکار یافت نشد.');
                 hideButtonLoading(this);
                 return;
             }
 
-            // --- MODIFIED Confirmation Message ---
-            if (!confirm(`زمان‌بندی ${panelsToSchedule.length} پنل نمایش داده شده؟\n(برای هر پنل موفق، سفارشات 'شرق' و 'غرب' ایجاد خواهد شد)`)) {
+            if (!confirm(`زمان‌بندی ${panelsToSchedulePayload.length} پنل نمایش داده شده؟\n(برای هر پنل موفق، سفارشات 'شرق' و 'غرب' ایجاد خواهد شد)`)) {
                 hideButtonLoading(this);
                 return;
             }
@@ -1962,7 +3290,7 @@ require_once 'header.php';
             try {
                 const result = await makeAjaxCall({
                     action: 'scheduleMultiplePanels',
-                    panels: JSON.stringify(panelsToSchedule),
+                    panels: JSON.stringify(panelsToSchedulePayload),
                     startDate: startDate,
                     endDate: endDate
                 });
@@ -1978,7 +3306,7 @@ require_once 'header.php';
                         const pEl = document.querySelector(`.panel-item[data-panel-id="${a.panel_id}"]`);
                         if (pEl) {
                             pEl.setAttribute('data-panel-assigned', 'true');
-                            pEl.className = pEl.className.replace(/bg-blue-\d+00|text-blue-\d+00|hover:bg-blue-\d+00|cursor-move|read-only/g, '').trim() + ' bg-gray-200 text-gray-500 cursor-not-allowed';
+                            pEl.className = pEl.className.replace(/bg-blue-\d+00|text-blue-\d+00|hover:bg-blue-\d+00|cursor-grab|read-only-item|panel-selected/g, '').trim() + ' bg-gray-200 text-gray-500 cursor-not-allowed';
                         }
                         // Count orders created for this panel
                         if (result.createdOrders && result.createdOrders[a.panel_id]) {
@@ -1989,25 +3317,24 @@ require_once 'header.php';
 
                     // Build result message
                     let msg = `<span class="font-semibold text-green-700">${scheduledCount} پنل زمانبندی شد (${totalOrdersCreated} سفارش شرق/غرب ایجاد/تایید شد).</span><br>`;
-                    let cls = 'border-green-300 bg-green-50';
+                    let cls = 'border-green-300 bg-green-50 text-green-700';
                     let unscheduledCount = result.unscheduled?.length || 0;
 
                     if (unscheduledCount > 0) {
-                        msg += `<span class="font-semibold text-red-700">${unscheduledCount} ناموفق:</span><ul class="list-disc list-inside mt-1 text-xs">`;
+                        msg += `<span class="font-semibold text-red-700">${unscheduledCount} ناموفق:</span><ul class="list-disc list-inside mt-1 text-xs text-gray-700">`; // Ensure text color for readability
                         result.unscheduled.forEach(i => {
-                            // Use panel_id and reason directly from the simplified response
                             const pid = i.panel_id || '?';
                             const r = i.reason || '?';
                             const pEl = document.querySelector(`.panel-item[data-panel-id="${pid}"]`);
                             const adr = pEl ? (pEl.querySelector('.font-semibold')?.textContent || `ID: ${pid}`) : `ID: ${pid}`;
-                            msg += `<li class="text-gray-700">${adr}: ${r}</li>`;
+                            msg += `<li>${adr}: ${r}</li>`;
                         });
                         msg += `</ul>`;
-                        cls = (scheduledCount > 0) ? 'border-yellow-300 bg-yellow-50' : 'border-red-300 bg-red-50';
+                        cls = (scheduledCount > 0) ? 'border-yellow-300 bg-yellow-50 text-yellow-700' : 'border-red-300 bg-red-50 text-red-700';
                     }
                     bulkScheduleResultEl.innerHTML = msg;
                     bulkScheduleResultEl.className = `mt-2 text-sm p-2 rounded border ${cls}`;
-                    filterPanels(); // Update list visibility
+                    applyClientSideSearchHighlightingAndCount(); // Update list visibility and counts
 
                 } else {
                     throw new Error("پاسخ نامعتبر از سرور.");
@@ -2119,8 +3446,21 @@ require_once 'header.php';
         }
         // --- END PRINT BUTTON LISTENER ---
         // --- Initial Filter Application ---
-        filterPanels();
-        calendar.render();
+        function initializePage() {
+            const initialPanelElements = externalEventsContainer.querySelectorAll('.panel-item');
+            if (visibleCountEl) visibleCountEl.textContent = initialPanelElements.length; // Initial visible = initial loaded
+            if (loadedPanelsCountEl) loadedPanelsCountEl.textContent = initialPanelElements.length;
+            if (totalFilteredPanelsCountEl) totalFilteredPanelsCountEl.textContent = externalEventsContainer.dataset.grandTotalPanels || '0'; // Before any filter, total filtered = grand total
+
+            initializeExternalEventDragging(); // Init draggable for initial items
+            addTouchListenersToPanelItems(initialPanelElements); // Add touch for initial
+            populatePriorityLegend();
+            setInitialButtonAndLegendState();
+            // applyClientSideSearchHighlightingAndCount(); // Already covered by visibleCountEl update above for initial load
+
+
+        }
+        initializePage();
 
     }); // End DOMContentLoaded
 </script>

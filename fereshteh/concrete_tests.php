@@ -7,7 +7,7 @@ error_reporting(E_ALL);
 ob_start();
 header('Content-Type: text/html; charset=utf-8');
 require_once __DIR__ . '/../../sercon/bootstrap.php';
-require_once 'includes/jdf.php';
+require_once __DIR__ . '/includes/jdf.php';
 secureSession();
 $expected_project_key = 'fereshteh'; // HARDCODED FOR THIS FILE
 $current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
@@ -575,7 +575,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Log the activity
                         log_activity(
                             $user_id, // Admin performing the action
-                            
+
                             'delete_concrete_test',
                             "Deleted Record ID: {$id}, Sample Code: " . ($details['sample_code'] ?? 'N/A')
                             // Project ID might be added if relevant for this log type
@@ -630,9 +630,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // The success/error message will be set in the session AFTER the main try/catch block based on $message/$error state
         // The redirect happens once at the end of all POST processing.
-     // End elseif action == 'delete'
-    // --- END DELETE ---
-} elseif (isset($_POST['action']) && $_POST['action'] == 'list_files' && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+        // End elseif action == 'delete'
+        // --- END DELETE ---
+    } elseif (isset($_POST['action']) && $_POST['action'] == 'list_files' && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
         ob_clean(); // Clean potential output buffer
         header('Content-Type: text/html; charset=utf-8'); // Set correct header for HTML response
 

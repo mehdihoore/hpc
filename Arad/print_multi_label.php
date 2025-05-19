@@ -1,15 +1,43 @@
 <?php
-ini_set('display_errors', 1);
+ini_set('display_errors', 1); // Enable error display for debugging
 error_reporting(E_ALL);
-ob_start(); // Start output buffering *before* any output
-// header('Content-Type: text/html; charset=utf-8'); // Moved down
+ob_start(); // Start output buffering to catch stray output/errors
+require_once __DIR__ . '/../../sercon/bootstrap.php';
+secureSession();
+$expected_project_key = 'arad'; // HARDCODED FOR THIS FILE
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
 
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
-require_once 'includes/jdf.php'; // For jdate()
-require_once 'includes/functions.php'; // For escapeHtml etc.
+if (!isLoggedIn()) {
+    header('Location: /login.php');
+    exit();
+}
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Concrete test manager accessed with incorrect project context. Session: {$current_project_config_key}, Expected: {$expected_project_key}, User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+
+
+if (session_status() !== PHP_SESSION_ACTIVE)
+    session_start();
+
+$current_user_id = $_SESSION['user_id']; // Get current user ID
+$report_key = 'print_multiple_lable'; // HARDCODED FOR THIS FILE
+// DB Connection (Read-only needed)
+$user_id = $_SESSION['user_id'];
+$pdo = null; // Initialize
+try {
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/print_multiple_lable.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
+}
+require_once __DIR__ . '/includes/jdf.php'; // For jdate()
+require_once __DIR__ . '/includes/functions.php'; // For escapeHtml etc.
 
 // Configuration for QR Code Images
-define('QRCODE_IMAGE_WEB_PATH', '/panel_qrcodes/'); // MUST end with a slash '/'
+define('QRCODE_IMAGE_WEB_PATH', '/Arad/panel_qrcodes/'); // MUST end with a slash '/'
 define('QRCODE_SERVER_BASE_PATH', $_SERVER['DOCUMENT_ROOT']); // Usually the web root
 
 // --- Get Filter/Sort/Status Parameters ---
@@ -135,7 +163,7 @@ $error = null;
 $availablePrioritizations = [];
 
 try {
-    $pdo = connectDB();
+
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     // --- Fetch Available Prioritizations ---
@@ -177,10 +205,7 @@ try {
         case 'Mesh':
             $conditions[] = "hp.status = 'Mesh'";
             break;
-        case 'polystyrene':
-            $conditions[] = "hp.polystyrene = 1";
-            $conditions[] = "hp.status = 'polystyrene'";
-            break;
+
         case 'pending':
             $conditions[] = "hp.status = 'pending'";
             break;
@@ -208,8 +233,8 @@ try {
 
     // Construct the final SQL
     $sql = "SELECT
-                hp.id, hp.address, hp.assigned_date, hp.status, hp.Proritization,
-                hp.planned_finish_date, hp.formwork_end_time, hp.polystyrene,
+                hp.id, hp.full_address_identifier, hp.assigned_date, hp.status, hp.Proritization,
+                hp.planned_finish_date, hp.formwork_end_time,
                 hp.mesh_end_time, hp.assembly_end_time, hp.concrete_start_time,
                 hp.concrete_end_time, hp.width
             FROM hpc_panels hp";
@@ -279,6 +304,7 @@ function getLatestShamsiDate(array $dateStrings): string
     <link rel="icon" type="image/png" sizes="96x96" href="/assets/images/favicon-96x96.png">
     <link rel="icon" type="image/x-icon" href="/assets/images/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/apple-touch-icon.png">
+    <link rel="stylesheet" href="/assets/css/persian-datepicker-dark.min.css">
     <title>چاپ گروهی برچسب پنل‌ها</title>
     <link rel="stylesheet" href="assets/css/persian-datepicker.min.css">
 
@@ -460,7 +486,7 @@ function getLatestShamsiDate(array $dateStrings): string
             vertical-align: middle;
         }
 
-        .value-text .address-value {
+        .value-text .full_address_identifier-value {
             font-size: 11pt;
             font-weight: bold;
             display: inline-block;
@@ -657,7 +683,7 @@ function getLatestShamsiDate(array $dateStrings): string
                 font-size: 11pt;
             }
 
-            .value-text .address-value {
+            .value-text .full_address_identifier-value {
                 font-size: 10pt;
             }
 
@@ -735,7 +761,6 @@ function getLatestShamsiDate(array $dateStrings): string
                 <option value="assembly" <?= ($statusFilter == 'assembly') ? 'selected' : '' ?>>فیس کوت</option>
                 <option value="Concreting" <?= ($statusFilter == 'Concreting') ? 'selected' : '' ?>>بتن ریزی</option>
                 <option value="Mesh" <?= ($statusFilter == 'Mesh') ? 'selected' : '' ?>>مش گذاری</option>
-                <option value="polystyrene" <?= ($statusFilter == 'polystyrene') ? 'selected' : '' ?>>فوم گذاری</option>
                 <option value="pending" <?= ($statusFilter == 'pending') ? 'selected' : '' ?>>در انتظار</option>
             </select>
 
@@ -775,7 +800,7 @@ function getLatestShamsiDate(array $dateStrings): string
             <span class="panel-count">
                 <strong><?= count($panels) ?></strong> پنل یافت شد /
                 <strong><?= count($panels) * 2 ?></strong> برچسب
-                (<?= $statusFilter != 'all' ? htmlspecialchars(($statusFilter == 'completed' ? 'تکمیل شده' : ($statusFilter == 'assembly' ? 'فیس کوت' : ($statusFilter == 'Concreting' ? 'بتن ریزی' : ($statusFilter == 'Mesh' ? 'مش گذاری' : ($statusFilter == 'polystyrene' ? 'فوم گذاری' : ($statusFilter == 'pending' ? 'در انتظار' : $statusFilter))))))) : 'همه' ?>)
+                (<?= $statusFilter != 'all' ? htmlspecialchars(($statusFilter == 'completed' ? 'تکمیل شده' : ($statusFilter == 'assembly' ? 'فیس کوت' : ($statusFilter == 'Concreting' ? 'بتن ریزی' : ($statusFilter == 'Mesh' ? 'مش گذاری' : ($statusFilter == 'pending' ? 'در انتظار' : $statusFilter)))))) : 'همه' ?>)
                 <?php if ($prioritizationFilter != 'all'): ?>
                     <span class="filter-detail"> - اولویت: <?= htmlspecialchars($prioritizationFilter) ?></span>
                 <?php endif; ?>
@@ -805,9 +830,9 @@ function getLatestShamsiDate(array $dateStrings): string
                 <?php
                 // --- Get Common Data ---
                 $currentPanelId = $panelData['id'];
-                $currentPanelCode = $panelData['address'] ?? 'N/A';
-                // $currentProject = $panelData['project_name'] ?? 'پروژه فرشته'; // Removed, using default below
-                $currentProject = 'پروژه فرشته'; // USING HARDCODED DEFAULT
+                $currentPanelCode = $panelData['full_address_identifier'] ?? 'N/A';
+                // $currentProject = $panelData['project_name'] ?? 'پروژه آراد'; // Removed, using default below
+                $currentProject = 'پروژه آراد'; // USING HARDCODED DEFAULT
                 $currentPanelzone = $panelData['Proritization'] ?? '-';
                 $currentWidth = isset($panelData['width']) ? (int)$panelData['width'] . ' mm' : '-';
 
@@ -839,9 +864,9 @@ function getLatestShamsiDate(array $dateStrings): string
                 // $dateColumnsToCheck = [ $panelData['assigned_date'] ?? null ];
                 // $latestShamsiDate = getLatestShamsiDate(array_filter($dateColumnsToCheck));
 
-                // --- Address Parsing ---
-                $label1_address_display = $currentPanelCode;
-                $label2_address_display = $currentPanelCode;
+                // --- full_address_identifier Parsing ---
+                $label1_full_address_identifier_display = $currentPanelCode;
+                $label2_full_address_identifier_display = $currentPanelCode;
                 $part2 = '';
                 $part3 = '';
 
@@ -850,12 +875,12 @@ function getLatestShamsiDate(array $dateStrings): string
                     if (count($addrParts) >= 3) {
                         $part2 = trim($addrParts[1]);
                         $part3 = trim($addrParts[2]);
-                        $label1_address_display = $currentPanelCode . ' (' . $part2 . ')';
-                        $label2_address_display = $currentPanelCode . ' (' . $part3 . ')';
+                        $label1_full_address_identifier_display = $currentPanelCode . ' (' . $part2 . ')';
+                        $label2_full_address_identifier_display = $currentPanelCode . ' (' . $part3 . ')';
                     } elseif (count($addrParts) == 2) {
                         $part2 = trim($addrParts[1]);
-                        $label1_address_display = $currentPanelCode . ' (' . $part2 . ')';
-                        $label2_address_display = $currentPanelCode; // Fallback for 2nd label
+                        $label1_full_address_identifier_display = $currentPanelCode . ' (' . $part2 . ')';
+                        $label2_full_address_identifier_display = $currentPanelCode; // Fallback for 2nd label
                     }
                 }
                 ?>
@@ -903,7 +928,7 @@ function getLatestShamsiDate(array $dateStrings): string
                                     </td>
                                     <td colspan="2" class="value-text">
                                         <span class="label-text">آدرس پنل:</span>
-                                        <span class="address-value"><?= htmlspecialchars($label1_address_display) ?></span> <!-- Use Label 1 Address -->
+                                        <span class="full_address_identifier-value"><?= htmlspecialchars($label1_full_address_identifier_display) ?></span> <!-- Use Label 1 full_address_identifier -->
                                     </td>
                                 </tr>
                             </tbody>
@@ -947,7 +972,7 @@ function getLatestShamsiDate(array $dateStrings): string
                                     </td>
                                     <td colspan="2" class="value-text">
                                         <span class="label-text">آدرس پنل:</span>
-                                        <span class="address-value"><?= htmlspecialchars($label2_address_display) ?></span> <!-- Use Label 2 Address -->
+                                        <span class="full_address_identifier-value"><?= htmlspecialchars($label2_full_address_identifier_display) ?></span> <!-- Use Label 2 full_address_identifier -->
                                     </td>
                                 </tr>
                             </tbody>
@@ -1050,8 +1075,6 @@ function getLatestShamsiDate(array $dateStrings): string
                 window.location.href = url.toString();
             });
         });
-
-       
     </script>
 </body>
 

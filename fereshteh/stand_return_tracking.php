@@ -4,11 +4,40 @@ ini_set('display_errors', 1); // Development only
 error_reporting(E_ALL);
 ob_start(); // Start output buffering
 
-require_once __DIR__ . '/../../sercon/config_fereshteh.php'; // Adjust path if needed
+require_once __DIR__ . '/../../sercon/bootstrap.php'; // Adjust path if needed
 require_once __DIR__ . '/includes/jdf.php';      // For jdate()
 require_once __DIR__ . '/includes/functions.php'; // For secureSession, escapeHtml etc.
 
-secureSession(); // Start session securely
+secureSession();
+$expected_project_key = 'fereshteh'; // HARDCODED FOR THIS FILE
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
+
+if (!isLoggedIn()) {
+    header('Location: /login.php');
+    exit();
+}
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Concrete test manager accessed with incorrect project context. Session: {$current_project_config_key}, Expected: {$expected_project_key}, User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+
+
+if (session_status() !== PHP_SESSION_ACTIVE)
+    session_start();
+
+$current_user_id = $_SESSION['user_id']; // Get current user ID
+$report_key = 'stand_return_tracking'; // HARDCODED FOR THIS FILE
+// DB Connection (Read-only needed)
+$user_id = $_SESSION['user_id'];
+$pdo = null; // Initialize
+try {
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/stand_return_tracking.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
+}
 
 // Authentication Check (Adjust roles as needed)
 $allowed_roles = ['admin', 'superuser', 'supervisor', 'planner']; // Example roles
@@ -17,11 +46,11 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || !in_array($_SES
     exit('Access Denied.');
 }
 $current_user_id = $_SESSION['user_id'];
-$pageTitle = 'ثبت و پیگیری خرک‌های برگشتی';
+$pageTitle = 'پروژه فرشته - ثبت و پیگیری خرک‌های برگشتی ';
 
 // DB Connection
 try {
-    $pdo = connectDB();
+
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); // Enable exceptions for errors
 } catch (PDOException $e) {
     error_log("DB Connection failed in stand_return_tracking.php: " . $e->getMessage());
@@ -356,7 +385,7 @@ try {
     $stmt_history = $pdo->query("
         SELECT sr.*, u.first_name, u.last_name
         FROM stand_returns sr
-        LEFT JOIN users u ON sr.recorded_by_user_id = u.id
+        LEFT JOIN hpc_common.users u ON sr.recorded_by_user_id = u.id
         ORDER BY sr.return_date DESC, sr.recorded_at DESC
         LIMIT 500 -- Add a limit for performance if the table grows large
     ");

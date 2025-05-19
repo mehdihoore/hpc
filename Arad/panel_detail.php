@@ -1,19 +1,39 @@
 <?php
 // panel_detail.php
-ini_set('memory_limit', '1G');
-ini_set('display_errors', 1); // Keep for development; remove in production
-error_reporting(E_ALL);       // Keep for development; remove in production
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+ob_start();
+header('Content-Type: text/html; charset=utf-8');
 
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+// --- Your existing setup code ---
+require_once __DIR__ . '/../../sercon/bootstrap.php'; // Adjust path if needed
+// require_once __DIR__ .'/includes/jdf.php'; // If needed for display, otherwise not for this logic
+secureSession();
+$expected_project_key = 'arad';
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
 
-// --- Role Check & Session ---
-// NOTE: Current check is ADMIN ONLY. If supervisors need access, adjust this.
-if (!isset($_SESSION['user_id']) /* || $_SESSION['role'] !== 'admin' */) { // Temporarily allow any logged-in user for testing, REVERT LATER or adjust permissions
-    // header('Location: login.php'); // Redirect to login if no user ID
-    // exit();
-    // For now, let's assume admin check might be relaxed or handled elsewhere for supervisors
-} else {
-    secureSession(); // Secure only if session exists
+if (!isLoggedIn()) {
+    header('Location: /login.php');
+    exit();
+}
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Access violation: {$expected_project_key} map accessed with project {$current_project_config_key}. User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+$allowed_roles = ['admin', 'supervisor', 'superuser', 'planner']; // Add other roles as needed
+if (!in_array($_SESSION['role'], $allowed_roles)) {
+    logError("Unauthorized role '{$_SESSION['role']}' attempt on {$expected_project_key} map. User: {$_SESSION['user_id']}");
+    header('Location: dashboard.php?msg=unauthorized');
+    exit();
+}
+$user_id = $_SESSION['user_id'];
+$pdo = null;
+try {
+    $pdo = getProjectDBConnection();
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key} map: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
 }
 // Get current user's role and ID for checks later
 $currentUserRole = $_SESSION['role'] ?? '';
@@ -42,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         try {
-            $pdo = connectDB(); // Ensure you have a PDO connection
+
             $updateStmt = $pdo->prepare("
                     UPDATE hpc_panels
                     SET plan_checked = 1,
@@ -56,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             if ($updateStmt->rowCount() > 0) {
                 // Fetch checker FULL NAME to return
-                $checkerStmt = $pdo->prepare("SELECT first_name, last_name FROM users WHERE id = ?");
+                $checkerStmt = $pdo->prepare("SELECT first_name, last_name FROM hpc_common.users WHERE id = ?");
                 $checkerStmt->execute([$checkerUserId]);
                 $checkerNames = $checkerStmt->fetch(PDO::FETCH_ASSOC);
                 // Combine first and last name, trim extra spaces, provide fallback
@@ -78,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 if ($currentStatus && $currentStatus['plan_checked'] == 1) {
                     // Fetch existing checker full name
-                    $checkerStmt = $pdo->prepare("SELECT first_name, last_name FROM users WHERE id = ?");
+                    $checkerStmt = $pdo->prepare("SELECT first_name, last_name FROM hpc_common.users WHERE id = ?");
                     $checkerStmt->execute([$currentStatus['plan_checker_user_id']]);
                     $checkerNames = $checkerStmt->fetch(PDO::FETCH_ASSOC);
                     $checkerFullName = trim(htmlspecialchars($checkerNames['first_name'] ?? '') . ' ' . htmlspecialchars($checkerNames['last_name'] ?? '')) ?: 'کاربر نامشخص';
@@ -119,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         try {
-            $pdo = connectDB();
+
 
             // Check assigned_date before reverting
             // Fetches the assigned_date. Returns NULL if the column is NULL, false if the row doesn't exist.
@@ -188,10 +208,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         try {
-            $pdo = connectDB();
+
 
             // Fetch panel address and check assigned_date
-            $checkStmt = $pdo->prepare("SELECT address, assigned_date FROM hpc_panels WHERE id = ?");
+            $checkStmt = $pdo->prepare("SELECT address,instance_number,total_in_batch, assigned_date FROM hpc_panels WHERE id = ?");
             $checkStmt->execute([$panelIdToUpdate]);
             $panelData = $checkStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -229,7 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             // --- File Saving ---
             $panelAddress = $panelData['address'];
             $filename = basename($panelAddress) . ".svg"; // Use panel address for filename
-            $uploadDir = $_SERVER['DOCUMENT_ROOT'] . "/svg_files/"; // Ensure this directory exists and is writable
+            $uploadDir = $_SERVER['DOCUMENT_ROOT'] . "/Fereshteh/svg_files/"; // Ensure this directory exists and is writable
             $destinationPath = $uploadDir . $filename;
 
             // Ensure directory exists
@@ -316,7 +336,46 @@ if (!function_exists('gregorianToShamsi')) {
         }
     }
 }
+if (!function_exists('translate_panel_data_to_persian')) {
+    function translate_panel_data_to_persian($key, $english_value)
+    {
+        if ($english_value === null || $english_value === '') return '-'; // Handle empty or null
 
+        $translations = [
+            'zone' => [
+                'zone 1' => 'زون ۱',
+                'zone 2' => 'زون ۲',
+                'zone 3' => 'زون ۳',
+                'zone 4' => 'زون ۴',
+                'zone 5' => 'زون ۵',
+                'zone 6' => 'زون ۶',
+                'zone 7' => 'زون ۷',
+                'zone 8' => 'زون ۸',
+                // Add other zones as needed
+            ],
+            'panel_position' => [ // Assuming 'type' column stores panel_position
+                'terrace edge' => 'لبه تراس',
+                'wall panel'   => 'پنل دیواری', // Example
+                // Add other positions
+            ],
+            'status' => [ // For consistency, though your JS handles this mostly
+                'pending'    => 'در انتظار تخصیص',
+                'planned'    => 'برنامه ریزی شده',
+                'mesh'       => 'مش بندی',
+                'concreting' => 'قالب‌بندی/بتن ریزی',
+                'assembly'   => 'فیس کوت', // Assuming 'assembly' is فیس کوت
+                'completed'  => 'تکمیل شده',
+                'shipped'    => 'ارسال شده'
+            ]
+            // Add other keys if needed, e.g., 'formwork_type'
+        ];
+
+        if (isset($translations[$key][$english_value])) {
+            return $translations[$key][$english_value];
+        }
+        return escapeHtml($english_value); // Fallback to English if no translation
+    }
+}
 
 // --- Regular Page Load Logic ---
 $panelId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -329,29 +388,22 @@ $panel = null;
 $checkerUsername = null; // For storing checker username
 
 try {
-    $pdo = connectDB();
+
 
     // Get panel details (including new columns)
     $stmt = $pdo->prepare("
             SELECT
             hp.*,
-            ft.type as formwork_type_name,
-            ft.width as formwork_width,
-            ft.max_length as formwork_max_length,
-            ft.is_disabled as formwork_is_disabled,
-            ft.in_repair as formwork_in_repair,
-            ft.is_available as formwork_is_available,
-            s1.dimension_1 as left_dim1, s1.dimension_2 as left_dim2, s1.dimension_3 as left_dim3, s1.dimension_4 as left_dim4, s1.dimension_5 as left_dim5,
-            s1.left_panel as left_panel_full, s1.right_panel as right_panel_full,
-            s2.dimension_1 as right_dim1, s2.dimension_2 as right_dim2, s2.dimension_3 as right_dim3, s2.dimension_4 as right_dim4, s2.dimension_5 as right_dim5,
-            -- Fetch first and last name instead of username
+            ft.formwork_type as formwork_type_name,
+            ft.total_count as formwork_total_count,
+            ft.available_count as formwork_is_available,
+            
+            -- Fetch first and last name 
             checker.first_name as plan_checker_fname,
             checker.last_name as plan_checker_lname
         FROM hpc_panels hp
-        LEFT JOIN formwork_types ft ON hp.formwork_type = ft.type
-        LEFT JOIN sarotah s1 ON hp.address = SUBSTRING_INDEX(s1.left_panel, '-(', 1)
-        LEFT JOIN sarotah s2 ON hp.address = SUBSTRING_INDEX(s2.right_panel, '-(', 1)
-        LEFT JOIN users checker ON hp.plan_checker_user_id = checker.id
+        LEFT JOIN available_formworks ft ON hp.formwork_type = ft.formwork_type
+        LEFT JOIN hpc_common.users checker ON hp.plan_checker_user_id = checker.id
         WHERE hp.id = ?
         ");
     $stmt->execute([$panelId]);
@@ -425,23 +477,12 @@ try {
 
     // Construct SVG filename and check existence
     $filename = basename($panel['address']) . ".svg";
-    $server_path = $_SERVER['DOCUMENT_ROOT'] . "/svg_files/" . $filename; // Ensure correct path
+    $server_path = $_SERVER['DOCUMENT_ROOT'] . "/Arad/svg_files/" . $filename; // Ensure correct path
     if (file_exists($server_path)) {
-        $panel['svg_url'] = "/svg_files/" . urlencode(basename($panel['address'])) . ".svg"; // URL encode filename part
+        $panel['svg_url'] = "/Arad/svg_files/" . urlencode(basename($panel['address'])) . ".svg"; // URL encode filename part
     } else {
         error_log("SVG not found: " . $server_path); // Log if not found
         $panel['svg_url'] = "";
-    }
-
-
-    // West/East Address Parsing
-    $addressParts = explode('-', $panel['address']);
-    $westAddress = '';
-    $eastAddress = '';
-    if (count($addressParts) >= 3) {
-        $direction = $addressParts[0];
-        $westAddress = $direction . '-' . $addressParts[1];
-        $eastAddress = $direction . '-' . $addressParts[2];
     }
 } catch (PDOException $e) {
     logError("Database error in panel_detail.php: " . $e->getMessage()); // Assuming logError exists
@@ -459,7 +500,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>جزئیات پنل <?php echo htmlspecialchars($panel['address'] ?? 'Unknown'); ?></title>
+    <title>جزئیات پنل <?php echo htmlspecialchars($panel['address'] . '-' . $panel['instance_number'] . ' از' . $panel['total_in_batch'] ?? 'Unknown'); ?></title>
     <link href="/assets/css/tailwind.min.css" rel="stylesheet">
     <style>
         @font-face {
@@ -617,7 +658,7 @@ try {
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8">
         <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold">جزئیات پنل <?php echo htmlspecialchars($panel['address'] ?? 'Unknown'); ?></h1>
+            <h1 class="text-3xl font-bold">جزئیات پنل <?php echo htmlspecialchars($panel['address'] . '-' . $panel['instance_number'] . ' از' . $panel['total_in_batch'] ?? 'Unknown'); ?></h1>
             <a href="admin_panel_search.php" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">بازگشت</a>
         </div>
 
@@ -630,15 +671,17 @@ try {
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <p class="font-semibold text-gray-600">آدرس:</p>
-                                <p><?php echo htmlspecialchars($panel['address']); ?></p>
+                                <p><?php echo htmlspecialchars($panel['address'] . '-' . $panel['instance_number'] . ' از' . $panel['total_in_batch']); ?></p>
                             </div>
                             <div>
                                 <p class="font-semibold text-gray-600">نوع:</p>
-                                <p><?php echo htmlspecialchars($panel['type'] ?? 'نامشخص'); ?></p>
+
+                                <p><?php echo translate_panel_data_to_persian('panel_position', $panel['type'] ?? 'نامشخص'); ?></p>
                             </div>
                             <div>
                                 <p class="font-semibold text-gray-600">اولویت/زون:</p>
-                                <p><?php echo htmlspecialchars($panel['Proritization']); ?></p>
+
+                                <p><?php echo translate_panel_data_to_persian('zone', $panel['Proritization'] ?? 'نامشخص'); ?></p>
                             </div>
                             <div>
                                 <p class="font-semibold text-gray-600">وضعیت:</p>
@@ -648,9 +691,6 @@ try {
                                         case 'pending':
                                             echo 'در انتظار';
                                             break;
-                                        case 'polystyrene':
-                                            echo 'قالب فوم';
-                                            break; // Added polystyrene
                                         case 'Mesh':
                                             echo 'مش بندی';
                                             break;

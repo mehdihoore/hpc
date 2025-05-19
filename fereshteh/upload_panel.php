@@ -1,14 +1,40 @@
 <?php
-// upload_panel.php
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+    // upload_panel.php
+    ini_set('display_errors', 1);
+    error_reporting(E_ALL);
+    ob_start();
+    header('Content-Type: text/html; charset=utf-8');
 
-// Check if user is logged in and is an admin
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header('Location: login.php'); // Or your login page
-    exit();
-}
+    // --- Your existing setup code ---
+    require_once __DIR__ . '/../../sercon/bootstrap.php'; // Adjust path if needed
+    // require_once __DIR__ .'/includes/jdf.php'; // If needed for display, otherwise not for this logic
+    secureSession();
+    $expected_project_key = 'fereshteh';
+    $current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
 
-secureSession(); // Start session and apply security measures
+    if (!isLoggedIn()) {
+        header('Location: /login.php');
+        exit();
+    }
+    if ($current_project_config_key !== $expected_project_key) {
+        logError("Access violation: {$expected_project_key} map accessed with project {$current_project_config_key}. User: {$_SESSION['user_id']}");
+        header('Location: /select_project.php?msg=context_mismatch');
+        exit();
+    }
+    $allowed_roles = ['admin', 'supervisor', 'superuser']; // Add other roles as needed
+    if (!in_array($_SESSION['role'], $allowed_roles)) {
+        logError("Unauthorized role '{$_SESSION['role']}' attempt on {$expected_project_key} upload_panel. User: {$_SESSION['user_id']}");
+        header('Location: dashboard.php?msg=unauthorized');
+        exit();
+    }
+    $user_id = $_SESSION['user_id'];
+    $pdo = null;
+    try {
+        $pdo = getProjectDBConnection();
+    } catch (Exception $e) {
+        logError("DB Connection failed in {$expected_project_key} upload_panel: " . $e->getMessage());
+        die("خطا در اتصال به پایگاه داده پروژه.");
+    }
 
 // If we get to this point, we know the user is logged in and is an admin.
 
@@ -242,7 +268,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
         else{
             try {
-                $pdo = connectDB(); // Use PDO
+               
                 $received_data = json_decode($_POST['csv_data'], true); // Decode the JSON data from the hidden input
 
                 // Check if json_decode was successful

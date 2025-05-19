@@ -7,7 +7,7 @@ error_reporting(E_ALL);
 ob_start();
 header('Content-Type: text/html; charset=utf-8');
 require_once __DIR__ . '/../../sercon/bootstrap.php';
-require_once 'includes/jdf.php';
+require_once __DIR__ . '/includes/jdf.php';
 secureSession();
 $expected_project_key = 'arad'; // HARDCODED FOR THIS FILE
 $current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
@@ -34,7 +34,7 @@ try {
     // Get PROJECT-SPECIFIC database connection
     $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
 } catch (Exception $e) {
-    logError("DB Connection failed in {$expected_project_key}/concrete_tests_manager.php: " . $e->getMessage());
+    logError("DB Connection failed in {$expected_project_key}/concrete_tests.php: " . $e->getMessage());
     die("خطا در اتصال به پایگاه داده پروژه.");
 }
 
@@ -1016,7 +1016,8 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
     <title><?php echo htmlspecialchars($pageTitle); ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
+
+    <link rel="stylesheet" href="/assets/css/persian-datepicker-dark.min.css">
     <style>
         :root {
             --bs-primary: #0d6efd;
@@ -1250,20 +1251,7 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
             direction: ltr !important;
         }
 
-        .datepicker-plot-area {
-            font-family: Vazirmatn, Tahoma !important;
-            direction: rtl !important;
-        }
 
-        .datepicker-plot-area .table-days td span {
-            direction: rtl !important;
-            text-align: center !important;
-        }
-
-        .datepicker-plot-area .btn-next,
-        .datepicker-plot-area .btn-prev {
-            transform: rotate(180deg);
-        }
 
         .sample-input-row {
             border: 1px solid #eee;

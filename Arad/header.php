@@ -216,7 +216,7 @@ if (!function_exists('getActiveClass')) {
             font-family: 'Vazir', sans-serif;
             margin: 0;
             padding: 20px;
-            background: #f5f5f5;
+            background: rgb(81, 83, 85);
             text-align: right;
         }
 
@@ -227,7 +227,7 @@ if (!function_exists('getActiveClass')) {
         }
 
         .top-header {
-            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            background: linear-gradient(135deg, rgba(3, 61, 7, 0.5) 0%, rgb(31, 123, 6) 100%);
             color: white;
             padding: 1rem;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -288,10 +288,8 @@ if (!function_exists('getActiveClass')) {
 
         /* Nav Styles */
         .nav-container {
-            background: #f0fdfa;
-            /* Teal-50 */
-            box-shadow: 0 2px 4px rgba(13, 148, 136, 0.1);
-            /* Teal shadow */
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .navigation {
@@ -308,7 +306,7 @@ if (!function_exists('getActiveClass')) {
             display: flex;
             align-items: center;
             padding: 0.75rem 1rem;
-            color: #0f766e;
+            color: rgb(30, 138, 59);
             /* Dark blue text */
             text-decoration: none;
             border-radius: 8px;
@@ -342,22 +340,23 @@ if (!function_exists('getActiveClass')) {
         }
 
         .nav-item:hover {
-            .nav-item:hover {
-                background-color: #ccfbf1;
-                /* Teal-100 */
-                color: #134e4a;
-                /* Teal-900 */
-            }
+            background: #e5e7eb;
+            /* Light grey background */
+            /* Keep text color on hover or change if desired */
+            color: rgb(21, 39, 17);
+            /* Slightly darker text on hover */
+            /* transform: translateY(-1px); */
+            /* Optional: Can remove/keep hover transform */
         }
 
         .nav-item.active {
-            background-color: #99f6e4;
+            background-color: #dbeafe;
             /* A light blue background (Tailwind blue-100) */
-            color: #134e4a;
+            color: rgb(64, 138, 30);
             /* Keep the dark blue text or make it darker */
             font-weight: 600;
             /* Make text slightly bolder (semibold) */
-            border-right-color: #0f766e;
+            border-right-color: rgb(32, 138, 30);
             /* Make the reserved border visible (RTL) */
 
         }
@@ -419,7 +418,7 @@ if (!function_exists('getActiveClass')) {
         }
 
         h2 {
-            color: #343a40;
+            color: rgb(58, 64, 52);
             text-align: center;
             margin-bottom: 30px;
             font-size: 1.75em;
@@ -455,13 +454,13 @@ if (!function_exists('getActiveClass')) {
         input[type="file"]:focus,
         input[type="text"]:focus,
         input[type="number"]:focus {
-            border-color: #007bff;
+            border-color: rgb(106, 255, 0);
             outline: none;
             box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
         }
 
         input[type="file"]::file-selector-button {
-            background-color: #3498db;
+            background-color: rgb(63, 219, 52);
             color: white;
             border: none;
             padding: 12px 18px;
@@ -473,7 +472,7 @@ if (!function_exists('getActiveClass')) {
         }
 
         input[type="file"]::file-selector-button:hover {
-            background-color: #2980b9;
+            background-color: rgb(96, 185, 41);
         }
 
         .file-drop-zone {
@@ -503,25 +502,6 @@ if (!function_exists('getActiveClass')) {
             color: #666;
         }
 
-        .btn {
-            background-color: #007bff;
-            color: white;
-            padding: 14px 24px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 18px;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            width: 100%;
-            display: block;
-            margin-top: 15px;
-            font-weight: bold;
-        }
-
-        .btn:hover {
-            background-color: #0056b3;
-            transform: translateY(-2px);
-        }
 
         .button-group {
             display: flex;
@@ -541,14 +521,14 @@ if (!function_exists('getActiveClass')) {
         }
 
         .btn.download-template:hover {
-            background-color: #218838;
-            border-color: #1e7e34;
+            background-color: rgb(33, 38, 136);
+            border-color: rgb(30, 68, 126);
             transform: none;
         }
 
         .btn.confirm-upload {
-            background-color: #28a745;
-            border-color: #28a745;
+            background-color: rgb(40, 57, 167);
+            border-color: rgb(40, 97, 167);
         }
 
         .btn.confirm-upload:hover {
@@ -821,7 +801,7 @@ if (!function_exists('getActiveClass')) {
             .nav-item {
                 width: 100%;
                 border-radius: 0;
-                border-bottom: 1px solid #e5e7eb;
+                border-bottom: 1px solidrgb(231, 235, 229);
                 padding: 0.75rem 1rem;
                 /* Add padding directly to nav-item */
 
@@ -832,7 +812,7 @@ if (!function_exists('getActiveClass')) {
                 border-right-color: transparent;
                 /* Ensure side border is not shown */
 
-                border-bottom-color: #1e3a8a;
+                border-bottom-color: rgb(30, 138, 50);
                 border-bottom-width: 2px;
             }
 
@@ -938,107 +918,6 @@ if (!function_exists('getActiveClass')) {
             border-bottom: none;
         }
 
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-            gap: 0.5rem;
-            min-width: 100px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn i {
-            font-size: 0.9em;
-        }
-
-        .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn-activate {
-            background: #059669;
-            color: white;
-        }
-
-        .btn-activate:hover {
-            background: #047857;
-        }
-
-        .btn-deactivate {
-            background: #dc2626;
-            color: white;
-        }
-
-        .btn-deactivate:hover {
-            background: #b91c1c;
-        }
-
-        .btn-admin {
-            background: #2563eb;
-            color: white;
-        }
-
-        .btn-admin:hover {
-            background: #1d4ed8;
-        }
-
-        .btn-supervisor {
-            background: #7c3aed;
-            color: white;
-        }
-
-        .btn-supervisor:hover {
-            background: #6d28d9;
-        }
-
-        .btn-user {
-            background: #4b5563;
-            color: white;
-        }
-
-        .btn-user:hover {
-            background: #374151;
-        }
-
-        .btn-delete {
-            background: #dc2626;
-            color: white;
-        }
-
-        .btn-delete:hover {
-            background: #b91c1c;
-        }
-
-        .btn-reset {
-            background: #f59e0b;
-            color: white;
-        }
-
-        .btn-reset:hover {
-            background: #d97706;
-        }
-
-        .btn-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            padding: 0.5rem 0;
-        }
-
-        .btn-container form {
-            margin: 0;
-        }
 
         .status-active {
             color: #059669;
@@ -1158,14 +1037,6 @@ if (!function_exists('getActiveClass')) {
                 white-space: nowrap;
             }
 
-            .btn {
-                min-width: auto;
-                padding: 0.5rem 0.75rem;
-            }
-
-            .btn-container {
-                justify-content: center;
-            }
 
             .modal-content {
                 width: 95%;
@@ -1175,9 +1046,7 @@ if (!function_exists('getActiveClass')) {
 
         /* Print Styles */
         @media print {
-            .btn-container {
-                display: none;
-            }
+
 
             .data-table {
                 box-shadow: none;
@@ -1457,21 +1326,19 @@ if (!function_exists('getActiveClass')) {
         }
 
         .project-switcher-dropdown .dropdown-item.current-project-highlight {
-            background-color: #0f766e;
-            /* Darker teal highlight */
-            color: #ccfbf1;
-            /* Light text */
+            background-color: #4a627a;
+            color: #f39c12;
             font-weight: bold;
         }
 
         .project-switcher-dropdown .dropdown-toggle {
-            background-color: #14b8a6;
-            /* Teal button */
-            color: white;
+            background-color: #f39c12;
+            /* Default Orange button */
+            color: #2c3e50;
         }
 
         .project-switcher-dropdown .dropdown-toggle:hover {
-            background-color: #0f766e;
+            background-color: #e67e22;
         }
     </style>
     <!-- Put all the JavaScript includes *here*, just before the closing </head> tag -->
@@ -1571,15 +1438,7 @@ if (!function_exists('getActiveClass')) {
                     </a>
                 <?php endif; ?>
 
-                <?php if (hasAccess(['admin', 'planner', 'cnc_operator', 'superuser'])): ?>
-                    <a href="polystyrene_management.php" class="nav-item<?php echo getActiveClass('polystyrene_management.php', $current_page_filename); ?>">
-                        <svg class="icon-tools" viewBox="0 0 24 24">
-                            <path fill="none" stroke="currentColor" stroke-width="2" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-5h2v5h-2zm1-6.5c-.83 0-1.5-.67-1.5-1.5S11.17 7 12 7s1.5.67 1.5 1.5S12.83 10 12 10z" />
-                        </svg>
-                        قطعات یونولیتی
-                    </a>
 
-                <?php endif; ?>
 
                 <?php if (hasAccess(['admin', 'superuser', 'planner', 'user', 'supervisor'])): ?>
                     <a href="admin_assigne_date.php" class="nav-item<?php echo getActiveClass('admin_assigne_date.php', $current_page_filename); ?>">
@@ -1616,12 +1475,12 @@ if (!function_exists('getActiveClass')) {
                         تست بتن
                     </a>
                 <?php endif; ?>
-                <?php if (hasAccess(['admin', 'superuser'])): ?>
-                    <a href="activity_log.php" class="nav-item<?php echo getActiveClass('activity_log.php', $current_page_filename); ?>">
+                <?php if (hasAccess(['admin', 'superuser', 'supervisor', 'user', 'planner'])): ?>
+                    <a href="panel_status_visualizer.php" class="nav-item<?php echo getActiveClass('panel_status_visualizer.php', $current_page_filename); ?>">
                         <svg class="icon-history" viewBox="0 0 24 24">
                             <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
                         </svg>
-                        پیگیری کنش‌ها
+                        وضعیت نما
                     </a>
                 <?php endif; ?>
 
@@ -1634,14 +1493,7 @@ if (!function_exists('getActiveClass')) {
                     </a>
                 <?php endif; ?>
 
-                <?php if (hasAccess(['admin', 'superuser'])): ?>
-                    <a href="admin.php" class="nav-item<?php echo getActiveClass('admin.php', $current_page_filename); ?>">
-                        <svg class="icon-tools" viewBox="0 0 24 24">
-                            <path d="M12,3C7.58,3 4,4.79 4,7V11C4,13.21 7.58,15 12,15C16.42,15 20,13.21 20,11V7C20,4.79 16.42,3 12,3M13,10H11V7H13M13,14H11V12H13M12,17C8.69,17 6,14.31 6,11C6,9.70 6.43,8.47 7.17,7.44C7.54,7.00 8.00,6.66 8.53,6.44C9.50,6.16 10.73,6 12,6C13.27,6 14.50,6.16 15.47,6.44C16.00,6.66 16.46,7.00 16.83,7.44C17.57,8.47 18,9.70 18,11C18,14.31 15.31,17 12,17Z" />
-                        </svg>
-                        پنل مدیریت
-                    </a>
-                <?php endif; ?>
+
 
                 <?php if (hasAccess(['admin', 'superuser', 'supervisor', 'user', 'planner'])): ?>
                     <a href="truck-assignment.php" class="nav-item<?php echo getActiveClass('truck-assignment.php', $current_page_filename); ?>">

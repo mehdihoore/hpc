@@ -1,19 +1,39 @@
 <?php
 // panel_detail.php
-ini_set('memory_limit', '1G');
-ini_set('display_errors', 1); // Keep for development; remove in production
-error_reporting(E_ALL);       // Keep for development; remove in production
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+ob_start();
+header('Content-Type: text/html; charset=utf-8');
 
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+// --- Your existing setup code ---
+require_once __DIR__ . '/../../sercon/bootstrap.php'; // Adjust path if needed
+// require_once __DIR__ .'/includes/jdf.php'; // If needed for display, otherwise not for this logic
+secureSession();
+$expected_project_key = 'fereshteh';
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
 
-// --- Role Check & Session ---
-// NOTE: Current check is ADMIN ONLY. If supervisors need access, adjust this.
-if (!isset($_SESSION['user_id']) /* || $_SESSION['role'] !== 'admin' */) { // Temporarily allow any logged-in user for testing, REVERT LATER or adjust permissions
-    // header('Location: login.php'); // Redirect to login if no user ID
-    // exit();
-    // For now, let's assume admin check might be relaxed or handled elsewhere for supervisors
-} else {
-    secureSession(); // Secure only if session exists
+if (!isLoggedIn()) {
+    header('Location: /login.php');
+    exit();
+}
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Access violation: {$expected_project_key} map accessed with project {$current_project_config_key}. User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+$allowed_roles = ['admin', 'supervisor', 'superuser', 'planner']; // Add other roles as needed
+if (!in_array($_SESSION['role'], $allowed_roles)) {
+    logError("Unauthorized role '{$_SESSION['role']}' attempt on {$expected_project_key} map. User: {$_SESSION['user_id']}");
+    header('Location: dashboard.php?msg=unauthorized');
+    exit();
+}
+$user_id = $_SESSION['user_id'];
+$pdo = null;
+try {
+    $pdo = getProjectDBConnection();
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key} map: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
 }
 // Get current user's role and ID for checks later
 $currentUserRole = $_SESSION['role'] ?? '';
@@ -42,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         try {
-            $pdo = connectDB(); // Ensure you have a PDO connection
+
             $updateStmt = $pdo->prepare("
                     UPDATE hpc_panels
                     SET plan_checked = 1,
@@ -56,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             if ($updateStmt->rowCount() > 0) {
                 // Fetch checker FULL NAME to return
-                $checkerStmt = $pdo->prepare("SELECT first_name, last_name FROM users WHERE id = ?");
+                $checkerStmt = $pdo->prepare("SELECT first_name, last_name FROM hpc_common.users WHERE id = ?");
                 $checkerStmt->execute([$checkerUserId]);
                 $checkerNames = $checkerStmt->fetch(PDO::FETCH_ASSOC);
                 // Combine first and last name, trim extra spaces, provide fallback
@@ -78,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 if ($currentStatus && $currentStatus['plan_checked'] == 1) {
                     // Fetch existing checker full name
-                    $checkerStmt = $pdo->prepare("SELECT first_name, last_name FROM users WHERE id = ?");
+                    $checkerStmt = $pdo->prepare("SELECT first_name, last_name FROM hpc_common.users WHERE id = ?");
                     $checkerStmt->execute([$currentStatus['plan_checker_user_id']]);
                     $checkerNames = $checkerStmt->fetch(PDO::FETCH_ASSOC);
                     $checkerFullName = trim(htmlspecialchars($checkerNames['first_name'] ?? '') . ' ' . htmlspecialchars($checkerNames['last_name'] ?? '')) ?: 'کاربر نامشخص';
@@ -119,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         try {
-            $pdo = connectDB();
+
 
             // Check assigned_date before reverting
             // Fetches the assigned_date. Returns NULL if the column is NULL, false if the row doesn't exist.
@@ -188,7 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         try {
-            $pdo = connectDB();
+
 
             // Fetch panel address and check assigned_date
             $checkStmt = $pdo->prepare("SELECT address, assigned_date FROM hpc_panels WHERE id = ?");
@@ -229,7 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             // --- File Saving ---
             $panelAddress = $panelData['address'];
             $filename = basename($panelAddress) . ".svg"; // Use panel address for filename
-            $uploadDir = $_SERVER['DOCUMENT_ROOT'] . "/svg_files/"; // Ensure this directory exists and is writable
+            $uploadDir = $_SERVER['DOCUMENT_ROOT'] . "/Fereshteh/svg_files/"; // Ensure this directory exists and is writable
             $destinationPath = $uploadDir . $filename;
 
             // Ensure directory exists
@@ -329,7 +349,7 @@ $panel = null;
 $checkerUsername = null; // For storing checker username
 
 try {
-    $pdo = connectDB();
+
 
     // Get panel details (including new columns)
     $stmt = $pdo->prepare("
@@ -351,7 +371,7 @@ try {
         LEFT JOIN formwork_types ft ON hp.formwork_type = ft.type
         LEFT JOIN sarotah s1 ON hp.address = SUBSTRING_INDEX(s1.left_panel, '-(', 1)
         LEFT JOIN sarotah s2 ON hp.address = SUBSTRING_INDEX(s2.right_panel, '-(', 1)
-        LEFT JOIN users checker ON hp.plan_checker_user_id = checker.id
+        LEFT JOIN hpc_common.users checker ON hp.plan_checker_user_id = checker.id
         WHERE hp.id = ?
         ");
     $stmt->execute([$panelId]);
@@ -425,9 +445,9 @@ try {
 
     // Construct SVG filename and check existence
     $filename = basename($panel['address']) . ".svg";
-    $server_path = $_SERVER['DOCUMENT_ROOT'] . "/svg_files/" . $filename; // Ensure correct path
+    $server_path = $_SERVER['DOCUMENT_ROOT'] . "/Fereshteh/svg_files/" . $filename; // Ensure correct path
     if (file_exists($server_path)) {
-        $panel['svg_url'] = "/svg_files/" . urlencode(basename($panel['address'])) . ".svg"; // URL encode filename part
+        $panel['svg_url'] = "/Fereshteh/svg_files/" . urlencode(basename($panel['address'])) . ".svg"; // URL encode filename part
     } else {
         error_log("SVG not found: " . $server_path); // Log if not found
         $panel['svg_url'] = "";

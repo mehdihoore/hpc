@@ -138,8 +138,16 @@ try {
 // Get highlighted item if present
 $highlightedType = isset($_GET['highlighted_type']) ? $_GET['highlighted_type'] : null;
 $highlightAction = isset($_GET['action']) ? $_GET['action'] : null;
-
-$pageTitle = 'مدیریت موجودی قالب‌ها - ' . escapeHtml($_SESSION['current_project_name'] ?? 'پروژه');;
+if ($_SESSION['current_project_name'] == 'Fereshteh') {
+    $project_name = 'پروژه فرشته';
+} elseif ($_SESSION['current_project_name'] == 'Arad') {
+    $project_name = ' پروژه آراد';
+} else {
+    $project_name = $_SESSION['current_project_name'];
+}
+// --- End Authorization ---
+// Set the page title *before* including the header.
+$pageTitle = 'مدیریت موجودی قالب‌ها - ' . $project_name;
 require_once 'header.php'; // Include your standard header
 
 // Add JS for highlighting animation
@@ -154,7 +162,6 @@ echo '<script>
 ?>
 
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold mb-6 text-gray-800"><?php echo $pageTitle; ?></h1>
 
     <?php if (isset($_GET['updated'])): ?>
         <div class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded flex items-center">

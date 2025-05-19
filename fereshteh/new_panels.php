@@ -172,8 +172,8 @@ try {
                    u.username as user_name, s.username as supervisor_name
             FROM hpc_panel_details pd
             LEFT JOIN hpc_panel_attachments pa ON pa.panel_detail_id = pd.id
-            LEFT JOIN users u ON pd.user_id = u.id
-            LEFT JOIN users s ON pd.supervisor_id = s.id
+            LEFT JOIN hpc_common.users u ON pd.user_id = u.id
+            LEFT JOIN hpc_common.users s ON pd.supervisor_id = s.id
             WHERE pd.panel_id IN ($placeholders)
         ";
         // **************************************

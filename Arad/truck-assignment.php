@@ -1,10 +1,25 @@
 <?php
 // truck-assignment.php
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+ob_start();
+header('Content-Type: text/html; charset=utf-8');
+require_once __DIR__ . '/../../sercon/bootstrap.php';
 require_once 'includes/jdf.php';
 require_once 'includes/functions.php';
-
 secureSession();
+$expected_project_key = 'arad'; // HARDCODED FOR THIS FILE
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
+
+if (!isLoggedIn()) {
+    header('Location: /login.php');
+    exit();
+}
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Concrete test manager accessed with incorrect project context. Session: {$current_project_config_key}, Expected: {$expected_project_key}, User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
 
 // --- ROLE DEFINITIONS ---
 $full_access_roles = ['admin', 'superuser', 'planner'];
@@ -31,12 +46,19 @@ $isReadOnly = !in_array($current_role, $full_access_roles);
 // This will be TRUE for admin, superuser, planner, receiver, supervisor
 $canUpload = in_array($current_role, $full_access_roles) || in_array($current_role, $upload_capable_roles);
 // --- END ROLE HANDLING ---
-
+$pdo = null; // Initialize
+try {
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/hpc_panels_manager.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
+}
 $pageTitle = 'تخصیص پنل به کامیون';
 require_once 'header.php';
 
 try {
-    $pdo = connectDB();
+
     // ... (rest of your database fetching logic remains the same) ...
     try {
         // 1. Get Total Stands
@@ -97,11 +119,26 @@ try {
         $stmt_shipment_status->execute($truckIds);
         $shipmentStatuses = $stmt_shipment_status->fetchAll(PDO::FETCH_KEY_PAIR); // truck_id => status
     }
+    $truckShipmentPackingnumber = [];
+    if (!empty($allTrucks)) {
+        $truckIds = array_column($allTrucks, 'id');
+        $placeholders = implode(',', array_fill(0, count($truckIds), '?'));
+        $stmt_shipment_status = $pdo->prepare("
+            SELECT truck_id, packing_list_number
+            FROM shipments
+            WHERE truck_id IN ($placeholders)
+            ORDER BY id DESC -- Assuming latest shipment status is most relevant if multiple exist per truck
+        ");
+        $stmt_shipment_status->execute($truckIds);
+        $shipmentPackingnumber = $stmt_shipment_status->fetchAll(PDO::FETCH_KEY_PAIR); // truck_id => status
+    }
+
 
     // Combine truck data with shipment status
     $trucks = [];
     foreach ($allTrucks as $truck) {
         $truck['shipment_status'] = $shipmentStatuses[$truck['id']] ?? null;
+        $truck['shipment_packing_list_number'] = $shipmentPackingnumber[$truck['id']] ?? null;
         $trucks[] = $truck;
     }
 
@@ -326,6 +363,7 @@ try {
                         data-driver-phone="<?= htmlspecialchars(strtolower($truck['driver_phone'] ?? '')) ?>">
                         <div class="card">
                             <div class="card-header bg-success text-white">
+                                <h4>شماره پکینگ لیست: <?= $truck['shipment_packing_list_number'] ?></h4>
                                 <h5>کامیون شماره <?= htmlspecialchars($truck['truck_number']) ?></h5>
                                 <small>ظرفیت: <?= $truck['capacity'] ?> پنل</small>
 
@@ -424,15 +462,15 @@ try {
                                         <i class="fa fa-calendar-alt"></i> برنامه‌ریزی/مشاهده
                                     </button>
 
-                                 
-                                    
-                                        <a href="panel-stand-manager.php?truck_id=<?= $truck['id'] ?>"
-                                            class="btn btn-sm btn-light manage-stands-btn"
-                                            target="_blank"
-                                            title="مدیریت خرک‌های این کامیون">
-                                            <i class="fas fa-pallet"></i> مدیریت خرک
-                                        </a>
-                                   
+
+
+                                    <a href="panel-stand-manager.php?truck_id=<?= $truck['id'] ?>"
+                                        class="btn btn-sm btn-light manage-stands-btn"
+                                        target="_blank"
+                                        title="مدیریت خرک‌های این کامیون">
+                                        <i class="fas fa-pallet"></i> مدیریت خرک
+                                    </a>
+
 
                                     <a href="packing-list.php?truck_id=<?= $truck['id'] ?>" class="btn btn-info" target="_blank">
                                         <i class="fa fa-print"></i> چاپ لیست بارگیری
@@ -552,7 +590,7 @@ try {
     </div>
 </div>
 
-
+<link rel="stylesheet" href="/assets/css/persian-datepicker-dark.min.css">
 <style>
     .panel-container {
         min-height: 200px;
@@ -2325,6 +2363,7 @@ try {
             newTruckDiv.innerHTML = `
             <div class="card">
                 <div class="card-header bg-success text-white">
+                <h4>شماره پکینگ لیست ${truck.truck_number}</h4>
                     <h5>کامیون شماره ${truck.truck_number}</h5>
                     <small>ظرفیت: ${truck.capacity} پنل</small>
                     ${!isUserReadOnly ? `

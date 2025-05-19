@@ -25,7 +25,7 @@ if ($current_project_config_key !== $expected_project_key) {
 // 4. Check user role access for this specific page
 
 // --- End Authorization ---
-require_once 'includes/jdf.php'; // For gregorianToShamsi / jalali_to_gregorian
+
 if (session_status() !== PHP_SESSION_ACTIVE)
     session_start();
 // Authentication Check (Still important)
@@ -46,7 +46,7 @@ try {
     // Get PROJECT-SPECIFIC database connection
     $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
 } catch (Exception $e) {
-    logError("DB Connection failed in {$expected_project_key}/concrete_tests_manager.php: " . $e->getMessage());
+    logError("DB Connection failed in {$expected_project_key}/concrete_tests_print.php: " . $e->getMessage());
     die("خطا در اتصال به پایگاه داده پروژه.");
 }
 
@@ -327,7 +327,7 @@ function renderHeader($settings)
         $headerText = $settings['print_header'] ?? ''; // Use correct key
         $header .= '<td class="header-center">' . nl2br(htmlspecialchars($headerText)) . '</td>';
         if ($showLogos) {
-            $header .= '<td class="logo-cell logo-right"><img src="/assets/images/hotelfereshteh1.png" alt="Logo"></td>';
+            $header .= '<td class="logo-cell logo-right"><img src="/assets/images/arad.png" alt="Logo"></td>';
         }
         // Add empty cells if logos are hidden only if the default structure is used
         elseif (!$showLogos && empty($settings['custom_header_html'])) {
@@ -389,6 +389,7 @@ $pageTitle = "چاپ گزارش تست‌های بتن";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/assets/css/persian-datepicker-dark.min.css">
     <!-- For icons -->
 
     <?php if (!$show_settings_form): ?>

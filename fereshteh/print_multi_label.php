@@ -1,15 +1,43 @@
 <?php
-ini_set('display_errors', 1);
+ini_set('display_errors', 1); // Enable error display for debugging
 error_reporting(E_ALL);
-ob_start(); // Start output buffering *before* any output
-// header('Content-Type: text/html; charset=utf-8'); // Moved down
+ob_start(); // Start output buffering to catch stray output/errors
+require_once __DIR__ . '/../../sercon/bootstrap.php';
+secureSession();
+$expected_project_key = 'fereshteh'; // HARDCODED FOR THIS FILE
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
 
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
-require_once 'includes/jdf.php'; // For jdate()
-require_once 'includes/functions.php'; // For escapeHtml etc.
+if (!isLoggedIn()) {
+    header('Location: /login.php');
+    exit();
+}
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Concrete test manager accessed with incorrect project context. Session: {$current_project_config_key}, Expected: {$expected_project_key}, User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+
+
+if (session_status() !== PHP_SESSION_ACTIVE)
+    session_start();
+
+$current_user_id = $_SESSION['user_id']; // Get current user ID
+$report_key = 'print_multiple_lable'; // HARDCODED FOR THIS FILE
+// DB Connection (Read-only needed)
+$user_id = $_SESSION['user_id'];
+$pdo = null; // Initialize
+try {
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/print_multiple_lable.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
+}
+require_once __DIR__ . '/includes/jdf.php'; // For jdate()
+require_once __DIR__ . '/includes/functions.php'; // For escapeHtml etc.
 
 // Configuration for QR Code Images
-define('QRCODE_IMAGE_WEB_PATH', '/panel_qrcodes/'); // MUST end with a slash '/'
+define('QRCODE_IMAGE_WEB_PATH', '/Fereshteh/panel_qrcodes/'); // MUST end with a slash '/'
 define('QRCODE_SERVER_BASE_PATH', $_SERVER['DOCUMENT_ROOT']); // Usually the web root
 
 // --- Get Filter/Sort/Status Parameters ---
@@ -135,7 +163,7 @@ $error = null;
 $availablePrioritizations = [];
 
 try {
-    $pdo = connectDB();
+
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     // --- Fetch Available Prioritizations ---
@@ -1050,8 +1078,6 @@ function getLatestShamsiDate(array $dateStrings): string
                 window.location.href = url.toString();
             });
         });
-
-       
     </script>
 </body>
 

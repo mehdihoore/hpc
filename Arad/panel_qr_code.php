@@ -1,65 +1,106 @@
 <?php
-// public_panel_view.php
-// Public-facing panel detail page - NO LOGIN REQUIRED
-ini_set('memory_limit', '1G');
-// Disable error display in production for public pages
-// ini_set('display_errors', 0);
-// error_reporting(0);
-// --- FOR DEVELOPMENT ONLY ---
-ini_set('display_errors', 1);
+// public_html/fereshteh/public_panel_view.php
+// Public-facing panel detail page for fereshteh project - NO LOGIN REQUIRED
+
+ini_set('display_errors', 1); // Good for development
 error_reporting(E_ALL);
-// --- END DEVELOPMENT ONLY ---
+ob_start(); // Start output buffering
+header('Content-Type: text/html; charset=utf-8');
 
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+// --- Bootstrap Inclusion ---
+// This file is in public_html/fereshteh/, so bootstrap is two levels up then into sercon.
+require_once __DIR__ . '/../../sercon/bootstrap.php';
 
-// --- NO Session or Role Check ---
-// This page is public.
+// If jdf.php for jdate() is needed AND it's in public_html/includes/
+// And if your bootstrap.php doesn't already include it or a similar function.
+if (file_exists(PUBLIC_HTML_ROOT . '/includes/jdf.php')) {
+    require_once PUBLIC_HTML_ROOT . '/includes/jdf.php';
+}
 
-// Function to convert Gregorian to Shamsi date (ensure it's defined - maybe move to config_fereshteh.php?)
+// --- Hardcode Project Key for this specific view ---
+$project_config_key_for_this_view = 'fereshteh'; // This page is for fereshteh panels
+
+$pdo = null;
+try {
+    // Explicitly pass the project config key for fereshteh
+    $pdo = getProjectDBConnection($project_config_key_for_this_view);
+} catch (Exception $e) {
+    logError("DB Connection failed in fereshteh public_panel_view: " . $e->getMessage());
+    // Do not output detailed error to public users
+    http_response_code(503); // Service Unavailable
+    die("متاسفانه در حال حاضر امکان نمایش اطلاعات وجود ندارد. لطفا بعدا تلاش کنید.");
+}
+
+// --- Gregorian to Shamsi Date Conversion Function (More Robust Version) ---
 if (!function_exists('gregorianToShamsi')) {
-    function gregorianToShamsi($date)
+    function gregorianToShamsi($g_date, $format = 'Y/m/d')
     {
-        if (empty($date) || $date == '0000-00-00') return '';
+        if (empty($g_date) || $g_date == '0000-00-00' || $g_date == null) {
+            return '';
+        }
         try {
-            $dt = new DateTime($date);
-            $year = $dt->format('Y');
-            $month = $dt->format('m');
-            $day = $dt->format('d');
-            $gDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-            $jDays = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
-            $gy = $year - 1600;
-            $gm = $month - 1;
-            $gd = $day - 1;
-            $gDayNo = 365 * $gy + floor(($gy + 3) / 4) - floor(($gy + 99) / 100) + floor(($gy + 399) / 400);
-            for ($i = 0; $i < $gm; ++$i) $gDayNo += $gDays[$i];
-            if ($gm > 1 && (($gy % 4 == 0 && $gy % 100 != 0) || ($gy % 400 == 0))) $gDayNo++;
-            $gDayNo += $gd;
-            $jDayNo = $gDayNo - 79;
-            $jNp = floor($jDayNo / 12053);
-            $jDayNo %= 12053;
-            $jy = 979 + 33 * $jNp + 4 * floor($jDayNo / 1461);
-            $jDayNo %= 1461;
-            if ($jDayNo >= 366) {
-                $jy += floor(($jDayNo - 1) / 365);
-                $jDayNo = ($jDayNo - 1) % 365;
+            // Check if jdate function from jdf.php is available
+            if (function_exists('jdate')) {
+                $timestamp = strtotime($g_date);
+                if ($timestamp === false) return 'تاریخ نامعتبر';
+                return jdate($format, $timestamp); // Use jdf.php's jdate()
+            } else {
+                // Fallback basic conversion if jdate is not available (less accurate for leap years)
+                $date_parts = explode('-', substr($g_date, 0, 10));
+                if (count($date_parts) != 3) return 'تاریخ نامعتبر';
+
+                list($g_y, $g_m, $g_d) = array_map('intval', $date_parts);
+
+                $g_days_in_month = array(31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
+                $j_days_in_month = array(31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29);
+
+                $gy = $g_y - 1600;
+                $gm = $g_m - 1;
+                $gd = $g_d - 1;
+
+                $g_day_no = 365 * $gy + floor(($gy + 3) / 4) - floor(($gy + 99) / 100) + floor(($gy + 399) / 400);
+
+                for ($i = 0; $i < $gm; ++$i) {
+                    $g_day_no += $g_days_in_month[$i];
+                }
+                if ($gm > 1 && (($gy % 4 == 0 && $gy % 100 != 0) || ($gy % 400 == 0))) {
+                    $g_day_no++; // Leap year
+                }
+                $g_day_no += $gd;
+
+                $j_day_no = $g_day_no - 79;
+                $j_np = floor($j_day_no / 12053);
+                $j_day_no = $j_day_no % 12053;
+
+                $jy = 979 + 33 * $j_np + 4 * floor($j_day_no / 1461);
+                $j_day_no %= 1461;
+
+                if ($j_day_no >= 366) {
+                    $jy += floor(($j_day_no - 1) / 365);
+                    $j_day_no = ($j_day_no - 1) % 365;
+                }
+
+                for ($i = 0; $i < 11 && $j_day_no >= $j_days_in_month[$i]; ++$i) {
+                    $j_day_no -= $j_days_in_month[$i];
+                }
+                $jm = $i + 1;
+                $jd = $j_day_no + 1;
+
+                return sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
             }
-            for ($i = 0; $i < 11 && $jDayNo >= $jDays[$i]; ++$i) $jDayNo -= $jDays[$i];
-            $jm = $i + 1;
-            $jd = $jDayNo + 1;
-            return sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
         } catch (Exception $e) {
-            // Optional: Log error if needed
-            // logError("Date conversion error: " . $e->getMessage());
+            logError("Shamsi date conversion error for '{$g_date}': " . $e->getMessage());
             return 'تاریخ نامعتبر';
         }
     }
 }
+// --- End Date Conversion ---
 
 
 // --- Get Panel ID from URL ---
 $panelId = isset($_GET['id']) ? filter_var($_GET['id'], FILTER_VALIDATE_INT) : 0;
 if (!$panelId) {
-    // Keep error messages simple for public view
+    http_response_code(400); // Bad Request
     die("شناسه پنل نامعتبر است.");
 }
 
@@ -68,7 +109,7 @@ $panel = null;
 $concreteTests = []; // Initialize as empty array
 
 try {
-    $pdo = connectDB();
+
 
     // Get essential panel details for public view
     // Removed checker name columns as they are not needed for public view
@@ -153,15 +194,32 @@ try {
     // --- End Fetch and Process Concrete Test Data ---
 
     // Construct SVG filename and check existence
-    $filename = basename($panel['address']) . ".svg";
-    $server_path = $_SERVER['DOCUMENT_ROOT'] . "/svg_files/" . $filename; // Ensure correct web root path
-    if (file_exists($server_path)) {
-        // Use a relative or absolute URL path accessible by the browser
-        $panel['svg_url'] = "/svg_files/" . rawurlencode($filename); // Use rawurlencode for safety
-    } else {
-        // Optional: Log error if needed for internal tracking
-        // logError("Public View: SVG not found for panel ID {$panelId}: " . $server_path);
-        $panel['svg_url'] = ""; // Set to empty if not found
+    if ($panel) {
+        // Construct SVG filename
+        $svg_filename = "";
+        if (!empty($panel['address'])) {
+            $svg_filename = basename($panel['address']) . ".svg";
+        }
+
+        $project_svg_folder_web_path = "/Fereshteh/svg_files/"; // Specific to Fereshteh project
+        $project_svg_folder_server_path = PUBLIC_HTML_ROOT . "/Fereshteh/svg_files/"; // Specific to Fereshteh
+
+        $server_svg_path_for_check = ""; // This was used for the file_exists check
+        if ($svg_filename) {
+            $server_svg_path_for_check = $project_svg_folder_server_path . $svg_filename; // Full server path to the specific SVG file
+        }
+
+        if ($server_svg_path_for_check && file_exists($server_svg_path_for_check)) {
+            $panel['svg_url'] = $project_svg_folder_web_path . rawurlencode($svg_filename);
+            // We need to store the server path for filemtime if the file exists
+            $actual_server_path_to_svg_file = $server_svg_path_for_check; // STORE THIS
+        } else {
+            if ($svg_filename) {
+                logError("Fereshteh Public View: SVG not found for panel ID {$panelId} (Code: {$panel['address']}). Expected at: " . $server_svg_path_for_check);
+            }
+            $panel['svg_url'] = "";
+            $actual_server_path_to_svg_file = null; // File doesn't exist
+        }
     }
 
     // Removed West/East parsing unless needed
@@ -555,14 +613,13 @@ try {
                         <div class="panel-svg-container border rounded bg-white shadow-inner" id="svgWrapper">
                             <!-- Added cache buster using filemtime if possible, else time() -->
                             <?php
-                            $svgTimestamp = file_exists($server_path) ? filemtime($server_path) : time();
+                            $svgTimestamp = file_exists($actual_server_path_to_svg_file) ? filemtime($actual_server_path_to_svg_file) : time();
                             ?>
                             <img src="<?php echo htmlspecialchars($panel['svg_url']) . '?v=' . $svgTimestamp; ?>"
                                 alt="نقشه پنل <?php echo htmlspecialchars($panel['address']); ?>"
                                 id="svgImage"
-                                class="block w-full h-auto" <?php // Basic styling for img 
-                                                            ?>
-                                onerror="this.style.display='none'; document.getElementById('svgError').style.display='block';" />
+                                class="block w-full h-auto"
+                                onerror="this.style.display='none'; document.getElementById('svgError').style.display='block'; console.error('SVG load error for:', this.src);" />
                             <p id="svgError" style="display:none;" class="p-4 text-red-600 bg-red-100 border border-red-300 rounded">خطا در بارگذاری نقشه SVG.</p>
                         </div>
                         <!-- Zoom Controls -->

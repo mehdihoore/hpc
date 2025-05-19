@@ -502,25 +502,6 @@ if (!function_exists('getActiveClass')) {
             color: #666;
         }
 
-        .btn {
-            background-color: #007bff;
-            color: white;
-            padding: 14px 24px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 18px;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            width: 100%;
-            display: block;
-            margin-top: 15px;
-            font-weight: bold;
-        }
-
-        .btn:hover {
-            background-color: #0056b3;
-            transform: translateY(-2px);
-        }
 
         .button-group {
             display: flex;
@@ -937,107 +918,6 @@ if (!function_exists('getActiveClass')) {
             border-bottom: none;
         }
 
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-            gap: 0.5rem;
-            min-width: 100px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn i {
-            font-size: 0.9em;
-        }
-
-        .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn-activate {
-            background: #059669;
-            color: white;
-        }
-
-        .btn-activate:hover {
-            background: #047857;
-        }
-
-        .btn-deactivate {
-            background: #dc2626;
-            color: white;
-        }
-
-        .btn-deactivate:hover {
-            background: #b91c1c;
-        }
-
-        .btn-admin {
-            background: #2563eb;
-            color: white;
-        }
-
-        .btn-admin:hover {
-            background: #1d4ed8;
-        }
-
-        .btn-supervisor {
-            background: #7c3aed;
-            color: white;
-        }
-
-        .btn-supervisor:hover {
-            background: #6d28d9;
-        }
-
-        .btn-user {
-            background: #4b5563;
-            color: white;
-        }
-
-        .btn-user:hover {
-            background: #374151;
-        }
-
-        .btn-delete {
-            background: #dc2626;
-            color: white;
-        }
-
-        .btn-delete:hover {
-            background: #b91c1c;
-        }
-
-        .btn-reset {
-            background: #f59e0b;
-            color: white;
-        }
-
-        .btn-reset:hover {
-            background: #d97706;
-        }
-
-        .btn-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            padding: 0.5rem 0;
-        }
-
-        .btn-container form {
-            margin: 0;
-        }
 
         .status-active {
             color: #059669;
@@ -1157,14 +1037,6 @@ if (!function_exists('getActiveClass')) {
                 white-space: nowrap;
             }
 
-            .btn {
-                min-width: auto;
-                padding: 0.5rem 0.75rem;
-            }
-
-            .btn-container {
-                justify-content: center;
-            }
 
             .modal-content {
                 width: 95%;
@@ -1174,9 +1046,7 @@ if (!function_exists('getActiveClass')) {
 
         /* Print Styles */
         @media print {
-            .btn-container {
-                display: none;
-            }
+
 
             .data-table {
                 box-shadow: none;
@@ -1613,12 +1483,12 @@ if (!function_exists('getActiveClass')) {
                         تست بتن
                     </a>
                 <?php endif; ?>
-                <?php if (hasAccess(['admin', 'superuser'])): ?>
-                    <a href="activity_log.php" class="nav-item<?php echo getActiveClass('activity_log.php', $current_page_filename); ?>">
+                <?php if (hasAccess(['admin', 'superuser', 'supervisor', 'user', 'planner'])): ?>
+                    <a href="panel_status_visualizer.php" class="nav-item<?php echo getActiveClass('panel_status_visualizer.php', $current_page_filename); ?>">
                         <svg class="icon-history" viewBox="0 0 24 24">
                             <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
                         </svg>
-                        پیگیری کنش‌ها
+                        وضعیت نما
                     </a>
                 <?php endif; ?>
 
@@ -1631,14 +1501,7 @@ if (!function_exists('getActiveClass')) {
                     </a>
                 <?php endif; ?>
 
-                <?php if (hasAccess(['admin', 'superuser'])): ?>
-                    <a href="admin.php" class="nav-item<?php echo getActiveClass('admin.php', $current_page_filename); ?>">
-                        <svg class="icon-tools" viewBox="0 0 24 24">
-                            <path d="M12,3C7.58,3 4,4.79 4,7V11C4,13.21 7.58,15 12,15C16.42,15 20,13.21 20,11V7C20,4.79 16.42,3 12,3M13,10H11V7H13M13,14H11V12H13M12,17C8.69,17 6,14.31 6,11C6,9.70 6.43,8.47 7.17,7.44C7.54,7.00 8.00,6.66 8.53,6.44C9.50,6.16 10.73,6 12,6C13.27,6 14.50,6.16 15.47,6.44C16.00,6.66 16.46,7.00 16.83,7.44C17.57,8.47 18,9.70 18,11C18,14.31 15.31,17 12,17Z" />
-                        </svg>
-                        پنل مدیریت
-                    </a>
-                <?php endif; ?>
+
 
                 <?php if (hasAccess(['admin', 'superuser', 'supervisor', 'user', 'planner'])): ?>
                     <a href="truck-assignment.php" class="nav-item<?php echo getActiveClass('truck-assignment.php', $current_page_filename); ?>">

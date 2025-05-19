@@ -8,10 +8,10 @@ secureSession(); // Initializes session and security checks
 // This is simple hardcoding based on folder. More complex routing could derive this.
 $current_file_path = __DIR__;
 $expected_project_key = null;
-if (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Arad') !== false) {
-    $expected_project_key = 'arad';
-} elseif (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Fereshteh') !== false) {
+if (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Fereshteh') !== false) {
     $expected_project_key = 'fereshteh';
+} elseif (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Arad') !== false) {
+    $expected_project_key = 'arad';
 } else {
     // If the file is somehow not in a recognized project folder, handle error
     logError("admin_panel_search.php accessed from unexpected path: " . $current_file_path);
@@ -48,11 +48,50 @@ if (!in_array($_SESSION['role'], $allowed_roles)) {
 }
 // --- End Authorization ---
 
+if (!function_exists('translate_panel_data_to_persian')) {
+    function translate_panel_data_to_persian($key, $english_value)
+    {
+        if ($english_value === null || $english_value === '') return '-'; // Handle empty or null
 
+        $translations = [
+            'zone' => [
+                'zone 1' => 'زون ۱',
+                'zone 2' => 'زون ۲',
+                'zone 3' => 'زون ۳',
+                'zone 4' => 'زون ۴',
+                'zone 5' => 'زون ۵',
+                'zone 6' => 'زون ۶',
+                'zone 7' => 'زون ۷',
+                'zone 8' => 'زون ۸',
+                // Add other zones as needed
+            ],
+            'panel_position' => [ // Assuming 'type' column stores panel_position
+                'terrace edge' => 'لبه تراس',
+                'wall panel'   => 'پنل دیواری', // Example
+                // Add other positions
+            ],
+            'status' => [ // For consistency, though your JS handles this mostly
+                'pending'    => 'در انتظار تخصیص',
+                'planned'    => 'برنامه ریزی شده',
+                'mesh'       => 'مش بندی',
+                'concreting' => 'قالب‌بندی/بتن ریزی',
+                'assembly'   => 'فیس کوت', // Assuming 'assembly' is فیس کوت
+                'completed'  => 'تکمیل شده',
+                'shipped'    => 'ارسال شده'
+            ]
+            // Add other keys if needed, e.g., 'formwork_type'
+        ];
+
+        if (isset($translations[$key][$english_value])) {
+            return $translations[$key][$english_value];
+        }
+        return escapeHtml($english_value); // Fallback to English if no translation
+    }
+}
 
 // --- Database Operations ---
 $allPanels = [];
-$prioritizationLevels = [];
+$prioritizationLevels = $pageData['prioritizationLevels'] ?? [];
 $formworkTypeNames = [];
 $uniquePanelAddresses = [];
 $uniqueCompletedPanelAddresses = [];
@@ -94,14 +133,50 @@ try {
     logError("Configuration or Connection error in {$expected_project_key}/admin_panel_search.php: " . $e->getMessage());
     die("خطای پیکربندی یا اتصال پایگاه داده پروژه رخ داد.");
 }
-if ($_SESSION['current_project_config_key'] == 'fereshteh') {
-    $pageTitle = "جستجو و فیلتر پنل ها - فرشته";
-} else {
-    $pageTitle = "جستجو و فیلتر پنل ها - آراد";
+function getAdminPanelSearchData(PDO $projectPdo): array
+{
+    $data = [
+        'allPanels' => [],
+        'prioritizationLevels' => [],
+        'formworkTypeNames' => [],
+        'uniquePanelAddresses' => [],
+        'uniqueCompletedPanelAddresses' => [],
+        'uniqueAssignedDatePanelAddresses' => [],
+        'uniqushippedAddresses' => [],
+    ];
+
+    // Fetch All Panels for this project
+    $stmt = $projectPdo->prepare("
+        SELECT hp.id, hp.address, hp.instance_number, hp.total_in_batch, hp.type, hp.area, hp.width, hp.length,
+               hp.status, hp.assigned_date, hp.planned_finish_date, hp.formwork_type, hp.packing_status,
+               hp.truck_id, hp.shipping_date, hp.Proritization
+        FROM hpc_panels hp
+        ORDER BY hp.Proritization ASC, hp.id DESC
+    ");
+    $stmt->execute();
+    $data['allPanels'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Fetch Distinct Prioritization Levels (Zones) for this project
+    $stmtPrio = $projectPdo->query("SELECT DISTINCT Proritization FROM hpc_panels WHERE Proritization IS NOT NULL AND Proritization != '' ORDER BY Proritization ASC");
+    $data['prioritizationLevels'] = $stmtPrio->fetchAll(PDO::FETCH_COLUMN);
+
+    // Fetch Formwork Types for Filter for this project
+    // This assumes 'available_formworks' table exists in the project DB
+    $stmtFormwork = $projectPdo->query("SELECT DISTINCT formwork_type FROM available_formworks WHERE formwork_type IS NOT NULL AND formwork_type != '' ORDER BY formwork_type ASC");
+    $data['formworkTypeNames'] = $stmtFormwork->fetchAll(PDO::FETCH_COLUMN);
+
+    // Calculate unique addresses based on the fetched panels for *this project*
+    if (!empty($data['allPanels'])) {
+        $data['uniquePanelAddresses'] = array_values(array_unique(array_column($data['allPanels'], 'address')));
+        $data['uniqueCompletedPanelAddresses'] = array_values(array_unique(array_column(array_filter($data['allPanels'], fn($p) => $p['status'] == 'completed'), 'address')));
+        $data['uniqueAssignedDatePanelAddresses'] = array_values(array_unique(array_column(array_filter($data['allPanels'], fn($p) => !empty($p['assigned_date'])), 'address')));
+        $data['uniqushippedAddresses'] = array_values(array_unique(array_column(array_filter($data['allPanels'], fn($p) => $p['packing_status'] == 'shipped'), 'address')));
+    }
+    return $data;
 }
 // --- HTML Starts Here ---
 // Update title to include project name from session
-//$pageTitle = "جستجو و فیلتر پنل ها - " . escapeHtml($_SESSION['current_project_name'] ?? 'پروژه');
+$pageTitle = "جستجو و فیلتر پنل ها - " . escapeHtml($_SESSION['current_project_name'] ?? 'پروژه');
 
 // Include the project-specific header file. Assumes header.php is in the same folder (Fereshteh/ or Arad/)
 require_once __DIR__ . '/header.php';
@@ -122,17 +197,19 @@ require_once __DIR__ . '/header.php';
 
             <!-- Prioritization Filter -->
             <div class="bg-white p-4 rounded-lg shadow-md">
-                <label for="prioritizationFilter" class="block text-sm font-medium text-gray-700 mb-1">اولویت </label>
+                <label for="prioritizationFilter" class="block text-sm font-medium text-gray-700 mb-1">زون</label>
                 <select id="prioritizationFilter" class="w-full p-2 border rounded">
-                    <option value="">همه اولویت‌ها</option>
-                    <?php foreach ($prioritizationLevels as $prio): ?>
-                        <option value="<?php echo htmlspecialchars($prio); ?>" <?php echo ($prio === 'P1') ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($prio); ?>
+                    <option value="">همه زون‌ها</option>
+                    <?php foreach ($prioritizationLevels as $prio_english): ?>
+                        <option value="<?php echo escapeHtml($prio_english); ?>"
+                            <?php // Default selection logic if needed, e.g.,
+                            // if ($prio_english === 'zone 1') echo 'selected';
+                            ?>>
+                            <?php echo translate_panel_data_to_persian('zone', $prio_english); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
             </div>
-
             <!-- Status Filter -->
             <div class="bg-white p-4 rounded-lg shadow-md">
                 <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-1">وضعیت</label>
@@ -140,7 +217,6 @@ require_once __DIR__ . '/header.php';
                     <option value="">همه وضعیت‌ها</option>
                     <option value="pending">در انتظار تخصیص</option>
                     <option value="planned">برنامه ریزی شده</option>
-                    <option value="polystyrene">قالب فوم</option>
                     <option value="mesh">مش بندی</option>
                     <option value="concreting">قالب‌بندی/بتن ریزی</option>
                     <option value="assembly">فیس کوت</option>
@@ -218,7 +294,6 @@ require_once __DIR__ . '/header.php';
     <link rel="stylesheet" href="/assets/css/persian-datepicker-dark.min.css">
     <!-- Include Datepicker and Moment JS -->
     <script src="/assets/js/jquery-3.6.0.min.js"></script>
-
     <script src="/assets/js/moment.min.js"></script>
     <script src="/assets/js/moment-jalaali.js"></script>
     <script src="/assets/js/persian-datepicker.min.js"></script>
@@ -226,8 +301,8 @@ require_once __DIR__ . '/header.php';
     <!-- <script src="main.min.js"></script> --> <!-- Only if it contains generic functions -->
 
     <script>
-        const allPanels = <?php echo json_encode($allPanels); ?>;
-        let filteredPanels = []; // Start with empty or all? Let's filter initially.
+        // Pass ALL panels to JavaScript, including instance_number and total_in_batch
+        const allPanelsData = <?php echo json_encode($allPanels ?? []); ?>;
 
         // --- DOM Element References ---
         const searchInput = document.getElementById('searchInput');
@@ -244,6 +319,7 @@ require_once __DIR__ . '/header.php';
         const maxWidthFilter = document.getElementById('maxWidthFilter');
         const resultsContainer = document.getElementById('resultsContainer');
         const resultsCountNumber = document.getElementById('resultsCountNumber');
+        const totalPanelsCountSpan = document.getElementById('totalPanelsCount');
 
         // --- Filter State Variables ---
         let assignedStartDateGregorian = null;
@@ -251,21 +327,59 @@ require_once __DIR__ . '/header.php';
         let plannedStartDateGregorian = null;
         let plannedEndDateGregorian = null;
 
+        const translationsJS = {
+            zone: {
+                'zone 1': 'زون ۱',
+                'zone 2': 'زون ۲',
+                'zone 3': 'زون ۳',
+                'zone 4': 'زون ۴',
+                'zone 5': 'زون ۵',
+                'zone 6': 'زون ۶',
+                'zone 7': 'زون ۷',
+                'zone 8': 'زون ۸',
+            },
+            panel_position: { // Key should match what you use in displayResults for panel.type
+                'terrace edge': 'لبه تراس',
+                'wall panel': 'پنل دیواری',
+            },
+            status: { // Your existing status map can serve this purpose
+                'pending': 'در انتظار تخصیص',
+                'planned': 'برنامه ریزی شده',
+                'mesh': 'مش بندی',
+                'concreting': 'قالب‌بندی/بتن ریزی',
+                'assembly': 'فیس کوت',
+                'completed': 'تکمیل شده',
+                'shipped': 'ارسال شده'
+            }
+            // Add other translations if needed
+        };
+
+        function translateJs(key, englishValue) {
+            if (englishValue === null || englishValue === undefined || englishValue === '') return '-';
+            if (translationsJS[key] && translationsJS[key][englishValue.toLowerCase()]) { // Convert to lowercase for robust matching
+                return translationsJS[key][englishValue.toLowerCase()];
+            }
+            return englishValue; // Fallback
+        }
         // --- Helper: Client-side Shamsi Formatting ---
         function formatShamsi(gregorianDate) {
-            if (!gregorianDate || gregorianDate === '0000-00-00') return '';
+            if (!gregorianDate || gregorianDate === '0000-00-00' || gregorianDate === null) return '';
             try {
                 if (typeof moment === 'function' && typeof moment.loadPersian === 'function') {
                     moment.loadPersian({
                         usePersianDigits: false,
                         dialect: 'persian-modern'
                     });
-                    // Handle potential datetime format from DB (take only date part)
                     const datePart = gregorianDate.split(' ')[0];
+                    // Basic validation for YYYY-MM-DD format
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+                        return ''; // Return empty for invalid format
+                    }
                     return moment(datePart, 'YYYY-MM-DD').format('jYYYY/jMM/jDD');
                 }
                 return gregorianDate; // Fallback
             } catch (e) {
+                console.warn("Shamsi formatting error for:", gregorianDate, e);
                 return 'تاریخ نامعتبر';
             }
         }
@@ -276,133 +390,119 @@ require_once __DIR__ . '/header.php';
                 return 'shipped';
             }
 
-            // Priority 2: Check for valid assigned_date
-            // A panel is NOT pending if it has a valid assigned date.
-            const hasAssignedDate = panel.assigned_date && panel.assigned_date !== '0000-00-00' && !panel.assigned_date.startsWith('0000-00-00');
+            const hasAssignedDate = panel.assigned_date && panel.assigned_date !== '0000-00-00' && panel.assigned_date !== null && !panel.assigned_date.startsWith('0000-00-00');
 
             if (!hasAssignedDate) {
-                // If no assigned date, it's strictly Pending (regardless of panel.status)
                 return 'pending';
             }
 
-            // --- At this point, we KNOW assigned_date is valid ---
-
             const currentStatus = panel.status ? panel.status.toLowerCase() : null;
 
-            // Priority 3: Assigned date exists, but no specific production status yet (null, empty, or 'pending') -> It's Planned
             if (!currentStatus || currentStatus === 'pending') {
                 return 'planned';
             }
 
-            // Priority 4: Check for known production/completion statuses (only if assigned date exists)
+            // For Arad project, 'polystyrene' is removed
             switch (currentStatus) {
-                case 'polystyrene':
-                    return 'polystyrene';
                 case 'mesh':
                     return 'mesh';
                 case 'concreting':
                     return 'concreting';
-                case 'assembly':
+                case 'assembly': // Assuming this is 'فیس کوت'
                     return 'assembly';
                 case 'completed':
+                case 'panel.status': // Treat legacy value as completed
                     return 'completed';
-                case 'panel.status':
-                    return 'completed'; // Treat legacy value as completed
                 default:
-                    // Has assigned date, but status is unrecognized. Treat as Planned for now.
-                    // console.warn(`Unrecognized panel status '${panel.status}' for panel ID ${panel.id} with assigned date. Defaulting key to 'planned'.`);
-                    return 'planned';
+                    return 'planned'; // Fallback for unrecognized status with an assigned date
             }
         }
+
         // --- Display Results Function ---
-        function displayResults(panels) {
-            resultsContainer.innerHTML = panels.map(panel => {
-                // --- Status Calculation ---
-                const statusKey = getPanelStatusKey(panel); // Get the determined status key
+        function displayResults(panelsToDisplay) {
+            if (!resultsContainer) return; // Guard if container not found
 
-                // --- Maps for Text, Text Color, and BACKGROUND Color ---
-                const statusTextMap = {
-                    'pending': 'در انتظار تخصیص',
-                    'planned': 'برنامه ریزی شده',
-                    'polystyrene': 'قالب فوم',
-                    'assembly': 'فیس کوت',
-                    'mesh': 'مش بندی',
-                    'concreting': 'قالب‌بندی/بتن ریزی',
-                    'completed': 'تکمیل شده',
-                    'shipped': 'ارسال شده'
-                };
+            resultsContainer.innerHTML = panelsToDisplay.map(panel => {
+                const statusKey = getPanelStatusKey(panel);
+
+                // --- Maps for Text, Text Color, and BACKGROUND Color (Polystyrene REMOVED) ---
+
                 const statusColorMap = { // For text color
-                    'pending': 'text-yellow-700', // Adjusted for contrast on lighter bg
-                    'planned': 'text-cyan-700', // Adjusted for contrast
-                    'polystyrene': 'text-slate-700', // Adjusted for contrast
-                    'assembly': 'text-red-700', // Adjusted for contrast
-                    'mesh': 'text-orange-700', // Adjusted for contrast
-                    'concreting': 'text-purple-700', // Adjusted for contrast
-                    'completed': 'text-green-700', // Adjusted for contrast
-                    'shipped': 'text-blue-700', // Adjusted for contrast
+                    'pending': 'text-yellow-700',
+                    'planned': 'text-cyan-700',
+                    'assembly': 'text-red-700',
+                    'mesh': 'text-orange-700',
+                    'concreting': 'text-purple-700',
+                    'completed': 'text-green-700',
+                    'shipped': 'text-blue-700',
                 };
-                // --- NEW: Map Status Key to Background Color Class ---
                 const statusBgColorMap = {
-                    'pending': 'bg-yellow-100', // Light yellow
-                    'planned': 'bg-cyan-100', // Light cyan
-                    'polystyrene': 'bg-slate-100', // Light gray/slate
-                    'mesh': 'bg-orange-100', // Light orange
-                    'concreting': 'bg-purple-100', // Light purple
-                    'assembly': 'bg-red-100', // Light red
-                    'completed': 'bg-green-100', // Light green
-                    'shipped': 'bg-blue-100', // Light blue
+                    'pending': 'bg-yellow-100',
+                    'planned': 'bg-cyan-100',
+                    'assembly': 'bg-red-100',
+                    'mesh': 'bg-orange-100',
+                    'concreting': 'bg-purple-100',
+                    'completed': 'bg-green-100',
+                    'shipped': 'bg-blue-100',
                 };
 
-                const statusDisplay = statusTextMap[statusKey] || statusKey;
-                const statusColor = statusColorMap[statusKey] || 'text-gray-700'; // Fallback text color
-                const panelContainerBgClass = statusBgColorMap[statusKey] || 'bg-white'; // Look up background, fallback to white
+                const statusDisplayText = translateJs('status', statusKey); // Translate status for display
+                const statusTextColor = statusColorMap[statusKey] || 'text-gray-700';
+                const panelContainerBgClass = statusBgColorMap[statusKey] || 'bg-white';
 
-                // --- Format Dates for Display ---
                 const assignedDateShamsi = formatShamsi(panel.assigned_date);
-                const assigndate = panel.assigned_date ? panel.assigned_date.split(' ')[0] : null;
+                const assigndateForLink = panel.assigned_date ? panel.assigned_date.split(' ')[0] : null;
                 const plannedFinishDateShamsi = formatShamsi(panel.planned_finish_date);
 
-                // --- Template Literal (uses dynamic background class) ---
+                const panelCode = panel.address || 'کد نامشخص'; // This is 'CP-N-01' etc.
+                // Translate Zone (Proritization) and Panel Position (type) for display
+                const panelZoneDisplay = translateJs('zone', panel.Proritization);
+                const panelLocationDisplay = translateJs('panel_position', panel.type);
+
+                const instanceInfo = (panel.instance_number && panel.total_in_batch) ? ` (${panel.instance_number} از ${panel.total_in_batch})` : '';
+
                 return `
             <div class="${panelContainerBgClass} p-4 rounded-lg shadow-md flex flex-col">
                 <div class="border-b pb-3 mb-3">
-                    <h2 class="text-lg font-bold text-blue-600 mb-2 truncate">
-                        <a href="panel_detail.php?id=${panel.id}" class="hover:underline" title="${panel.address}">
-                            ${panel.address}
+                    <h3 class="text-lg font-bold text-blue-600 mb-2 truncate">
+                        <a href="panel_detail.php?id=${panel.id}" class="hover:underline" title="جزئیات ${panelCode}${instanceInfo}">
+                            ${panelCode}${instanceInfo} <!-- Panel Code remains English for link/title -->
                         </a>
-                    </h2>
+                    </h3>
                     <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                        <div><p class="font-semibold text-gray-500">نوع:</p><p>${panel.type || '-'}</p></div>
-                        <div><p class="font-semibold text-gray-500">وضعیت:</p><p class="capitalize ${statusColor}">${statusDisplay}</p></div>
-                        <div><p class="font-semibold text-gray-500">طول:</p><p dir="ltr"> ${parseInt(panel.length) || '-'} mm</p></div>
-                        <div><p class="font-semibold text-gray-500">عرض:</p><p dir="ltr"> ${parseInt(panel.width) || '-'} mm</p></div>
-                    <div>
-                    <p class="font-semibold text-gray-500">تاریخ شروع:</p>
-                    <p>
-                        ${assigndate ?
-                        `<a href="new_panels.php?date=${assigndate}" class="hover:underline" title="مراحل کار در تاریخ : ${assignedDateShamsi || ''}">${assignedDateShamsi || '-'}</a>` :
-                        '-'
-                        }
-                    </p>
-                    </div>
-                    <div><p class="font-semibold text-gray-500">تاریخ پایان(برنامه‌ای):</p><p>${plannedFinishDateShamsi || '-'}</p></div>
-                          <div><p class="font-semibold text-gray-500">اولویت:</p><p>${panel.Proritization || '-'}</p></div>
-                          <div><p class="font-semibold text-gray-500">قالب:</p><p>${panel.formwork_type || '-'}</p></div>
-                      </div>
-
+                        <div><p class="font-semibold text-gray-500">زون:</p><p>${panelZoneDisplay}</p></div>
+                        <div><p class="font-semibold text-gray-500">موقعیت:</p><p>${panelLocationDisplay}</p></div>
+                        <div><p class="font-semibold text-gray-500">وضعیت:</p><p class="capitalize ${statusTextColor}">${statusDisplayText}</p></div>
+                        <div><p class="font-semibold text-gray-500">طول:</p><p dir="ltr">${parseInt(panel.length) || '-'} mm</p></div>
+                        <div><p class="font-semibold text-gray-500">عرض:</p><p dir="ltr">${parseInt(panel.width) || '-'} mm</p></div>
+                        <div>
+                            <p class="font-semibold text-gray-500">تاریخ شروع:</p>
+                            <p>
+                                ${assigndateForLink ?
+                                `<a href="new_panels.php?date=${assigndateForLink}" class="hover:underline" title="مراحل کار در تاریخ : ${assignedDateShamsi || ''}">${assignedDateShamsi || '-'}</a>` :
+                                '-'
+                                }
+                            </p>
+                        </div>
+                        <div><p class="font-semibold text-gray-500">تاریخ پایان(برنامه‌ای):</p><p>${plannedFinishDateShamsi || '-'}</p></div>
+                        <div><p class="font-semibold text-gray-500">نوع قالب:</p><p>${translateJs('formwork_type', panel.formwork_type) || '-'}</p></div> 
                     </div>
                 </div>
-                `;
+                <!-- Action buttons -->
+            </div>
+            `;
             }).join('');
-            // Update count
-            resultsCountNumber.textContent = new Set(panels.map(panel => panel.address)).size;
+
+            if (resultsCountNumber) {
+                resultsCountNumber.textContent = panelsToDisplay.length;
+            }
         }
 
         function filterPanels() {
             const searchText = searchInput.value.toLowerCase();
-            const selectedProritization = prioritizationFilter.value;
-            const selectedFormworkType = formworkFilter.value;
-            const selectedStatus = statusFilter.value.toLowerCase(); // Selected value from the dropdown
+            const selectedProritization = prioritizationFilter.value; // This will be 'zone 1', 'zone 2', etc.
+            const selectedFormworkType = formworkFilter.value; // English
+            const selectedStatusFilterValue = statusFilter.value; // English status key: 'pending', 'mesh'
             const minLen = minLengthFilter.value ? parseInt(minLengthFilter.value) : null;
             const maxLen = maxLengthFilter.value ? parseInt(maxLengthFilter.value) : null;
             const minWid = minWidthFilter.value ? parseInt(minWidthFilter.value) : null;
@@ -413,45 +513,39 @@ require_once __DIR__ . '/header.php';
             const planStart = plannedStartDateGregorian;
             const planEnd = plannedEndDateGregorian;
 
-            // console.log("Filtering with status:", selectedStatus); // Debug selected filter
-
-            filteredPanels = allPanels.filter(panel => {
-                // --- Determine the panel's actual status key using the helper ---
+            const filteredPanels = allPanelsData.filter(panel => {
                 const panelActualStatusKey = getPanelStatusKey(panel);
+                const matchesPrio = !selectedProritization || (panel.Proritization && panel.Proritization.toLowerCase() === selectedProritization.toLowerCase());
+                const matchesSearch = !searchText || (panel.address && panel.address.toLowerCase().includes(searchText));
+                const matchesFormwork = !selectedFormworkType || (panel.formwork_type && panel.formwork_type.toLowerCase() === selectedFormworkType.toLowerCase());
+                const matchesStatus = !selectedStatusFilterValue || panelActualStatusKey === selectedStatusFilterValue;
 
-                // --- Filter Checks ---
-                const matchesSearch = !searchText || panel.address.toLowerCase().includes(searchText);
-                const matchesPrio = !selectedProritization || (panel.Proritization && panel.Proritization === selectedProritization);
-                const matchesFormwork = !selectedFormworkType || (panel.formwork_type && panel.formwork_type === selectedFormworkType);
-                // Filter based on the determined actual status vs the selected dropdown value
-                const matchesStatus = !selectedStatus || panelActualStatusKey === selectedStatus;
-                const matchesLength = (minLen === null || panel.length >= minLen) && (maxLen === null || panel.length <= maxLen);
-                const matchesWidth = (minWid === null || panel.width >= minWid) && (maxWid === null || panel.width <= maxWid);
+                const matchesLength = (minLen === null || (panel.length !== null && panel.length >= minLen)) &&
+                    (maxLen === null || (panel.length !== null && panel.length <= maxLen));
+                const matchesWidth = (minWid === null || (panel.width !== null && panel.width >= minWid)) &&
+                    (maxWid === null || (panel.width !== null && panel.width <= maxWid));
 
-                // --- Date Filtering (Keep existing logic) ---
                 let panelAssignedDate = null;
-                if (panel.assigned_date && panel.assigned_date !== '0000-00-00' && !panel.assigned_date.startsWith('0000-00-00')) {
+                if (panel.assigned_date && panel.assigned_date !== '0000-00-00' && panel.assigned_date !== null) {
                     panelAssignedDate = panel.assigned_date.split(' ')[0];
                 }
                 let panelPlannedDate = null;
-                if (panel.planned_finish_date && panel.planned_finish_date !== '0000-00-00' && !panel.planned_finish_date.startsWith('0000-00-00')) {
+                if (panel.planned_finish_date && panel.planned_finish_date !== '0000-00-00' && panel.planned_finish_date !== null) {
                     panelPlannedDate = panel.planned_finish_date.split(' ')[0];
                 }
 
-                const matchesAssignDate = ( /* ... (keep existing date comparison logic) ... */
-                    (!assignStart && !assignEnd) ||
-                    (assignStart && !assignEnd && panelAssignedDate && panelAssignedDate >= assignStart) ||
-                    (!assignStart && assignEnd && panelAssignedDate && panelAssignedDate <= assignEnd) ||
-                    (assignStart && assignEnd && panelAssignedDate && panelAssignedDate >= assignStart && panelAssignedDate <= assignEnd) ||
-                    // If filtering by date, panel must have a date. If not filtering, panel without date passes.
-                    (!panelAssignedDate && !assignStart && !assignEnd)
+                const matchesAssignDate = (
+                    (!assignStart && !assignEnd) || // No date filter applied
+                    (assignStart && !assignEnd && panelAssignedDate && panelAssignedDate >= assignStart) || // Start date only
+                    (!assignStart && assignEnd && panelAssignedDate && panelAssignedDate <= assignEnd) || // End date only
+                    (assignStart && assignEnd && panelAssignedDate && panelAssignedDate >= assignStart && panelAssignedDate <= assignEnd) || // Both start and end
+                    (!panelAssignedDate && !assignStart && !assignEnd) // Panel has no date, and no date filter is applied
                 );
-                const matchesPlanDate = ( /* ... (keep existing date comparison logic) ... */
+                const matchesPlanDate = (
                     (!planStart && !planEnd) ||
                     (planStart && !planEnd && panelPlannedDate && panelPlannedDate >= planStart) ||
                     (!planStart && planEnd && panelPlannedDate && panelPlannedDate <= planEnd) ||
                     (planStart && planEnd && panelPlannedDate && panelPlannedDate >= planStart && panelPlannedDate <= planEnd) ||
-                    // If filtering by date, panel must have a date. If not filtering, panel without date passes.
                     (!panelPlannedDate && !planStart && !planEnd)
                 );
 
@@ -459,114 +553,89 @@ require_once __DIR__ . '/header.php';
                     matchesLength && matchesWidth && matchesAssignDate && matchesPlanDate;
             });
 
-            // console.log("Filtered panels count:", filteredPanels.length); // Debug count
             displayResults(filteredPanels);
         }
 
         // --- Initialize Date Pickers ---
         $(document).ready(function() {
-            // Define common options for all Persian Datepickers on the page
             const datePickerOptions = {
-                format: 'YYYY/MM/DD', // Display format in the input field
-                initialValue: false, // Don't automatically set an initial value
-                autoClose: true, // Close the picker after selection
-                persianDigit: false, // IMPORTANT: Display digits in the input as Latin (0-9). Set to true for Persian (۰-۹).
-                observer: true, // Automatically re-initialize if the input is added dynamically
-                theme: "dark", // Optional: Set a theme for the datepicker (dark/light)
-                // --- Essential Fix ---
+                format: 'YYYY/MM/DD',
+                initialValue: false,
+                autoClose: true,
+                persianDigit: false,
+                observer: true,
+                theme: "dark",
                 calendar: {
                     persian: {
-                        locale: 'fa', // Use Persian language/locale
-                        leapYearMode: 'astronomical' // Use the more accurate calculation method
+                        locale: 'fa',
+                        leapYearMode: 'astronomical'
                     }
                 },
-                // --- End Essential Fix ---
-
-                // Function called when a date is selected
                 onSelect: function(unix) {
-                    // The 'unix' value is the selected date as a JavaScript timestamp (milliseconds since epoch)
-
-                    // --- Convert selected Unix timestamp to Gregorian YYYY-MM-DD ---
-                    // Create a standard JavaScript Date object from the timestamp
                     const gregDate = new Date(unix);
-
-                    // Extract year, month (0-indexed, so add 1), and day
                     const year = gregDate.getFullYear();
-                    const month = String(gregDate.getMonth() + 1).padStart(2, '0'); // Ensure 2 digits (e.g., 03)
-                    const day = String(gregDate.getDate()).padStart(2, '0'); // Ensure 2 digits (e.g., 09)
-
-                    // Format as YYYY-MM-DD string (suitable for backend/filtering)
+                    const month = String(gregDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(gregDate.getDate()).padStart(2, '0');
                     const gregorianValue = `${year}-${month}-${day}`;
-                    // --- End Conversion ---
-
-                    // Get the ID of the input field associated with this datepicker instance
                     const inputId = this.model.inputElement.id;
-                    console.log("Date selected for input:", inputId, "Gregorian Value:", gregorianValue, "Raw Unix:", unix);
 
-                    // --- Store the Gregorian date based on which input was used ---
-                    // Assumes you have these variables declared in a wider scope (e.g., globally or within this ready function)
                     if (inputId === 'assignedStartDateFilter') assignedStartDateGregorian = gregorianValue;
                     else if (inputId === 'assignedEndDateFilter') assignedEndDateGregorian = gregorianValue;
                     else if (inputId === 'plannedStartDateFilter') plannedStartDateGregorian = gregorianValue;
                     else if (inputId === 'plannedEndDateFilter') plannedEndDateGregorian = gregorianValue;
-                    // --- End Storing ---
-
-                    // Optional: Log current state of all date filters for debugging
-                    console.log("Current Gregorian date filters:", {
-                        assignedStart: assignedStartDateGregorian,
-                        assignedEnd: assignedEndDateGregorian,
-                        plannedStart: plannedStartDateGregorian,
-                        plannedEnd: plannedEndDateGregorian
-                    });
-
-                    // Trigger the filtering function now that a date has been selected
                     filterPanels();
                 }
             };
 
-            // Initialize all elements with the class "persian-datepicker"
             $(".persian-datepicker").each(function() {
-                // Apply the defined options to this specific datepicker input
                 $(this).persianDatepicker(datePickerOptions);
-
-                // --- Manual Clear Handling ---
-                // Attach an 'input' event listener to detect when the input field is cleared (e.g., by backspace/delete)
                 $(this).on('input', function() {
-                    // Check if the input's value is now empty
                     if ($(this).val() === '') {
-                        const clearedInputId = this.id; // Get the ID of the cleared input
-
-                        // Set the corresponding Gregorian variable back to null
+                        const clearedInputId = this.id;
                         if (clearedInputId === 'assignedStartDateFilter') assignedStartDateGregorian = null;
                         else if (clearedInputId === 'assignedEndDateFilter') assignedEndDateGregorian = null;
                         else if (clearedInputId === 'plannedStartDateFilter') plannedStartDateGregorian = null;
                         else if (clearedInputId === 'plannedEndDateFilter') plannedEndDateGregorian = null;
-
-                        console.log("Cleared date input:", clearedInputId);
-
-                        // Trigger the filtering function now that a date has been cleared
                         filterPanels();
                     }
                 });
-                // --- End Manual Clear Handling ---
             });
-        });
-        // --- Add Event Listeners for other filters ---
-        searchInput.addEventListener('input', filterPanels);
-        prioritizationFilter.addEventListener('change', filterPanels);
-        formworkFilter.addEventListener('change', filterPanels);
-        statusFilter.addEventListener('change', filterPanels);
-        minLengthFilter.addEventListener('input', filterPanels);
-        maxLengthFilter.addEventListener('input', filterPanels);
-        minWidthFilter.addEventListener('input', filterPanels);
-        maxWidthFilter.addEventListener('input', filterPanels);
 
-        // --- Initial Setup ---
-        // Set default prioritization filter if P1 exists
-        if (prioritizationFilter.querySelector('option[value="P1"]')) {
-            prioritizationFilter.value = 'P1';
-        }
-        filterPanels(); // Initial filter application (will use default P1)
+            // --- Add Event Listeners for other filters ---
+            if (searchInput) searchInput.addEventListener('input', filterPanels);
+            if (prioritizationFilter) prioritizationFilter.addEventListener('change', filterPanels);
+            if (formworkFilter) formworkFilter.addEventListener('change', filterPanels);
+            if (statusFilter) statusFilter.addEventListener('change', filterPanels);
+            if (minLengthFilter) minLengthFilter.addEventListener('input', filterPanels);
+            if (maxLengthFilter) maxLengthFilter.addEventListener('input', filterPanels);
+            if (minWidthFilter) minWidthFilter.addEventListener('input', filterPanels);
+            if (maxWidthFilter) maxWidthFilter.addEventListener('input', filterPanels);
+
+            if (prioritizationFilter) { // Check if the filter element exists
+                // Attempt to set the default selected value to "zone 1" (English DB value)
+                // The <option> in HTML will have value="zone 1" and display "زون ۱"
+                const zone1Option = prioritizationFilter.querySelector('option[value="zone 1"]');
+                if (zone1Option) {
+                    prioritizationFilter.value = 'zone 1';
+                } else {
+                    // Fallback if "zone 1" isn't an option for some reason,
+                    // maybe select the first actual option if the "همه" is not desired.
+                    // Or, if "P1" was an older value for Zone 1 you still might have:
+                    const p1Option = prioritizationFilter.querySelector('option[value="P1"]');
+                    if (p1Option) {
+                        prioritizationFilter.value = 'P1';
+                    }
+                    // If neither 'zone 1' nor 'P1' is found, it will default to the first option
+                    // or whatever the browser default is (usually the first <option> or an empty one if present).
+                }
+            }
+
+            if (totalPanelsCountSpan && allPanelsData) {
+                totalPanelsCountSpan.textContent = allPanelsData.length;
+            }
+
+            filterPanels();
+        });
     </script>
     <?php require_once 'footer.php'; ?>
 </body>

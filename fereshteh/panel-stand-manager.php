@@ -3,6 +3,7 @@ ini_set('display_errors', 1); // Enable error display for debugging
 error_reporting(E_ALL);
 ob_start(); // Start output buffering to catch stray output/errors
 require_once __DIR__ . '/../../sercon/bootstrap.php';
+
 secureSession();
 $expected_project_key = 'fereshteh'; // HARDCODED FOR THIS FILE
 $current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
@@ -693,7 +694,7 @@ $initial_assignments_json = json_encode($assignments_raw);
     body.page-is-read-only .action-cell>*,
     body.page-is-read-only .panel-select-checkbox,
     body.page-is-read-only #select-all-visible {
-        /* display: none !important; */
+        display: none !important;
         /* Prefer PHP hiding, this is fallback */
     }
 
@@ -1164,7 +1165,7 @@ $initial_assignments_json = json_encode($assignments_raw);
                 });
             });
 
-            fetch('/api/save_stands_assignments.php', {
+            fetch('api/save_stands_assignments.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1204,9 +1205,17 @@ $initial_assignments_json = json_encode($assignments_raw);
                 })
                 .finally(() => {
                     $button.prop('disabled', false).html('<i class="fa fa-save"></i> ذخیره تخصیص‌ها');
-                    setTimeout(() => {
-                        $status.fadeOut(500, () => $status.empty().show());
-                    }, 7000);
+                    if (typeof $status.fadeOut === 'function') { // Check if fadeOut is a function
+                        setTimeout(() => {
+                            $status.fadeOut(500, () => $status.empty().show());
+                        }, 7000);
+                    } else {
+                        console.error("$status.fadeOut is not a function. $status is:", $status);
+                        // Fallback if fadeOut is not available:
+                        setTimeout(() => {
+                            $status.hide().empty().show(); // Or just $status.hide(); $status.empty();
+                        }, 7000);
+                    }
                 });
         }
 

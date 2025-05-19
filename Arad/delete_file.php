@@ -1,12 +1,10 @@
 <?php
-// --- Basic Setup, Dependencies, Session, Auth, DB Connection ---
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 ob_start();
 header('Content-Type: text/html; charset=utf-8');
 require_once __DIR__ . '/../../sercon/bootstrap.php';
 require_once 'includes/jdf.php';
-require_once 'includes/functions.php';
 secureSession();
 $expected_project_key = 'arad'; // HARDCODED FOR THIS FILE
 $current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
@@ -25,7 +23,7 @@ $allroles = ['admin', 'supervisor', 'planner', 'cnc_operator', 'superuser', 'use
 $authroles = ['admin', 'supervisor', 'superuser'];
 $readonlyroles = ['planner', 'cnc_operator', 'user'];
 
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || !in_array($_SESSION['role'], $authroles)) {
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || !in_array($_SESSION['role'], $allroles)) {
     header('Location: login.php');
     exit('Access Denied.');
 }
@@ -35,7 +33,7 @@ try {
     // Get PROJECT-SPECIFIC database connection
     $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
 } catch (Exception $e) {
-    logError("DB Connection failed in {$expected_project_key}/delete_file.php: " . $e->getMessage());
+    logError("DB Connection failed in {$expected_project_key}/concrete_tests.php: " . $e->getMessage());
     die("خطا در اتصال به پایگاه داده پروژه.");
 }
 
@@ -46,7 +44,7 @@ if (!$attachmentId) {
     exit('Invalid request');
 }
 try {
-    $pdo = getProjectDBConnection();
+
 
     // Get file path
     $stmt = $pdo->prepare("SELECT file_path FROM hpc_panel_attachments WHERE id = ?");

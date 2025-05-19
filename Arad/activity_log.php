@@ -4,7 +4,7 @@
 require_once __DIR__ . '/../../sercon/config_fereshteh.php';
 secureSession();
 require_once 'includes/jdf.php'; // Or your date utility file
-require_once 'includes/functions.php'; // For connectDB
+require_once 'includes/functions.php'; // For getProjectDBConnection
 
 // --- Admin-Only Access Check ---
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -85,7 +85,7 @@ date_default_timezone_set('Asia/Tehran');
 
 // --- Database Connection ---
 try {
-    $pdo = connectDB();
+    $pdo = getProjectDBConnection();
 } catch (PDOException $e) {
     logError("Database connection error in activity_log.php: " . $e->getMessage());
     die("یک ارور دیتابیسی رخ داد. لطفا بعداً دوباره تلاش کنید.");

@@ -7,7 +7,8 @@ error_reporting(E_ALL);
 ob_start();
 header('Content-Type: text/html; charset=utf-8');
 require_once __DIR__ . '/../../sercon/bootstrap.php';
-require_once 'includes/jdf.php';
+require_once __DIR__ . '/includes/jdf.php';
+require_once __DIR__ . '/includes/functions.php'; // Needs secureSession, get_user_permissions, escapeHtml, log_activity, translate_status, get_status_color, formatJalaliDateOrEmpty, secure_file_upload
 secureSession(); // Initializes session and security checks
 
 // Determine which project this instance of the file belongs to.
@@ -60,7 +61,6 @@ try {
 // --- Mappings (Copy from manager page) ---
 $status_map_persian = [
     'pending' => 'در انتظار',
-    'polystyrene' => 'قالب فوم', // Corrected
     'Mesh' => 'مش بندی',          // Corrected
     'Concreting' => 'قالب‌بندی/بتن ریزی', // Corrected
     'Assembly' => 'فیس کوت',       // Corrected
@@ -73,9 +73,35 @@ $packing_status_map_persian = [
     'assigned' => 'تخصیص یافته',
     'shipped' => 'ارسال شده'
 ];
-$polystyrene_map_persian = [
-    0 => 'انجام نشده',
-    1 => 'انجام شده'
+
+$latest_activity_map_persian = [
+    'assembly_done' => 'فیس کوت انجام شد',
+    'concrete_done' => 'بتن ریزی انجام شد',
+    'mesh_done' => 'مش بندی انجام شد',
+    'pending' => 'شروع نشده / در انتظار',
+];
+
+// Add the list of columns needing Persian date formatting
+$persian_date_columns = ['assigned_date', 'mesh_end_time', 'concrete_end_time', 'assembly_end_time', 'shipping_date']; // Added shipping_date
+
+$available_columns = [
+    'row_num' => 'شماره ردیف',           // NEW
+    'address' => 'آدرس',
+    'type' => 'نوع',
+    'area' => 'مساحت (m²)',
+    'width' => 'عرض (mm)',
+    'length' => 'طول (mm)',
+    'formwork_type' => 'نوع قالب',
+    'Proritization' => 'اولویت',
+    // 'status' => 'وضعیت', // REMOVED
+    'latest_activity' => 'آخرین فعالیت', // NEW
+    'assigned_date' => 'تاریخ تولید', // Changed label slightly to match manager?
+    'mesh_end_time' => 'پایان مش',
+    'concrete_end_time' => 'پایان بتن',
+    'assembly_end_time' => 'پایان فیس کوت',
+    'inventory_status' => 'موجودی/ارسال شده', // NEW
+    'packing_status' => 'وضعیت بسته بندی',
+    'shipping_date' => 'تاریخ ارسال', // NEW
 ];
 
 // --- Load User Print Settings (Same as concrete_tests_print.php) ---
@@ -101,6 +127,7 @@ $default_print_settings = [
     'row_min_height' => 'auto',        // Default needed
 
     // --- HPC Column Width Defaults ---
+    'hpc_col_width_row_num' => '5%',
     'hpc_col_width_address' => '15%',
     'hpc_col_width_type' => '10%',
     'hpc_col_width_area' => '8%',
@@ -108,13 +135,14 @@ $default_print_settings = [
     'hpc_col_width_length' => '8%',
     'hpc_col_width_formwork_type' => '10%',
     'hpc_col_width_Proritization' => '8%',
-    'hpc_col_width_status' => '10%',
     'hpc_col_width_assigned_date' => '10%',
-    'hpc_col_width_polystyrene' => '8%',
     'hpc_col_width_mesh_end_time' => '10%',
     'hpc_col_width_concrete_end_time' => '10%',
     'hpc_col_width_assembly_end_time' => '10%',
+    'hpc_col_width_latest_activity' => '12%',
+    'hpc_col_width_inventory_status' => '10%',
     'hpc_col_width_packing_status' => '10%',
+    'hpc_col_width_shipping_date' => '10%',
 ];
 
 
@@ -192,13 +220,15 @@ if (isset($_POST['save_print_settings'])) {
         'hpc_col_width_length' => sanitize_css_value($_POST['hpc_col_width_length'] ?? '', $default_print_settings['hpc_col_width_length']),
         'hpc_col_width_formwork_type' => sanitize_css_value($_POST['hpc_col_width_formwork_type'] ?? '', $default_print_settings['hpc_col_width_formwork_type']),
         'hpc_col_width_Proritization' => sanitize_css_value($_POST['hpc_col_width_Proritization'] ?? '', $default_print_settings['hpc_col_width_Proritization']),
-        'hpc_col_width_status' => sanitize_css_value($_POST['hpc_col_width_status'] ?? '', $default_print_settings['hpc_col_width_status']),
         'hpc_col_width_assigned_date' => sanitize_css_value($_POST['hpc_col_width_assigned_date'] ?? '', $default_print_settings['hpc_col_width_assigned_date']),
-        'hpc_col_width_polystyrene' => sanitize_css_value($_POST['hpc_col_width_polystyrene'] ?? '', $default_print_settings['hpc_col_width_polystyrene']),
         'hpc_col_width_mesh_end_time' => sanitize_css_value($_POST['hpc_col_width_mesh_end_time'] ?? '', $default_print_settings['hpc_col_width_mesh_end_time']),
         'hpc_col_width_concrete_end_time' => sanitize_css_value($_POST['hpc_col_width_concrete_end_time'] ?? '', $default_print_settings['hpc_col_width_concrete_end_time']),
         'hpc_col_width_assembly_end_time' => sanitize_css_value($_POST['hpc_col_width_assembly_end_time'] ?? '', $default_print_settings['hpc_col_width_assembly_end_time']),
         'hpc_col_width_packing_status' => sanitize_css_value($_POST['hpc_col_width_packing_status'] ?? '', $default_print_settings['hpc_col_width_packing_status']),
+        'hpc_col_width_row_num' => sanitize_css_value($_POST['hpc_col_width_row_num'] ?? '', $default_print_settings['hpc_col_width_row_num']),
+        'hpc_col_width_latest_activity' => sanitize_css_value($_POST['hpc_col_width_latest_activity'] ?? '', $default_print_settings['hpc_col_width_latest_activity']),
+        'hpc_col_width_inventory_status' => sanitize_css_value($_POST['hpc_col_width_inventory_status'] ?? '', $default_print_settings['hpc_col_width_inventory_status']),
+        'hpc_col_width_shipping_date' => sanitize_css_value($_POST['hpc_col_width_shipping_date'] ?? '', $default_print_settings['hpc_col_width_shipping_date']),
     ];
     error_log("[{$report_key}] Prepared data for saving: " . print_r($new_settings_data, true)); // Log Prepared Data
 
@@ -210,9 +240,10 @@ if (isset($_POST['save_print_settings'])) {
                 thead_font_color, thead_bg_color, tbody_font_size, tbody_font_color, row_min_height,
                 hpc_col_width_address, hpc_col_width_type, hpc_col_width_area, hpc_col_width_width,
                 hpc_col_width_length, hpc_col_width_formwork_type, hpc_col_width_Proritization,
-                hpc_col_width_status, hpc_col_width_assigned_date, hpc_col_width_polystyrene,
+                hpc_col_width_assigned_date,
                 hpc_col_width_mesh_end_time, hpc_col_width_concrete_end_time,
-                hpc_col_width_assembly_end_time, hpc_col_width_packing_status
+                hpc_col_width_assembly_end_time, hpc_col_width_packing_status,
+                hpc_col_width_row_num, hpc_col_width_latest_activity, hpc_col_width_inventory_status, hpc_col_width_shipping_date
             ) VALUES (
                 :user_id, :report_key, :print_header, :print_footer, :print_signature_area, :show_logos,
                 :custom_header_html, :custom_footer_html, :rows_per_page, :header_font_size,
@@ -220,9 +251,10 @@ if (isset($_POST['save_print_settings'])) {
                 :thead_font_color, :thead_bg_color, :tbody_font_size, :tbody_font_color, :row_min_height,
                 :hpc_col_width_address, :hpc_col_width_type, :hpc_col_width_area, :hpc_col_width_width,
                 :hpc_col_width_length, :hpc_col_width_formwork_type, :hpc_col_width_Proritization,
-                :hpc_col_width_status, :hpc_col_width_assigned_date, :hpc_col_width_polystyrene,
+                :hpc_col_width_assigned_date,
                 :hpc_col_width_mesh_end_time, :hpc_col_width_concrete_end_time,
-                :hpc_col_width_assembly_end_time, :hpc_col_width_packing_status
+                :hpc_col_width_assembly_end_time, :hpc_col_width_packing_status,
+                :hpc_col_width_row_num, :hpc_col_width_latest_activity, :hpc_col_width_inventory_status, :hpc_col_width_shipping_date
             )
             ON DUPLICATE KEY UPDATE
                 print_header = VALUES(print_header), print_footer = VALUES(print_footer),
@@ -237,10 +269,14 @@ if (isset($_POST['save_print_settings'])) {
                 hpc_col_width_address = VALUES(hpc_col_width_address), hpc_col_width_type = VALUES(hpc_col_width_type),
                 hpc_col_width_area = VALUES(hpc_col_width_area), hpc_col_width_width = VALUES(hpc_col_width_width),
                 hpc_col_width_length = VALUES(hpc_col_width_length), hpc_col_width_formwork_type = VALUES(hpc_col_width_formwork_type),
-                hpc_col_width_Proritization = VALUES(hpc_col_width_Proritization), hpc_col_width_status = VALUES(hpc_col_width_status),
-                hpc_col_width_assigned_date = VALUES(hpc_col_width_assigned_date), hpc_col_width_polystyrene = VALUES(hpc_col_width_polystyrene),
+                hpc_col_width_Proritization = VALUES(hpc_col_width_Proritization), 
+                hpc_col_width_assigned_date = VALUES(hpc_col_width_assigned_date),
                 hpc_col_width_mesh_end_time = VALUES(hpc_col_width_mesh_end_time), hpc_col_width_concrete_end_time = VALUES(hpc_col_width_concrete_end_time),
-                hpc_col_width_assembly_end_time = VALUES(hpc_col_width_assembly_end_time), hpc_col_width_packing_status = VALUES(hpc_col_width_packing_status)";
+                hpc_col_width_assembly_end_time = VALUES(hpc_col_width_assembly_end_time), hpc_col_width_packing_status = VALUES(hpc_col_width_packing_status),
+                hpc_col_width_row_num = VALUES(hpc_col_width_row_num),
+                hpc_col_width_latest_activity = VALUES(hpc_col_width_latest_activity),
+                hpc_col_width_inventory_status = VALUES(hpc_col_width_inventory_status),
+                hpc_col_width_shipping_date = VALUES(hpc_col_width_shipping_date)";
 
     try {
         $stmt = $pdo->prepare($sql);
@@ -270,44 +306,142 @@ if (isset($_POST['save_print_settings'])) {
         exit();
     }
 }
+function getUserPreferences($user_id, $page, $preference_type = 'columns', $default_value = null)
+{
+    global $pdo; // Ensure $pdo is accessible
+    try {
+        // Add check if $pdo is valid
+        if (!isset($pdo) || !$pdo instanceof PDO) {
+            // Log error or handle appropriately, maybe return default
+            error_log("getUserPreferences called but PDO connection is not available.");
+            return $default_value;
+        }
+        $stmt = $pdo->prepare("SELECT preferences FROM user_preferences WHERE user_id = ? AND page = ? AND preference_type = ?");
+        $stmt->execute([$user_id, $page, $preference_type]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($result && !empty($result['preferences'])) {
+            return $result['preferences']; // Return the string 'col1,col2,...'
+        }
+        return $default_value;
+    } catch (PDOException $e) {
+        error_log("Error getting user preferences (User: $user_id, Page: $page, Type: $preference_type): " . $e->getMessage());
+        return $default_value; // Return default on error
+    }
+}
 
 // --- Define Available Columns (Same as manager page) ---
 $available_columns = [
+    'row_num' => 'شماره ردیف',
     'address' => 'آدرس',
     'type' => 'نوع',
     'area' => 'مساحت (m²)',
-    'width' => 'عرض (mm)',   // Updated Unit
-    'length' => 'طول (mm)',  // Updated Unit
-    'formwork_type' => 'نوع قالب', // Added
+    'width' => 'عرض (mm)',
+    'length' => 'طول (mm)',
+    'formwork_type' => 'نوع قالب',
     'Proritization' => 'اولویت',
-    'status' => 'وضعیت',
-    'assigned_date' => 'تاریخ تخصیص',
-    'polystyrene' => 'پلی استایرن',
+    'latest_activity' => 'آخرین فعالیت',
+    'assigned_date' => 'تاریخ تولید',
     'mesh_end_time' => 'پایان مش',
     'concrete_end_time' => 'پایان بتن',
     'assembly_end_time' => 'پایان فیس کوت',
+    'inventory_status' => 'موجودی/ارسال شده',
     'packing_status' => 'وضعیت بسته بندی',
+    'shipping_date' => 'تاریخ ارسال',
 ];
 
 // --- Handle Column Selection (from $_GET['cols']) ---
-$default_columns = ['address', 'type', 'area', 'status', 'assigned_date', 'polystyrene', 'packing_status'];
-$selected_columns_str = trim($_GET['cols'] ?? implode(',', $default_columns));
-$selected_columns = !empty($selected_columns_str) ? explode(',', $selected_columns_str) : $default_columns;
-$selected_columns = array_intersect($selected_columns, array_keys($available_columns));
-if (empty($selected_columns)) $selected_columns = $default_columns;
+$default_columns = [
+    'row_num',
+    'address',
+    'type',
+    'area',
+    'latest_activity',
+    'assigned_date',
+    'concrete_end_time',
+    'inventory_status',
+    'packing_status',
+    'shipping_date'
+]; // Example print defaults
+$print_default_columns = [
+    'row_num',
+    'address',
+    'type',
+    'area',
+    'latest_activity',
+    'assigned_date',
+    'concrete_end_time',
+    'inventory_status',
+    'packing_status',
+    'shipping_date'
+];
+// --- Determine Selected Columns (Priority: DB -> URL -> Print Default) ---
+$selected_columns = []; // Initialize
+
+// 1. Try to load from User Preferences for the *manager* page
+$user_columns_pref_string = getUserPreferences($current_user_id, 'hpc_panels_manager', 'columns', null);
+
+if (!empty($user_columns_pref_string)) {
+    $selected_columns = explode(',', $user_columns_pref_string);
+    // Basic check: Ensure explode didn't just result in [""] from an empty string pref
+    if (count($selected_columns) === 1 && $selected_columns[0] === '') {
+        $selected_columns = []; // Treat as empty if pref was just ""
+    } else {
+        error_log("[hpc_panels_print] Using columns from DB preferences for user {$current_user_id}.");
+    }
+}
+
+// 2. Fallback to URL parameter if DB prefs weren't found or were empty
+if (empty($selected_columns)) {
+    $selected_columns_str_url = trim($_GET['cols'] ?? '');
+    if (!empty($selected_columns_str_url)) {
+        $selected_columns = explode(',', $selected_columns_str_url);
+        error_log("[hpc_panels_print] Using columns from URL parameter ('cols').");
+    }
+}
+
+// 3. Fallback to Print Defaults if DB and URL provided no columns
+if (empty($selected_columns)) {
+    $selected_columns = $print_default_columns;
+    error_log("[hpc_panels_print] Using print default columns.");
+}
+
+// --- Final Validation ---
+// Ensure all selected columns actually exist in the current $available_columns map
+$validated_columns = [];
+foreach ($selected_columns as $col_key) {
+    if (isset($available_columns[trim($col_key)])) { // Trim whitespace just in case
+        $validated_columns[] = trim($col_key);
+    } else {
+        error_log("[hpc_panels_print] Warning: Column '{$col_key}' from preferences/URL is not in available_columns, skipping.");
+    }
+}
+$selected_columns = $validated_columns;
+
+
+// If validation resulted in an empty list (e.g., saved prefs/URL had only old/invalid cols), use print defaults as final resort
+if (empty($selected_columns)) {
+    error_log("[hpc_panels_print] Columns empty after validation, falling back to *validated* print defaults.");
+    $selected_columns = array_intersect($print_default_columns, array_keys($available_columns));
+    // Final check in case defaults themselves are out of sync (shouldn't happen ideally)
+    if (empty($selected_columns)) {
+        error_log("[hpc_panels_print] CRITICAL: Print default columns are also invalid or empty after validation.");
+        // Maybe just pick one known good column?
+        $selected_columns = ['address']; // Absolute fallback
+    }
+}
+
+
 
 // --- Process Filters (Same logic as manager page) ---
 $search_params = [];
 $sql_conditions = [];
 
-// Text Filters
-$text_filters = ['address', 'type', 'Proritization'];
-foreach ($text_filters as $filter_key) {
-    if (!empty($_GET["filter_$filter_key"])) {
-        $value = trim($_GET["filter_$filter_key"]);
-        $sql_conditions[] = "`$filter_key` LIKE :$filter_key"; // Use backticks for column names
-        $search_params[":$filter_key"] = "%" . $value . "%";
-    }
+// Text Filters (Address only now)
+if (!empty($_GET["filter_address"])) {
+    $value = trim($_GET["filter_address"]);
+    $sql_conditions[] = "`address` LIKE :address"; // Use backticks
+    $search_params[":address"] = "%" . $value . "%";
 }
 
 // Number Range Filters
@@ -330,24 +464,45 @@ foreach ($range_filters as $filter_key) {
 }
 
 // Exact Match / Enum Filters
-$enum_filters = ['status', 'packing_status', 'polystyrene'];
-foreach ($enum_filters as $filter_key) {
-    if (isset($_GET["filter_$filter_key"]) && $_GET["filter_$filter_key"] !== '') { // Check for empty string too
+$exact_match_filters = ['type', 'Proritization', /*'status',*/ 'packing_status']; // Removed 'status'
+foreach ($exact_match_filters as $filter_key) {
+    // Check if filter is set and not an empty string
+    if (isset($_GET["filter_$filter_key"]) && $_GET["filter_$filter_key"] !== '') {
         $value = $_GET["filter_$filter_key"];
-        // Basic validation: check if value is somewhat plausible (e.g., 0 or 1 for bool, or non-empty for enum)
-        if ($filter_key == 'polystyrene' && ($value === '0' || $value === '1')) {
-            $sql_conditions[] = "`$filter_key` = :$filter_key";
-            $search_params[":$filter_key"] = $value;
-        } elseif ($filter_key != 'polystyrene' && !empty($value)) { // Check non-empty for enums
-            $sql_conditions[] = "`$filter_key` = :$filter_key";
-            $search_params[":$filter_key"] = $value;
-        }
+    }
+}
+
+// Handle NEW "Inventory Status" Filter
+if (isset($_GET["filter_inventory_status"]) && $_GET["filter_inventory_status"] !== '') {
+    $inv_status_filter = $_GET["filter_inventory_status"];
+    if ($inv_status_filter === 'موجود') {
+        $sql_conditions[] = "(concrete_end_time IS NOT NULL AND concrete_end_time != '0000-00-00 00:00:00' AND (packing_status IS NULL OR packing_status != 'shipped'))";
+    } elseif ($inv_status_filter === 'ارسال شده') {
+        $sql_conditions[] = "(packing_status = 'shipped')";
+    }
+}
+
+// Handle NEW "Latest Activity" Filter
+if (isset($_GET["filter_latest_activity"]) && $_GET["filter_latest_activity"] !== '') {
+    $activity_filter = $_GET["filter_latest_activity"];
+    $null_date_check = "IS NULL OR %s = '0000-00-00 00:00:00'";
+    $not_null_date_check = "IS NOT NULL AND %s != '0000-00-00 00:00:00'";
+
+    if ($activity_filter === 'assembly_done') {
+        $sql_conditions[] = sprintf("assembly_end_time $not_null_date_check", "assembly_end_time");
+    } elseif ($activity_filter === 'concrete_done') {
+        $sql_conditions[] = sprintf("concrete_end_time $not_null_date_check", "concrete_end_time") . " AND (" . sprintf("assembly_end_time $null_date_check", "assembly_end_time") . ")";
+    } elseif ($activity_filter === 'mesh_done') {
+        $sql_conditions[] = sprintf("mesh_end_time $not_null_date_check", "mesh_end_time") . " AND (" . sprintf("concrete_end_time $null_date_check", "concrete_end_time") . ")";
+    } elseif ($activity_filter === 'pending') {
+        $sql_conditions[] = "(" . sprintf("mesh_end_time $null_date_check", "mesh_end_time") . ")";
     }
 }
 
 // Date Range Filters
-$date_filters = ['assigned_date', 'mesh_end_time', 'concrete_end_time', 'assembly_end_time'];
+$date_filters = ['assigned_date', 'mesh_end_time', 'concrete_end_time', 'assembly_end_time', 'shipping_date']; // Added shipping_date
 foreach ($date_filters as $filter_key) {
+    // Keep the inner logic for parsing Jalali dates the same as in manager
     $date_from_j = $_GET["filter_{$filter_key}_from"] ?? '';
     $date_to_j = $_GET["filter_{$filter_key}_to"] ?? '';
 
@@ -383,6 +538,7 @@ foreach ($date_filters as $filter_key) {
         }
     }
 }
+
 
 // --- Build Final Query ---
 $where_clause = "";
@@ -478,15 +634,15 @@ $pageTitle = "چاپ گزارش پنل‌های HPC";
         <style>
             /* --- Base Print Styles & Fonts --- */
             @font-face {
-                font-family: 'Vazirmatn';
-                src: url('/assets/fonts/Vazirmatn-Regular.woff2') format('woff2');
+                font-family: 'Vazir';
+                src: url('/assets/fonts/Vazir-Regular.woff2') format('woff2');
                 font-weight: normal;
                 font-style: normal;
             }
 
             @font-face {
-                font-family: 'Vazirmatn';
-                src: url('/assets/fonts/Vazirmatn-Bold.woff2') format('woff2');
+                font-family: 'Vazir';
+                src: url('/assets/fonts/Vazir-Bold.woff2') format('woff2');
                 font-weight: bold;
                 font-style: normal;
             }
@@ -496,7 +652,7 @@ $pageTitle = "چاپ گزارش پنل‌های HPC";
             }
 
             body {
-                font-family: Vazirmatn, Tahoma, sans-serif;
+                font-family: Vazir, Tahoma, sans-serif;
                 direction: rtl;
                 line-height: 1.4;
                 margin: 0;
@@ -540,13 +696,17 @@ $pageTitle = "چاپ گزارش پنل‌های HPC";
                 --hpc-col-width-formwork-type: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_formwork_type'] ?? '10%'); ?>;
                 --hpc-col-width-Proritization: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_Proritization'] ?? '8%'); ?>;
                 /* Corrected key */
-                --hpc-col-width-status: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_status'] ?? '10%'); ?>;
+
+
                 --hpc-col-width-assigned-date: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_assigned_date'] ?? '10%'); ?>;
-                --hpc-col-width-polystyrene: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_polystyrene'] ?? '8%'); ?>;
                 --hpc-col-width-mesh-end-time: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_mesh_end_time'] ?? '10%'); ?>;
                 --hpc-col-width-concrete-end-time: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_concrete_end_time'] ?? '10%'); ?>;
                 --hpc-col-width-assembly-end-time: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_assembly_end_time'] ?? '10%'); ?>;
                 --hpc-col-width-packing-status: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_packing_status'] ?? '10%'); ?>;
+                --hpc-col-width-row-num: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_row_num'] ?? '5%'); ?>;
+                --hpc-col-width-latest-activity: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_latest_activity'] ?? '12%'); ?>;
+                --hpc-col-width-inventory-status: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_inventory_status'] ?? '10%'); ?>;
+                --hpc_col-width-shipping-date: <?php echo htmlspecialchars($user_print_settings['hpc_col_width_shipping_date'] ?? '10%'); ?>;
             }
 
             /* --- Apply Variables --- */
@@ -682,53 +842,57 @@ $pageTitle = "چاپ گزارش پنل‌های HPC";
             /* Apply Column Widths */
             .data-table th:nth-child(1),
             .data-table td:nth-child(1) {
-                width: var(--hpc-col-width-address);
+                width: var(--hpc-col-width-row-num);
             }
 
+            /* Example: Row Num */
             .data-table th:nth-child(2),
             .data-table td:nth-child(2) {
-                width: var(--hpc-col-width-type);
+                width: var(--hpc-col-width-address);
             }
 
             .data-table th:nth-child(3),
             .data-table td:nth-child(3) {
-                width: var(--hpc-col-width-area);
+                width: var(--hpc-col-width-type);
             }
 
             .data-table th:nth-child(4),
             .data-table td:nth-child(4) {
-                width: var(--hpc-col-width-width);
+                width: var(--hpc-col-width-area);
             }
 
             .data-table th:nth-child(5),
             .data-table td:nth-child(5) {
-                width: var(--hpc-col-width-length);
+                width: var(--hpc-col-width-width);
             }
 
             .data-table th:nth-child(6),
             .data-table td:nth-child(6) {
-                width: var(--hpc-col-width-formwork-type);
+                width: var(--hpc-col-width-length);
             }
 
             .data-table th:nth-child(7),
             .data-table td:nth-child(7) {
-                width: var(--hpc-col-width-Proritization);
+                width: var(--hpc-col-width-formwork-type);
             }
 
             .data-table th:nth-child(8),
             .data-table td:nth-child(8) {
-                width: var(--hpc-col-width-status);
+                width: var(--hpc-col-width-Proritization);
             }
 
             .data-table th:nth-child(9),
             .data-table td:nth-child(9) {
+                width: var(--hpc-col-width-latest-activity);
+            }
+
+            /* Example: Latest Activity */
+            .data-table th:nth-child(10),
+            .data-table td:nth-child(10) {
                 width: var(--hpc-col-width-assigned-date);
             }
 
-            .data-table th:nth-child(10),
-            .data-table td:nth-child(10) {
-                width: var(--hpc-col-width-polystyrene);
-            }
+
 
             .data-table th:nth-child(11),
             .data-table td:nth-child(11) {
@@ -747,8 +911,21 @@ $pageTitle = "چاپ گزارش پنل‌های HPC";
 
             .data-table th:nth-child(14),
             .data-table td:nth-child(14) {
+                width: var(--hpc-col-width-inventory-status);
+            }
+
+            /* Example: Inventory Status */
+            .data-table th:nth-child(15),
+            .data-table td:nth-child(15) {
                 width: var(--hpc-col-width-packing-status);
             }
+
+            .data-table th:nth-child(16),
+            .data-table td:nth-child(16) {
+                width: var(--hpc_col-width-shipping-date);
+            }
+
+            /* Example: Shipping Date */
 
 
             .badge {
@@ -913,7 +1090,7 @@ $pageTitle = "چاپ گزارش پنل‌های HPC";
     <?php else: ?>
         <style>
             body {
-                font-family: Vazirmatn, Tahoma, sans-serif;
+                font-family: Vazir, Tahoma, sans-serif;
                 direction: rtl;
                 line-height: 1.5;
                 margin: 20px;
@@ -1177,6 +1354,10 @@ $pageTitle = "چاپ گزارش پنل‌های HPC";
                     <small>مقادیر را با % یا px وارد کنید (مثال: 15% یا 120px). مجموع درصدها لزوماً نباید 100 باشد.</small>
                     <div class="form-row">
                         <div class="form-group">
+                            <label for="hpc_col_width_row_num">شماره ردیف:</label>
+                            <input type="text" name="hpc_col_width_row_num" id="hpc_col_width_row_num" value="<?php echo htmlspecialchars($user_print_settings['hpc_col_width_row_num'] ?? $default_print_settings['hpc_col_width_row_num']); ?>">
+                        </div>
+                        <div class="form-group">
                             <label for="hpc_col_width_address">آدرس:</label>
                             <input type="text" name="hpc_col_width_address" id="hpc_col_width_address" value="<?php echo htmlspecialchars($user_print_settings['hpc_col_width_address']); ?>">
                         </div>
@@ -1216,10 +1397,7 @@ $pageTitle = "چاپ گزارش پنل‌های HPC";
                             <label for="hpc_col_width_assigned_date">تاریخ تخصیص:</label>
                             <input type="text" name="hpc_col_width_assigned_date" id="hpc_col_width_assigned_date" value="<?php echo htmlspecialchars($user_print_settings['hpc_col_width_assigned_date']); ?>">
                         </div>
-                        <div class="form-group">
-                            <label for="hpc_col_width_polystyrene">پلی استایرن:</label>
-                            <input type="text" name="hpc_col_width_polystyrene" id="hpc_col_width_polystyrene" value="<?php echo htmlspecialchars($user_print_settings['hpc_col_width_polystyrene']); ?>">
-                        </div>
+
                         <div class="form-group">
                             <label for="hpc_col_width_mesh_end_time">پایان مش:</label>
                             <input type="text" name="hpc_col_width_mesh_end_time" id="hpc_col_width_mesh_end_time" value="<?php echo htmlspecialchars($user_print_settings['hpc_col_width_mesh_end_time']); ?>">
@@ -1238,6 +1416,23 @@ $pageTitle = "چاپ گزارش پنل‌های HPC";
                             <label for="hpc_col_width_packing_status">وضعیت بسته‌بندی:</label>
                             <input type="text" name="hpc_col_width_packing_status" id="hpc_col_width_packing_status" value="<?php echo htmlspecialchars($user_print_settings['hpc_col_width_packing_status']); ?>">
                         </div>
+                        <div class="form-group">
+                            <label for="hpc_col_width_latest_activity">آخرین فعالیت:</label>
+                            <input type="text" name="hpc_col_width_latest_activity" id="hpc_col_width_latest_activity" value="<?php echo htmlspecialchars($user_print_settings['hpc_col_width_latest_activity'] ?? $default_print_settings['hpc_col_width_latest_activity']); ?>">
+                        </div>
+
+                        <!-- Add input for Inventory Status -->
+                        <div class="form-group">
+                            <label for="hpc_col_width_inventory_status">موجودی/ارسال:</label>
+                            <input type="text" name="hpc_col_width_inventory_status" id="hpc_col_width_inventory_status" value="<?php echo htmlspecialchars($user_print_settings['hpc_col_width_inventory_status'] ?? $default_print_settings['hpc_col_width_inventory_status']); ?>">
+                        </div>
+
+                        <!-- Add input for Shipping Date -->
+                        <div class="form-group">
+                            <label for="hpc_col_width_shipping_date">تاریخ ارسال:</label>
+                            <input type="text" name="hpc_col_width_shipping_date" id="hpc_col_width_shipping_date" value="<?php echo htmlspecialchars($user_print_settings['hpc_col_width_shipping_date'] ?? $default_print_settings['hpc_col_width_shipping_date']); ?>">
+                        </div>
+
                         <!-- Add placeholders for alignment if needed -->
                         <div class="form-group" style="visibility: hidden;"></div>
                         <div class="form-group" style="visibility: hidden;"></div>
@@ -1300,34 +1495,76 @@ $pageTitle = "چاپ گزارش پنل‌های HPC";
                             <tr>
                                 <td colspan="<?php echo count($selected_columns); ?>" class="text-center text-muted py-3">رکوردی یافت نشد.</td>
                             </tr>
-                            <?php else: foreach ($records as $record): ?>
+                            <?php else:
+                            $row_number = 1; // Initialize row number for print
+                            foreach ($records as $record):
+                            ?>
                                 <tr>
-                                    <!-- Loop through SELECTED columns for data cells -->
                                     <?php foreach ($selected_columns as $col_key): ?>
                                         <td>
                                             <?php
-                                            $value = $record[$col_key] ?? null;
-                                            if ($value === null) {
-                                                echo '-';
-                                            } elseif (in_array($col_key, ['assigned_date', 'mesh_end_time', 'concrete_end_time', 'assembly_end_time', /* add other date/datetime keys */])) {
-                                                $date_part = ($value) ? explode(' ', $value)[0] : null;
-                                                echo gregorianToShamsi($date_part) ?: '-';
-                                            } elseif ($col_key === 'polystyrene') {
-                                                echo $polystyrene_map_persian[$value] ?? htmlspecialchars($value);
-                                            } elseif ($col_key === 'status') {
-                                                echo $status_map_persian[$value] ?? htmlspecialchars($value);
-                                            } elseif ($col_key === 'packing_status') {
-                                                echo $packing_status_map_persian[$value] ?? htmlspecialchars($value);
-                                            } elseif (is_numeric($value) && in_array($col_key, ['area', 'width', 'length'])) {
-                                                echo number_format((float)$value, $col_key === 'area' ? 3 : 2);
-                                            } else {
-                                                echo htmlspecialchars($value);
+                                            // --- Handle Special Calculated Columns First ---
+                                            if ($col_key === 'row_num') {
+                                                echo $row_number;
+                                            } elseif ($col_key === 'inventory_status') {
+                                                // Same logic as manager
+                                                $concrete_end = !empty($record['concrete_end_time']) && $record['concrete_end_time'] != '0000-00-00 00:00:00';
+                                                $packing_status = $record['packing_status'] ?? null;
+                                                if ($packing_status === 'shipped') {
+                                                    echo 'ارسال شده';
+                                                } elseif ($concrete_end && $packing_status !== 'shipped') {
+                                                    echo 'موجود';
+                                                } else {
+                                                    echo '-';
+                                                }
+                                            } elseif ($col_key === 'latest_activity') {
+                                                // Same logic as manager
+                                                $assembly_done = !empty($record['assembly_end_time']) && $record['assembly_end_time'] != '0000-00-00 00:00:00';
+                                                $concrete_done = !empty($record['concrete_end_time']) && $record['concrete_end_time'] != '0000-00-00 00:00:00';
+                                                $mesh_done = !empty($record['mesh_end_time']) && $record['mesh_end_time'] != '0000-00-00 00:00:00';
+
+                                                if ($assembly_done) {
+                                                    echo $latest_activity_map_persian['assembly_done'];
+                                                } elseif ($concrete_done) {
+                                                    echo $latest_activity_map_persian['concrete_done'];
+                                                } elseif ($mesh_done) {
+                                                    echo $latest_activity_map_persian['mesh_done'];
+                                                } else {
+                                                    echo $latest_activity_map_persian['pending'];
+                                                }
                                             }
+                                            // --- Handle Standard DB Columns ---
+                                            else {
+                                                $value = $record[$col_key] ?? null;
+                                                if ($value === null) {
+                                                    echo '-';
+                                                }
+                                                // UPDATED: Use the $persian_date_columns array
+                                                elseif (in_array($col_key, $persian_date_columns)) {
+                                                    $date_part = ($value) ? explode(' ', $value)[0] : null;
+                                                    echo gregorianToShamsi($date_part) ?: '-';
+                                                }
+                                                // REMOVED: elseif ($col_key === 'status') { ... }
+                                                elseif ($col_key === 'packing_status') {
+                                                    echo $packing_status_map_persian[$value] ?? htmlspecialchars($value);
+                                                } elseif (is_numeric($value) && $col_key === 'area') {
+                                                    // Consistent formatting
+                                                    echo number_format((float)$value, 3);
+                                                } elseif (is_numeric($value) && ($col_key === 'width' || $col_key === 'length')) {
+                                                    // Consistent formatting
+                                                    echo number_format((float)$value, 0);
+                                                } else {
+                                                    echo htmlspecialchars($value);
+                                                }
+                                            } // End else for standard columns
                                             ?>
                                         </td>
-                                    <?php endforeach; ?>
+                                    <?php endforeach; // End inner loop for columns 
+                                    ?>
                                 </tr>
-                        <?php endforeach;
+                        <?php
+                                $row_number++; // Increment row number
+                            endforeach; // End outer loop for records
                         endif; ?>
                     </tbody>
                 </table>

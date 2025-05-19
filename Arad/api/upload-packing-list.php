@@ -2,30 +2,43 @@
 // api/upload-packing-list.php
 
 // --- Configuration and Functions ---
-$config_path = __DIR__ . '/../../../sercon/config_fereshteh.php';
-if (file_exists($config_path)) {
-    require_once $config_path;
-} else {
-    error_log("Upload Error: Config file not found at: " . $config_path);
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Server configuration error.']);
-    exit;
+ini_set('display_errors', 1); // Enable error display for debugging
+error_reporting(E_ALL);
+ob_start(); // Start output buffering to catch stray output/errors
+require __DIR__ . '/../../../sercon/bootstrap.php';
+require_once  __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/jdf.php';
+
+secureSession();
+$expected_project_key = 'arad'; // HARDCODED FOR THIS FILE
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
+
+if (!isLoggedIn()) {
+    header('Location: /login.php');
+    exit();
+}
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Concrete test manager accessed with incorrect project context. Session: {$current_project_config_key}, Expected: {$expected_project_key}, User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
 }
 
-// Adjust path if needed
-$functions_path = __DIR__ . '/../includes/functions.php';
-if (file_exists($functions_path)) {
-    require_once $functions_path;
-} else {
-    error_log("Upload Error: Functions file not found at: " . $functions_path);
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Server configuration error (functions).']);
-    exit;
-}
 
-secureSession(); // Start/resume session securely
+if (session_status() !== PHP_SESSION_ACTIVE)
+    session_start();
+
+$current_user_id = $_SESSION['user_id']; // Get current user ID
+$report_key = 'save-truck-schedule'; // HARDCODED FOR THIS FILE
+// DB Connection (Read-only needed)
+$user_id = $_SESSION['user_id'];
+$pdo = null; // Initialize
+try {
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/api/save-truck-schedule.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
+}
 
 // --- Define Roles Allowed to UPLOAD Files ---
 $allowed_upload_roles = ['admin', 'superuser', 'receiver', 'supervisor']; // <<< ADD YOUR NEW ROLE(S) HERE

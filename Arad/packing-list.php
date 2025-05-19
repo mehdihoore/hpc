@@ -7,11 +7,40 @@ error_reporting(E_ALL);
 ob_start();
 header('Content-Type: text/html; charset=utf-8');
 
-require_once __DIR__ . '/../../sercon/config_fereshteh.php'; // Adjust path if needed
+require_once __DIR__ . '/../../sercon/bootstrap.php'; // Adjust path if needed
 require_once __DIR__ . '/includes/jdf.php';      // Ensure jdf functions are available
 require_once __DIR__ . '/includes/functions.php'; // For secureSession
 
-secureSession(); // Start session securely
+secureSession();
+$expected_project_key = 'arad'; // HARDCODED FOR THIS FILE
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
+
+if (!isLoggedIn()) {
+    header('Location: /login.php');
+    exit();
+}
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Concrete test manager accessed with incorrect project context. Session: {$current_project_config_key}, Expected: {$expected_project_key}, User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+
+
+if (session_status() !== PHP_SESSION_ACTIVE)
+    session_start();
+
+$current_user_id = $_SESSION['user_id']; // Get current user ID
+
+// DB Connection (Read-only needed)
+$user_id = $_SESSION['user_id'];
+$pdo = null; // Initialize
+try {
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/packing_list.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
+}
 
 // Authentication Check (Adapt roles as needed)
 $allowed_roles = ['admin', 'superuser', 'supervisor', 'planner', 'user', 'receiver'];
@@ -23,12 +52,7 @@ $current_user_id = $_SESSION['user_id'];
 $report_key = 'packing_list'; // Unique key for these settings
 
 // DB Connection
-try {
-    $pdo = connectDB(); // Use your existing connection function
-} catch (PDOException $e) {
-    error_log("DB Connection failed in packing-list.php: " . $e->getMessage());
-    die("خطا در اتصال به پایگاه داده.");
-}
+
 
 // --- PHP Helper Functions (Only those needed for display) ---
 // Add gregorianToShamsi if not globally available or in functions.php
@@ -219,7 +243,7 @@ try {
     if (!$truck) die("خطا: کامیون یافت نشد.");
 
     // Get shipment info (most recent)
-    $stmt_shipment = $pdo->prepare("SELECT s.*, u.first_name, u.last_name FROM shipments s LEFT JOIN users u ON s.created_by = u.id WHERE s.truck_id = ? ORDER BY s.id DESC LIMIT 1");
+    $stmt_shipment = $pdo->prepare("SELECT s.*, u.first_name, u.last_name FROM shipments s LEFT JOIN hpc_common.users u ON s.created_by = u.id WHERE s.truck_id = ? ORDER BY s.id DESC LIMIT 1");
     $stmt_shipment->execute([$truckId]);
     $shipment = $stmt_shipment->fetch(PDO::FETCH_ASSOC);
 
@@ -294,7 +318,7 @@ function renderHeader($settings, $static_truck_info, $static_shipment_info)
         $header .= '</td>';
 
         // Right Logo (Company Logo)
-        if ($showLogos) $header .= '<td class="logo-cell logo-right"><img src="/assets/images/hotelfereshteh1.png" alt="Logo"></td>';
+        if ($showLogos) $header .= '<td class="logo-cell logo-right"><img src="/assets/images/arad.png" alt="Logo"></td>';
         else $header .= '<td style="width: 20%;"></td>'; // Placeholder
 
         $header .= '</tr></table>';
@@ -1042,7 +1066,7 @@ $pageTitle = "چاپ لیست بارگیری - کامیون " . htmlspecialchars
                         if (bIsNull) return currentSortDirection === 'asc' ? 1 : -1; // Nulls first in asc
 
                         // Numeric columns
-                        if (['stand_id', 'length_m', 'width_m', 'display_area_sqm',  'original_index'].includes(column)) {
+                        if (['stand_id', 'length_m', 'width_m', 'display_area_sqm', 'original_index'].includes(column)) {
                             valA = parseFloat(valA) || 0; // Default to 0 if NaN
                             valB = parseFloat(valB) || 0;
                             return currentSortDirection === 'asc' ? valA - valB : valB - valA;

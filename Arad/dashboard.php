@@ -89,7 +89,6 @@ $statusCaseSql = "
         WHEN assembly_end_time IS NOT NULL THEN 'Assembly' -- Then check latest step completion
         WHEN concrete_end_time IS NOT NULL THEN 'Concreting'
         WHEN mesh_end_time IS NOT NULL THEN 'Mesh'
-        WHEN polystyrene = 1 THEN 'polystyrene'     -- Then check intermediate steps
         WHEN status = 'pending' AND assigned_date IS NULL THEN 'pending'       -- Explicit pending
         WHEN status = 'pending' AND assigned_date IS NOT NULL THEN 'assign' -- Default assigned but not started to pending
               -- Default everything else to pending
@@ -102,7 +101,6 @@ $statusCaseSqlF = "
         WHEN assembly_end_time IS NOT NULL THEN 'Assembly' -- Then check latest step completion
         WHEN concrete_end_time IS NOT NULL THEN 'Concreting'
         WHEN mesh_end_time IS NOT NULL THEN 'Mesh'
-        WHEN polystyrene = 1 THEN 'polystyrene'     -- Then check intermediate steps
         
         WHEN status = 'pending' AND assigned_date IS NOT NULL THEN 'assign' -- Default assigned but not started to pending
               -- Default everything else to pending
@@ -116,7 +114,6 @@ $currentStatusSql = "
         WHEN assembly_end_time IS NULL AND assembly_start_time IS NOT NULL THEN 'Assembly' -- Currently in Assembly
         WHEN concrete_end_time IS NULL AND concrete_start_time IS NOT NULL THEN 'Concreting' -- Currently in Concreting
         WHEN mesh_end_time IS NULL AND mesh_start_time IS NOT NULL THEN 'Mesh' -- Currently in Mesh
-        WHEN polystyrene = 1 AND mesh_start_time IS NULL THEN 'polystyrene' -- Done Polystyrene, not started Mesh
         WHEN status = 'pending' AND assigned_date IS NULL THEN 'pending'
         WHEN status = 'pending' AND assigned_date IS NOT NULL THEN 'assign' -- Default for assigned but not started/flagged
         
@@ -124,20 +121,19 @@ $currentStatusSql = "
 ";
 /* $statusLabels = [
     'pending' => 'در انتظار',
-    'polystyrene' => 'قالب فوم',
+
     'mesh' => 'مش بندی',
     'Concreting' => 'قالب‌بندی/بتن ریزی',
     'Assembly' => 'فیس کوت',
     'completed' => 'تکمیل شده',
 ]; */
-$statusLabels =  ['برنامه‌ریزی نشده', 'برنامه‌ریزی شده', 'قالب فوم', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه'];
-$persianLabels = ['برنامه‌ریزی نشده', 'برنامه‌ریزی شده', 'قالب فوم', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه'];
+$statusLabels =  ['برنامه‌ریزی نشده', 'برنامه‌ریزی شده', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه'];
+$persianLabels = ['برنامه‌ریزی نشده', 'برنامه‌ریزی شده', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه'];
 $statusCounts = [];
-$allStatuses = ['pending', 'assign', 'polystyrene', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
+$allStatuses = ['pending', 'assign',  'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
 $statusColors = [
     'pending' => '#bdc3c7',
     'assign' => '#95a5a6',
-    'polystyrene' => '#3498db',
     'mesh' => '#9b59b6',
     'Concreting' => '#e74c3c',
     'Assembly' => '#f1c40f',
@@ -209,7 +205,7 @@ $persianMonthsDefinition = [
     ['label' => 'اسفند',  'start' => '2026-02-20', 'end' => '2026-03-20'], // Usually 29 days, 30 in leap year. This end date is for non-leap. Adjust if needed.
 ];
 // The steps we want to track
-$steps = ['pending', 'assign', 'polystyrene', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
+$steps = ['pending', 'assign', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
 
 // Prepare arrays to hold the final counts
 $monthLabels = []; // Persian month labels (e.g. بهمن, اسفند, ...)
@@ -227,7 +223,6 @@ foreach ($persianMonthsDefinition as $m) { // Use the new definition array
             SELECT
                 SUM(CASE WHEN status = 'pending' AND assigned_date IS NULL THEN 1 ELSE 0 END) AS pending,
                 SUM(CASE WHEN status = 'pending' AND assigned_date IS NOT NULL THEN 1 ELSE 0 END) AS assign,
-                SUM(CASE WHEN polystyrene = 1 THEN 1 ELSE 0 END) AS polystyrene,
                 SUM(CASE WHEN assembly_end_time IS NOT NULL THEN 1 ELSE 0 END) AS Assembly,
                 SUM(CASE WHEN mesh_end_time IS NOT NULL THEN 1 ELSE 0 END) AS Mesh,
                 SUM(CASE WHEN concrete_end_time IS NOT NULL THEN 1 ELSE 0 END) AS Concreting,
@@ -247,7 +242,7 @@ foreach ($persianMonthsDefinition as $m) { // Use the new definition array
 
     // Ensure counts are not smaller than the completed count
     $completedCount = (int)($row['completed'] ?? 0);
-    foreach (['polystyrene', 'Mesh', 'Concreting', 'Assembly'] as $step) {
+    foreach (['Mesh', 'Concreting', 'Assembly'] as $step) {
         if ((int)($row[$step] ?? 0) < $completedCount) {
             $row[$step] = $completedCount;
         }
@@ -273,12 +268,12 @@ $timeData = [
 ];
 
 try {
-    // ASSUMPTION: 'assigned_date' can mark the start for polystyrene if no specific start time exists.
+
     // ASSUMPTION: 'updated_at' column reflects when status was set to 'completed'. Adjust if wrong.
 
     $queries = [
 
-        'mesh_time' => "SELECT AVG(TIMESTAMPDIFF(SECOND, assigned_date, mesh_end_time)) FROM hpc_panels WHERE polystyrene = 1 AND mesh_end_time IS NOT NULL AND mesh_end_time >= assigned_date", // Using assigned_date as proxy start
+        'mesh_time' => "SELECT AVG(TIMESTAMPDIFF(SECOND, assigned_date, mesh_end_time)) FROM hpc_panels WHERE mesh_end_time IS NOT NULL AND mesh_end_time >= assigned_date", // Using assigned_date as proxy start
         'concreting_time' => "SELECT AVG(TIMESTAMPDIFF(SECOND, assigned_date, concrete_end_time)) FROM hpc_panels WHERE mesh_end_time IS NOT NULL AND concrete_end_time IS NOT NULL AND concrete_end_time >= assigned_date",
         'assembly_time' => "SELECT AVG(TIMESTAMPDIFF(SECOND, concrete_end_time, assembly_end_time)) FROM hpc_panels WHERE concrete_end_time IS NOT NULL AND assembly_end_time IS NOT NULL AND assembly_end_time >= concrete_end_time",
         'completion_time' => "SELECT AVG(TIMESTAMPDIFF(SECOND, assigned_date, (SELECT MAX(updated_at) FROM hpc_panel_details WHERE hpc_panel_details.panel_id = hpc_panels.id AND hpc_panel_details.status = 'completed'))) FROM hpc_panels WHERE assembly_end_time IS NOT NULL AND assigned_date IS NOT NULL", // Time from Assembly End to Newest Updated_at in hpc_panel_details
@@ -347,7 +342,6 @@ try {
         SELECT
             SUM(CASE WHEN status = 'pending' AND assigned_date IS NULL THEN 1 ELSE 0 END) as pending_reached, -- All panels are at least pending
             SUM(CASE WHEN status = 'pending' AND assigned_date IS NOT NULL THEN 1 ELSE 0 END) as assign_reached,
-            SUM(CASE WHEN polystyrene = 1 OR {$statusCaseSql} IN ('Mesh', 'Concreting', 'Assembly', 'completed', 'shipped') THEN 1 ELSE 0 END) as polystyrene_reached,
             SUM(CASE WHEN mesh_end_time IS NOT NULL OR {$statusCaseSql} IN ('Concreting', 'Assembly', 'completed', 'shipped') THEN 1 ELSE 0 END) as Mesh_reached,
             SUM(CASE WHEN concrete_end_time IS NOT NULL OR {$statusCaseSql} IN ('Assembly', 'completed', 'shipped') THEN 1 ELSE 0 END) as Concreting_reached,
             SUM(CASE WHEN assembly_end_time IS NOT NULL OR {$statusCaseSql} IN ('completed', 'shipped') THEN 1 ELSE 0 END) as Assembly_reached,
@@ -360,7 +354,6 @@ try {
     if ($counts) {
         $stepProgressCounts['pending']     = (int)$counts['pending_reached'];
         $stepProgressCounts['assign']     = (int)$counts['assign_reached'];
-        $stepProgressCounts['polystyrene'] = (int)$counts['polystyrene_reached'];
         $stepProgressCounts['Mesh']        = (int)$counts['Mesh_reached'];
         $stepProgressCounts['Concreting']  = (int)$counts['Concreting_reached'];
         $stepProgressCounts['Assembly']    = (int)$counts['Assembly_reached'];
@@ -451,13 +444,12 @@ function getFilteredData($pdo, $statusFilter, $dateFrom, $dateTo, $priority)
 function getLineChartData($pdo, $dateFrom, $dateTo, $priority)
 {
     global $statusCaseSql; // Access global variables
-    $persianLabels = ['برنامه‌ریزی شده', 'قالب فوم', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه'];
+    $persianLabels = ['برنامه‌ریزی شده',  'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه'];
     $statusCounts = [];
-    $allStatuses = ['assign', 'polystyrene', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
+    $allStatuses = ['assign', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
     $statusColors = [
 
         'assign' => '#95a5a6',
-        'polystyrene' => '#3498db',
         'mesh' => '#9b59b6',
         'Concreting' => '#e74c3c',
         'Assembly' => '#f1c40f',
@@ -535,13 +527,13 @@ function getLineChartData($pdo, $dateFrom, $dateTo, $priority)
 
 function getCumulativeStepCountsFiltered($pdo, $dateFrom, $dateTo, $priority)
 {
-    $persianLabels = ['برنامه‌ریزی شده', 'قالب فوم', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه'];
+    $persianLabels = ['برنامه‌ریزی شده', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه'];
     $statusCounts = [];
-    $allStatuses = ['assign', 'polystyrene', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
+    $allStatuses = ['assign', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
     $statusColors = [
 
         'assign' => '#95a5a6',
-        'polystyrene' => '#3498db',
+
         'mesh' => '#9b59b6',
         'Concreting' => '#e74c3c',
         'Assembly' => '#f1c40f',
@@ -582,7 +574,6 @@ function getCumulativeStepCountsFiltered($pdo, $dateFrom, $dateTo, $priority)
             SELECT
                 
                 SUM(CASE WHEN status = 'pending' AND assigned_date IS NOT NULL THEN 1 ELSE 0 END) as assign_reached,
-                SUM(CASE WHEN polystyrene = 1  THEN 1 ELSE 0 END) as polystyrene_reached,
                 SUM(CASE WHEN mesh_end_time IS NOT NULL THEN 1 ELSE 0 END) as Mesh_reached,
                 SUM(CASE WHEN concrete_end_time IS NOT NULL  THEN 1 ELSE 0 END) as Concreting_reached,
                 SUM(CASE WHEN assembly_end_time IS NOT NULL THEN 1 ELSE 0 END)as Assembly_reached,
@@ -599,7 +590,6 @@ function getCumulativeStepCountsFiltered($pdo, $dateFrom, $dateTo, $priority)
             // Map results to standard keys
 
             $stepProgressCounts['assign']     = (int)$counts['assign_reached'];
-            $stepProgressCounts['polystyrene'] = (int)$counts['polystyrene_reached'];
             $stepProgressCounts['Mesh']        = (int)$counts['Mesh_reached'];
             $stepProgressCounts['Concreting']  = (int)$counts['Concreting_reached'];
             $stepProgressCounts['Assembly']    = (int)$counts['Assembly_reached'];
@@ -642,7 +632,7 @@ if ($isAjax && isset($_GET['action']) && $_GET['action'] == 'get_daily_month_dat
         $endDate = $selectedMonth['end'];
 
         // The steps we want to track daily
-        $steps = ['assign', 'polystyrene', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped']; // Match JS steps if different
+        $steps = ['assign',  'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped']; // Match JS steps if different
 
         // --- The Simple Query for Daily Data ---
         // Which date defines the "production" for a day?
@@ -652,7 +642,6 @@ if ($isAjax && isset($_GET['action']) && $_GET['action'] == 'get_daily_month_dat
             SELECT
                 DATE(assigned_date) as day,
                 SUM(CASE WHEN status = 'pending' AND assigned_date IS NOT NULL THEN 1 ELSE 0 END) AS assign_count,
-                SUM(CASE WHEN polystyrene = 1 THEN 1 ELSE 0 END) AS polystyrene_count,
                 SUM(CASE WHEN mesh_end_time IS NOT NULL THEN 1 ELSE 0 END) AS Mesh_count,
                 SUM(CASE WHEN concrete_end_time IS NOT NULL THEN 1 ELSE 0 END) AS Concreting_count,
                 SUM(CASE WHEN assembly_end_time IS NOT NULL THEN 1 ELSE 0 END) AS Assembly_count,
@@ -673,10 +662,9 @@ if ($isAjax && isset($_GET['action']) && $_GET['action'] == 'get_daily_month_dat
         $chartDatasets = []; // [{label: 'Step', data: [day1, day2,...]}, ...]
 
         // Initialize datasets structure
-        $stepLabels = ['برنامه‌ریزی شده', 'قالب فوم', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه']; // Match JS if needed
+        $stepLabels = ['برنامه‌ریزی شده', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه']; // Match JS if needed
         $stepColors = [ // Match the colors used in JS for consistency
             'assign' => '#95a5a6',
-            'polystyrene' => '#3498db',
             'Mesh' => '#9b59b6',
             'Concreting' => '#e74c3c',
             'Assembly' => '#f1c40f',
@@ -785,11 +773,10 @@ if ($isAjax) {
     exit();
 }
 
-$persianLabelsF = ['برنامه‌ریزی شده', 'قالب فوم', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه'];
+$persianLabelsF = ['برنامه‌ریزی شده', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه'];
 $statusColorsF = [
 
     'assign' => '#95a5a6',
-    'polystyrene' => '#3498db',
     'mesh' => '#9b59b6',
     'Concreting' => '#e74c3c',
     'Assembly' => '#f1c40f',
@@ -800,7 +787,7 @@ function getLineChartDataCumulative($pdo, $dateFrom, $dateTo, $priority)
 {
 
     $statusCounts = [];
-    $allStatuses = ['assign', 'polystyrene', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
+    $allStatuses = ['assign',  'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
 
 
     $dateFrom = convertPersianToGregorian($dateFrom);
@@ -838,24 +825,6 @@ function getLineChartDataCumulative($pdo, $dateFrom, $dateTo, $priority)
     }
     $whereClause = !empty($conditions) ? "WHERE " . implode(" AND ", $conditions) : "";
 
-    // --- Fetch Polystyrene Completion Dates ---
-    $polystyreneDates = [];
-    try {
-        // Note: We might need to filter polystyrene orders by date too if relevant
-        $sqlPoly = "SELECT hpc_panel_id, MAX(production_end_date) as completion_date
-                    FROM polystyrene_orders
-                    WHERE production_end_date IS NOT NULL
-                      AND hpc_panel_id IN (SELECT id FROM hpc_panels {$whereClause}) -- Only fetch for relevant panels
-                    GROUP BY hpc_panel_id";
-        $stmtPoly = $pdo->prepare($sqlPoly);
-        $stmtPoly->execute($params); // Use the same params as the main query
-        while ($row = $stmtPoly->fetch(PDO::FETCH_ASSOC)) {
-            $polystyreneDates[$row['hpc_panel_id']] = $row['completion_date'];
-        }
-    } catch (PDOException $e) {
-        error_log("Error fetching polystyrene dates for line chart: " . $e->getMessage());
-        // Continue without polystyrene data, or return error
-    }
 
 
     // --- Fetch Panel Milestone Dates ---
@@ -865,7 +834,6 @@ function getLineChartDataCumulative($pdo, $dateFrom, $dateTo, $priority)
         $sqlPanel = "SELECT
                         p.id,
                         p.assigned_date,
-                        p.polystyrene,
                         p.mesh_end_time,
                         p.concrete_end_time,
                         p.assembly_end_time,
@@ -894,13 +862,8 @@ function getLineChartDataCumulative($pdo, $dateFrom, $dateTo, $priority)
             if ($panel['is_assign']) {
                 $milestones['assign'] = substr($panel['assigned_date'], 0, 10);
             }
-            // 'polystyrene' - Use lookup, fallback maybe?
-            if (isset($polystyreneDates[$panelId])) {
-                $milestones['polystyrene'] = substr($polystyreneDates[$panelId], 0, 10);
-            } elseif ($panel['polystyrene'] == 1 && $panel['assigned_date']) {
-                // Fallback: If flag is 1 but no order date, assume it happened shortly after assignment? Risky.
-                // $milestones['polystyrene'] = substr($panel['assigned_date'], 0, 10); // Example fallback
-            }
+
+
 
             // Other milestones based on _end_time
             if ($panel['mesh_end_time']) $milestones['Mesh'] = substr($panel['mesh_end_time'], 0, 10);
@@ -989,8 +952,8 @@ function getLineChartDataCumulative($pdo, $dateFrom, $dateTo, $priority)
 
 $priorityStatusData = [];
 $allPriorities = []; // Collect all priorities found
-$allStatuses = ['pending', 'assign', 'polystyrene', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped']; // Use consistent status keys
-$allStatusesF = ['assign', 'polystyrene', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
+$allStatuses = ['pending', 'assign', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped']; // Use consistent status keys
+$allStatusesF = ['assign',  'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
 
 try {
     $stmt = $pdo->query("
@@ -1000,7 +963,7 @@ try {
             COUNT(*) as count
         FROM hpc_panels
         GROUP BY priority_group, current_status
-        ORDER BY priority_group, FIELD(current_status,'assign', 'pending', 'polystyrene', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped')
+        ORDER BY priority_group, FIELD(current_status,'assign', 'pending', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped')
     ");
 
     $rawPriorityData = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1040,7 +1003,6 @@ try {
     $statusColorsPriority = [ /* Define colors if different from main status chart */
         'pending' => '#bdc3c7',
         'assign' => '#95a5a6',
-        'polystyrene' => '#3498db',
         'mesh' => '#9b59b6',
         'Concreting' => '#e74c3c',
         'Assembly' => '#f1c40f',
@@ -1050,7 +1012,6 @@ try {
     $statusLabelsPersianPriority = [ /* Define labels */
         'pending' => 'در برنامه‌ریزی نشده',
         'assign' => 'برنامه‌ریزی شده',
-        'polystyrene' => 'قالب فوم',
         'Mesh' => 'مش بندی',
         'Concreting' => 'قالب‌بندی/بتن ریزی',
         'Assembly' => 'فیس کوت',
@@ -1094,7 +1055,6 @@ try {
             COUNT(p.id) as total_priority_count, -- Total panels for this priority
             -- Cumulative Counts for each step reaching the milestone
             SUM(CASE WHEN assigned_date IS NOT NULL THEN 1 ELSE 0 END) as assign_reached,
-            SUM(CASE WHEN p.polystyrene = 1 OR ({$statusCaseSql}) IN ('Mesh', 'Concreting', 'Assembly', 'completed', 'shipped') THEN 1 ELSE 0 END) as polystyrene_reached,
             SUM(CASE WHEN p.mesh_end_time IS NOT NULL OR ({$statusCaseSql}) IN ('Concreting', 'Assembly', 'completed', 'shipped') THEN 1 ELSE 0 END) as Mesh_reached,
             SUM(CASE WHEN p.concrete_end_time IS NOT NULL OR ({$statusCaseSql}) IN ('Assembly', 'completed', 'shipped') THEN 1 ELSE 0 END) as Concreting_reached,
             SUM(CASE WHEN p.assembly_end_time IS NOT NULL OR ({$statusCaseSql}) IN ('completed', 'shipped') THEN 1 ELSE 0 END) as Assembly_reached,
@@ -1595,27 +1555,6 @@ include('header.php');
             /* Don't show URLs */
         }
     }
-
-    .pwt-datepicker .datepicker-days .dow {
-        background-color: #f0f8ff;
-        /* Light blue background */
-        color: #333333;
-        /* Dark gray font color */
-        font-weight: bold;
-        /* Make the font bold */
-        padding: 10px;
-        /* Add padding for better spacing */
-        border-radius: 5px;
-        /* Round the corners */
-    }
-
-    /* Optional: Add hover effect for day headers */
-    .pwt-datepicker .datepicker-days .dow:hover {
-        background-color: #add8e6;
-        /* Slightly darker blue on hover */
-        color: #000000;
-        /* Black font color on hover */
-    }
 </style>
 <!-- Dashboard HTML -->
 <div class="dashboard-container">
@@ -1630,7 +1569,6 @@ include('header.php');
             <select id="status-filter">
                 <option value="all">همه</option>
                 <option value="pending">در انتظار</option>
-                <option value="polystyrene">قالب‌/فوم</option>
                 <option value="Mesh">مشبندی</option>
                 <option value="Concreting">قالب‌بندی/بتن‌ریزی</option>
                 <option value="Assembly">فیس کوت</option>
@@ -1932,6 +1870,7 @@ include('header.php');
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0"></script>
 <script src="assets/js/persian-date.min.js"></script>
 <script src="assets/js/persian-datepicker.min.js"></script>
+<link rel="stylesheet" href="/assets/css/persian-datepicker-dark.min.css">
 <script>
     moment.loadPersian({
         dialect: 'persian-modern',
@@ -1969,11 +1908,10 @@ include('header.php');
         const PERSIAN_LABELSF = <?php echo json_encode($persianLabelsF, JSON_UNESCAPED_UNICODE); ?>;
         const STATUS_COLORSF = <?php echo json_encode($statusColorsF); ?>;
         const STATUS_COLORS = <?php echo json_encode($statusColors); ?>;
-        const serverStatuses = ['pending', 'assign', 'polystyrene', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
+        const serverStatuses = ['pending', 'assign', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
         const persianLabels = [
             'برنامه‌ریزی نشده',
             'برنامه‌ریزی شده',
-            'در حال فوم گذاری',
             'در حال مشبندی',
             'در حال قالب بندی/بتن‌ریزی',
             'در حال فیس کوت',
@@ -2009,7 +1947,6 @@ include('header.php');
             data: {
                 labels: [
                     'برنامه‌ریزی شده',
-                    'در حال فوم گذاری',
                     'در حال مشبندی',
                     'در حال قالب بندی/بتن‌ریزی',
                     'در حال فیس کوت',
@@ -2073,7 +2010,6 @@ include('header.php');
                 labels: [
 
                     'برنامه‌ریزی شده',
-                    'در حال فوم گذاری',
                     'در حال مشبندی',
                     'در حال قالب بندی/بتن‌ریزی',
                     'در حال فیس کوت',
@@ -2416,7 +2352,7 @@ include('header.php');
         const monthlyData = <?php echo json_encode($monthlyData, JSON_UNESCAPED_UNICODE); ?>;
 
         // Steps in the same order used in PHP
-        const steps = ['pending', 'assign', 'polystyrene', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
+        const steps = ['pending', 'assign', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
 
         // Assign a color to each step
         const colors = {
@@ -2440,11 +2376,10 @@ include('header.php');
 
         const productionCtx = document.getElementById('production-chart').getContext('2d');
         // Define steps and colors matching PHP AJAX response
-        const productionSteps = ['assign', 'polystyrene', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
-        const productionStepLabels = ['برنامه‌ریزی شده', 'قالب فوم', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه'];
+        const productionSteps = ['assign', 'Mesh', 'Concreting', 'Assembly', 'completed', 'shipped'];
+        const productionStepLabels = ['برنامه‌ریزی شده', 'مش بندی', 'قالب‌بندی/بتن‌ریزی', 'فیس کوت', 'تکمیل', 'حمل به کارگاه'];
         const productionStepColors = {
             'assign': '#95a5a6',
-            'polystyrene': '#3498db',
             'Mesh': '#9b59b6',
             'Concreting': '#e74c3c',
             'Assembly': '#f1c40f',

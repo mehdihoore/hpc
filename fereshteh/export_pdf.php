@@ -4,23 +4,38 @@ ini_set('display_errors', 0);
 error_reporting(E_ALL);
 ob_start(); // Start output buffering
 
-require_once __DIR__ . '/../sercon/config.php';
-require_once 'includes/jdf.php'; // For gregorianToShamsi
-require_once('includes/libraries/TCPDF-main/tcpdf.php');
-if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+require_once __DIR__ . '/../../sercon/bootstrap.php';
+require_once __DIR__ . '/includes/jdf.php'; // For gregorianToShamsi
+require_once __DIR__ . '/includes/libraries/TCPDF-main/tcpdf.php';
+secureSession();
+$expected_project_key = 'fereshteh'; // HARDCODED FOR THIS FILE
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
 
-// --- Authentication ---
-if (!isset($_SESSION['user_id'])) {
-    die('Authentication required.');
+if (!isLoggedIn()) {
+    header('Location: /login.php');
+    exit();
+}
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Concrete test manager accessed with incorrect project context. Session: {$current_project_config_key}, Expected: {$expected_project_key}, User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
 }
 
-// --- Database Connection ---
+
+if (session_status() !== PHP_SESSION_ACTIVE)
+    session_start();
+
+$current_user_id = $_SESSION['user_id']; // Get current user ID
+$report_key = 'export_pdf'; // HARDCODED FOR THIS FILE
+// DB Connection (Read-only needed)
+$user_id = $_SESSION['user_id'];
+$pdo = null; // Initialize
 try {
-    $db_options = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false];
-    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS, $db_options);
-} catch (PDOException $e) {
-    logError("DB Connection failed in export_pdf.php: " . $e->getMessage());
-    die("Database connection error.");
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/export_pdf.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
 }
 function getUserPreferences($user_id, $page, $preference_type = 'columns', $default_value = null)
 {
@@ -42,70 +57,7 @@ function getUserPreferences($user_id, $page, $preference_type = 'columns', $defa
         return $default_value;
     }
 }
-if (!function_exists('toLatinDigitsPhp')) {
-    function toLatinDigitsPhp($num)
-    {
-        if ($num === null || !is_scalar($num)) return '';
-        return str_replace(['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', '٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'], range(0, 9), strval($num));
-    }
-}
-if (!function_exists('gregorianToShamsi')) {
-    function gregorianToShamsi($date)
-    {
-        if (empty($date) || $date == '0000-00-00' || $date == null) return '';
-        try {
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/', $date)) {
-                if ($date instanceof DateTime) $date = $date->format('Y-m-d');
-                else {
-                    return '';
-                }
-            }
-            $date_part = explode(' ', $date)[0];
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_part)) {
-                return '';
-            }
-            list($year, $month, $day) = explode('-', $date_part);
-            $year = (int)$year;
-            $month = (int)$month;
-            $day = (int)$day;
-            if ($year <= 0 || $month <= 0 || $month > 12 || $day <= 0 || $day > 31 || !checkdate($month, $day, $year)) {
-                return '';
-            }
-            $gDays = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-            $gy = $year - 1600;
-            $gm = $month - 1;
-            $gd = $day - 1;
-            $gDayNo = 365 * $gy + floor(($gy + 3) / 4) - floor(($gy + 99) / 100) + floor(($gy + 399) / 400);
-            $gDayNo += $gDays[$gm];
-            if ($gm > 1 && (($gy % 4 == 0 && $gy % 100 != 0) || ($gy % 400 == 0))) $gDayNo++;
-            $gDayNo += $gd;
-            $jDayNo = $gDayNo - 79;
-            $jNp = floor($jDayNo / 12053);
-            $jDayNo %= 12053;
-            $jy = 979 + 33 * $jNp + 4 * floor($jDayNo / 1461);
-            $jDayNo %= 1461;
-            if ($jDayNo >= 366) {
-                $jy += floor(($jDayNo - 1) / 365);
-                $jDayNo = ($jDayNo - 1) % 365;
-            }
-            $jDaysInMonth = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
-            if (in_array($jy % 33, [1, 5, 9, 13, 17, 22, 26, 30])) $jDaysInMonth[11] = 30;
-            for ($i = 0; $i < 12; $i++) {
-                if ($jDayNo < $jDaysInMonth[$i]) break;
-                $jDayNo -= $jDaysInMonth[$i];
-            }
-            $jm = $i + 1;
-            $jd = $jDayNo + 1;
-            if ($jy < 1300 || $jy > 1500 || $jm < 1 || $jm > 12 || $jd < 1 || $jd > 31) {
-                return '';
-            }
-            return sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
-        } catch (Exception $e) {
-            error_log("Error gregorianToShamsi date '$date': " . $e->getMessage());
-            return '';
-        }
-    }
-}
+
 // --- Mappings & Available Columns (MUST match) ---
 $status_map_persian = [
     'pending' => 'در انتظار',

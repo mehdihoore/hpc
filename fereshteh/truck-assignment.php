@@ -1,10 +1,25 @@
 <?php
 // truck-assignment.php
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+ob_start();
+header('Content-Type: text/html; charset=utf-8');
+require_once __DIR__ . '/../../sercon/bootstrap.php';
 require_once 'includes/jdf.php';
 require_once 'includes/functions.php';
-
 secureSession();
+$expected_project_key = 'fereshteh'; // HARDCODED FOR THIS FILE
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
+
+if (!isLoggedIn()) {
+    header('Location: /login.php');
+    exit();
+}
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Concrete test manager accessed with incorrect project context. Session: {$current_project_config_key}, Expected: {$expected_project_key}, User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
 
 // --- ROLE DEFINITIONS ---
 $full_access_roles = ['admin', 'superuser', 'planner'];
@@ -31,13 +46,107 @@ $isReadOnly = !in_array($current_role, $full_access_roles);
 // This will be TRUE for admin, superuser, planner, receiver, supervisor
 $canUpload = in_array($current_role, $full_access_roles) || in_array($current_role, $upload_capable_roles);
 // --- END ROLE HANDLING ---
-
-$pageTitle = 'تخصیص پنل به کامیون';
-require_once 'header.php';
-
+$pdo = null; // Initialize
 try {
-    $pdo = connectDB();
-    // ... (rest of your database fetching logic remains the same) ...
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/hpc_panels_manager.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
+}
+$pageTitle = 'تخصیص پنل به کامیون' . escapeHtml($_SESSION['current_project_name'] ?? '');
+require_once 'header.php';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_shipment_stands') {
+    if (!in_array($_SESSION['role'], ['admin', 'superuser', 'planner'])) { // Only certain roles can do this
+        logError("Unauthorized attempt to update shipment stands. User: {$_SESSION['user_id']}");
+        // Send back an error response if AJAX, or set an error message
+        echo json_encode(['success' => false, 'message' => 'دسترسی غیرمجاز']);
+        exit;
+    }
+
+    $shipment_id_to_update = filter_input(INPUT_POST, 'shipment_id', FILTER_VALIDATE_INT);
+    $new_stands_sent = filter_input(INPUT_POST, 'stands_sent', FILTER_VALIDATE_INT);
+
+    if (!$shipment_id_to_update || $new_stands_sent === false || $new_stands_sent < 0) {
+        // Handle invalid input
+        echo json_encode(['success' => false, 'message' => 'اطلاعات ورودی نامعتبر است.']);
+        exit;
+    }
+
+    try {
+        $pdo->beginTransaction();
+
+        // 1. Fetch the current state of the shipment being updated (before changing stands_sent)
+        //    We need its original packing_list_number and its original global_stand_number_offset
+        //    to correctly calculate the start for the *next* shipment if this one's end point changes.
+        $stmt_current = $pdo->prepare("SELECT packing_list_number, global_stand_number_offset, stands_sent as old_stands_sent FROM shipments WHERE id = ?");
+        $stmt_current->execute([$shipment_id_to_update]);
+        $current_shipment_data = $stmt_current->fetch(PDO::FETCH_ASSOC);
+
+        if (!$current_shipment_data) {
+            throw new Exception("محموله مورد نظر برای به‌روزرسانی یافت نشد.");
+        }
+
+        $original_packing_list_number = $current_shipment_data['packing_list_number'];
+        // The offset of THIS shipment doesn't change based on its OWN stands_sent.
+        // Its offset was determined by the shipment BEFORE it.
+        // What changes is its *end point*, which affects the *next* shipment's offset.
+        $this_shipment_offset = (int)$current_shipment_data['global_stand_number_offset'];
+
+
+        // 2. Update the 'stands_sent' for the target shipment
+        $stmt_update_target = $pdo->prepare("UPDATE shipments SET stands_sent = ? WHERE id = ?");
+        $stmt_update_target->execute([$new_stands_sent, $shipment_id_to_update]);
+        log_activity($_SESSION['user_id'], $_SESSION['username'], 'update_shipment_stands_sent', "Shipment ID: {$shipment_id_to_update}, New stands_sent: {$new_stands_sent}", $_SESSION['current_project_id'] ?? null);
+
+
+        // 3. Now, recalculate offsets for ALL SUBSEQUENT shipments
+        //    The starting point for the next shipment is: $this_shipment_offset + $new_stands_sent
+
+        $current_offset_for_loop = $this_shipment_offset + $new_stands_sent;
+
+        // Fetch all shipments that come AFTER the one we just updated, ordered by packing_list_number
+        $stmt_subsequent = $pdo->prepare("
+            SELECT id, packing_list_number, stands_sent, global_stand_number_offset
+            FROM shipments
+            WHERE packing_list_number > :original_packing_list_number
+            -- Add AND truck_id = :truck_id if sequence is per truck
+            ORDER BY packing_list_number ASC
+        ");
+        $stmt_subsequent->execute([':original_packing_list_number' => $original_packing_list_number]);
+
+        $stmt_update_offset_loop = $pdo->prepare("UPDATE shipments SET global_stand_number_offset = ? WHERE id = ?");
+
+        while ($subsequent_shipment = $stmt_subsequent->fetch(PDO::FETCH_ASSOC)) {
+            if ((int)$subsequent_shipment['global_stand_number_offset'] !== $current_offset_for_loop) {
+                $stmt_update_offset_loop->execute([$current_offset_for_loop, $subsequent_shipment['id']]);
+                log_activity($_SESSION['user_id'], $_SESSION['username'], 'recalculate_shipment_offset', "Shipment ID: {$subsequent_shipment['id']} (PL: {$subsequent_shipment['packing_list_number']}) updated offset to {$current_offset_for_loop}", $_SESSION['current_project_id'] ?? null);
+            }
+            // The next shipment's starting offset will be the current one's offset + its stands_sent
+            $current_offset_for_loop += (int)($subsequent_shipment['stands_sent'] ?? 0);
+        }
+
+        $pdo->commit();
+        // Send back a success response if AJAX
+        echo json_encode(['success' => true, 'message' => 'تعداد خرک‌های محموله و آفست‌های بعدی با موفقیت به‌روزرسانی شد.']);
+        exit;
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        logError("Error updating shipment stands and recalculating offsets: " . $e->getMessage());
+        // Send back an error response if AJAX
+        echo json_encode(['success' => false, 'message' => 'خطا در به‌روزرسانی: ' . $e->getMessage()]);
+        exit;
+    }
+}
+$totalStands = $standsOut = $remainingStands = 'N/A';
+$trucks = [];
+$availablePanels = [];
+$panelsByTruck = [];
+$completedCount = 0;
+$buttonConfig = null;
+try {
+
+
     try {
         // 1. Get Total Stands
         $stmt_total_stands = $pdo->query("SELECT setting_value FROM app_settings WHERE setting_key = 'total_stands' LIMIT 1");
@@ -97,11 +206,26 @@ try {
         $stmt_shipment_status->execute($truckIds);
         $shipmentStatuses = $stmt_shipment_status->fetchAll(PDO::FETCH_KEY_PAIR); // truck_id => status
     }
+    $truckShipmentPackingnumber = [];
+    if (!empty($allTrucks)) {
+        $truckIds = array_column($allTrucks, 'id');
+        $placeholders = implode(',', array_fill(0, count($truckIds), '?'));
+        $stmt_shipment_status = $pdo->prepare("
+            SELECT truck_id, packing_list_number
+            FROM shipments
+            WHERE truck_id IN ($placeholders)
+            ORDER BY id DESC -- Assuming latest shipment status is most relevant if multiple exist per truck
+        ");
+        $stmt_shipment_status->execute($truckIds);
+        $shipmentPackingnumber = $stmt_shipment_status->fetchAll(PDO::FETCH_KEY_PAIR); // truck_id => status
+    }
+
 
     // Combine truck data with shipment status
     $trucks = [];
     foreach ($allTrucks as $truck) {
         $truck['shipment_status'] = $shipmentStatuses[$truck['id']] ?? null;
+        $truck['shipment_packing_list_number'] = $shipmentPackingnumber[$truck['id']] ?? null;
         $trucks[] = $truck;
     }
 
@@ -326,6 +450,7 @@ try {
                         data-driver-phone="<?= htmlspecialchars(strtolower($truck['driver_phone'] ?? '')) ?>">
                         <div class="card">
                             <div class="card-header bg-success text-white">
+                                <h4>شماره پکینگ لیست: <?= $truck['shipment_packing_list_number'] ?></h4>
                                 <h5>کامیون شماره <?= htmlspecialchars($truck['truck_number']) ?></h5>
                                 <small>ظرفیت: <?= $truck['capacity'] ?> پنل</small>
 
@@ -424,15 +549,15 @@ try {
                                         <i class="fa fa-calendar-alt"></i> برنامه‌ریزی/مشاهده
                                     </button>
 
-                                 
-                                    
-                                        <a href="panel-stand-manager.php?truck_id=<?= $truck['id'] ?>"
-                                            class="btn btn-sm btn-light manage-stands-btn"
-                                            target="_blank"
-                                            title="مدیریت خرک‌های این کامیون">
-                                            <i class="fas fa-pallet"></i> مدیریت خرک
-                                        </a>
-                                   
+
+
+                                    <a href="panel-stand-manager.php?truck_id=<?= $truck['id'] ?>"
+                                        class="btn btn-sm btn-light manage-stands-btn"
+                                        target="_blank"
+                                        title="مدیریت خرک‌های این کامیون">
+                                        <i class="fas fa-pallet"></i> مدیریت خرک
+                                    </a>
+
 
                                     <a href="packing-list.php?truck_id=<?= $truck['id'] ?>" class="btn btn-info" target="_blank">
                                         <i class="fa fa-print"></i> چاپ لیست بارگیری
@@ -2325,6 +2450,7 @@ try {
             newTruckDiv.innerHTML = `
             <div class="card">
                 <div class="card-header bg-success text-white">
+                <h4>شماره پکینگ لیست ${truck.truck_number}</h4>
                     <h5>کامیون شماره ${truck.truck_number}</h5>
                     <small>ظرفیت: ${truck.capacity} پنل</small>
                     ${!isUserReadOnly ? `

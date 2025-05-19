@@ -1,16 +1,31 @@
 <?php
 // public_panel_view.php
-// Public-facing panel detail page - NO LOGIN REQUIRED
-ini_set('memory_limit', '1G');
-// Disable error display in production for public pages
-// ini_set('display_errors', 0);
-// error_reporting(0);
-// --- FOR DEVELOPMENT ONLY ---
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
-// --- END DEVELOPMENT ONLY ---
+ob_start();
+header('Content-Type: text/html; charset=utf-8');
+require_once __DIR__ . '/../../sercon/bootstrap.php';
+require_once 'includes/jdf.php';
+secureSession();
+$expected_project_key = 'fereshteh'; // HARDCODED FOR THIS FILE
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
 
-require_once __DIR__ . '/../../sercon/config_fereshteh.php';
+if ($current_project_config_key !== $expected_project_key) {
+    logError("Concrete test manager accessed with incorrect project context. Session: {$current_project_config_key}, Expected: {$expected_project_key}, User: {$_SESSION['user_id']}");
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+
+$expected_project_key = 'fereshteh';
+$current_project_config_key = $_SESSION['current_project_config_key'] ?? null;
+
+$pdo = null;
+try {
+    $pdo = getProjectDBConnection();
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key} map: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
+}
 
 // --- NO Session or Role Check ---
 // This page is public.
@@ -68,7 +83,7 @@ $panel = null;
 $concreteTests = []; // Initialize as empty array
 
 try {
-    $pdo = connectDB();
+
 
     // Get essential panel details for public view
     // Removed checker name columns as they are not needed for public view

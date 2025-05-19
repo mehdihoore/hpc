@@ -6,89 +6,57 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 ob_start();
 header('Content-Type: text/html; charset=utf-8');
-require_once __DIR__ . '/../sercon/config.php';
-require_once 'includes/jdf.php';
-if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+require_once __DIR__ . '/../../sercon/bootstrap.php';
+require_once __DIR__ . '/includes/jdf.php';
+require_once __DIR__ . '/includes/functions.php'; // Needs secureSession, get_user_permissions, escapeHtml, log_activity, translate_status, get_status_color, formatJalaliDateOrEmpty, secure_file_upload
+secureSession(); // Initializes session and security checks
 
-$allroles = ['admin', 'supervisor', 'planner', 'cnc_operator', 'superuser', 'user'];
-$viewRoles = ['admin', 'supervisor', 'planner', 'user', 'superuser'];
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || !in_array($_SESSION['role'], $viewRoles)) {
-    header('Location: login.php');
-    exit('Access Denied.');
+// Determine which project this instance of the file belongs to.
+// This is simple hardcoding based on folder. More complex routing could derive this.
+$current_file_path = __DIR__;
+$expected_project_key = null;
+if (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Fereshteh') !== false) {
+    $expected_project_key = 'fereshteh';
+} elseif (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Arad') !== false) {
+    $expected_project_key = 'arad';
+} else {
+    // If the file is somehow not in a recognized project folder, handle error
+    logError("admin_panel_search.php accessed from unexpected path: " . $current_file_path);
+    die("خطای پیکربندی: پروژه قابل تشخیص نیست.");
+}
+
+
+// --- Authorization ---
+// 1. Check if logged in
+if (!isLoggedIn()) {
+    header('Location: /login.php'); // Redirect to common login
+    exit();
+}
+// 2. Check if user has selected ANY project
+if (!isset($_SESSION['current_project_config_key'])) {
+    logError("Access attempt to {$expected_project_key}/admin_panel_search.php without project selection. User ID: " . $_SESSION['user_id']);
+    header('Location: /select_project.php'); // Redirect to project selection
+    exit();
+}
+// 3. Check if the selected project MATCHES the folder this file is in
+if ($_SESSION['current_project_config_key'] !== $expected_project_key) {
+    logError("Project context mismatch. Session has '{$_SESSION['current_project_config_key']}', expected '{$expected_project_key}'. User ID: " . $_SESSION['user_id']);
+    // Maybe redirect to select_project or show an error specific to context mismatch
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
 }
 $current_user_id = $_SESSION['user_id'];
 $report_key = 'hpc_panels';
-$db_options = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false];
+$user_id = $_SESSION['user_id'];
+$pdo = null; // Initialize
 try {
-    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS, $db_options);
-} catch (PDOException $e) {
-    error_log("DB Connection failed: " . $e->getMessage());
-    die("خطا در اتصال به پایگاه داده.");
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/hpc_panels_print.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
 }
-if (!function_exists('toLatinDigitsPhp')) {
-    function toLatinDigitsPhp($num)
-    {
-        if ($num === null || !is_scalar($num)) return '';
-        return str_replace(['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', '٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'], range(0, 9), strval($num));
-    }
-}
-if (!function_exists('gregorianToShamsi')) {
-    function gregorianToShamsi($date)
-    {
-        if (empty($date) || $date == '0000-00-00' || $date == null) return '';
-        try {
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/', $date)) {
-                if ($date instanceof DateTime) $date = $date->format('Y-m-d');
-                else {
-                    return '';
-                }
-            }
-            $date_part = explode(' ', $date)[0];
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_part)) {
-                return '';
-            }
-            list($year, $month, $day) = explode('-', $date_part);
-            $year = (int)$year;
-            $month = (int)$month;
-            $day = (int)$day;
-            if ($year <= 0 || $month <= 0 || $month > 12 || $day <= 0 || $day > 31 || !checkdate($month, $day, $year)) {
-                return '';
-            }
-            $gDays = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-            $gy = $year - 1600;
-            $gm = $month - 1;
-            $gd = $day - 1;
-            $gDayNo = 365 * $gy + floor(($gy + 3) / 4) - floor(($gy + 99) / 100) + floor(($gy + 399) / 400);
-            $gDayNo += $gDays[$gm];
-            if ($gm > 1 && (($gy % 4 == 0 && $gy % 100 != 0) || ($gy % 400 == 0))) $gDayNo++;
-            $gDayNo += $gd;
-            $jDayNo = $gDayNo - 79;
-            $jNp = floor($jDayNo / 12053);
-            $jDayNo %= 12053;
-            $jy = 979 + 33 * $jNp + 4 * floor($jDayNo / 1461);
-            $jDayNo %= 1461;
-            if ($jDayNo >= 366) {
-                $jy += floor(($jDayNo - 1) / 365);
-                $jDayNo = ($jDayNo - 1) % 365;
-            }
-            $jDaysInMonth = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
-            if (in_array($jy % 33, [1, 5, 9, 13, 17, 22, 26, 30])) $jDaysInMonth[11] = 30;
-            for ($i = 0; $i < 12; $i++) {
-                if ($jDayNo < $jDaysInMonth[$i]) break;
-                $jDayNo -= $jDaysInMonth[$i];
-            }
-            $jm = $i + 1;
-            $jd = $jDayNo + 1;
-            if ($jy < 1300 || $jy > 1500 || $jm < 1 || $jm > 12 || $jd < 1 || $jd > 31) {
-                return '';
-            }
-            return sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
-        } catch (Exception $e) {
-            error_log("Error gregorianToShamsi date '$date': " . $e->getMessage());
-            return '';
-        }
-    }
-}
+
 
 // --- Mappings (Copy from manager page) ---
 $status_map_persian = [

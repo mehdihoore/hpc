@@ -20,11 +20,22 @@ if ($current_project_config_key !== $expected_project_key) {
     exit();
 }
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+$allroles = ['admin', 'supervisor', 'planner', 'cnc_operator', 'superuser', 'user'];
+$authroles = ['admin', 'supervisor', 'superuser'];
+$readonlyroles = ['planner', 'cnc_operator', 'user'];
 
-// --- Authentication ---
-if (!isset($_SESSION['user_id'])) { // Basic check
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || !in_array($_SESSION['role'], $allroles)) {
     header('Location: login.php');
-    exit('دسترسی غیر مجاز! لطفاً وارد شوید.');
+    exit('Access Denied.');
+}
+$user_id = $_SESSION['user_id'];
+$pdo = null; // Initialize
+try {
+    // Get PROJECT-SPECIFIC database connection
+    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+} catch (Exception $e) {
+    logError("DB Connection failed in {$expected_project_key}/concrete_tests.php: " . $e->getMessage());
+    die("خطا در اتصال به پایگاه داده پروژه.");
 }
 
 // --- Get POST Data ---
@@ -49,7 +60,6 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 
 // --- Prepare Filter Display String ---
 $filterDisplayItems = []; // Initialize array to hold parts of the filter string
-
 
 // Status Filter
 if (isset($filters['status']) && $filters['status'] !== 'all' && $filters['status'] !== '') {
@@ -515,8 +525,8 @@ $chartsAffectedByFilters = [
                 <table class="header-table">
                     <tr>
                         <td class="logo-left"><img src="/assets/images/alumglass-farsi-logo-H40.png" alt="Logo"></td>
-                        <td class="header-center"><?php echo nl2br(htmlspecialchars("داشبورد گزارشات\nپروژه آراد")); ?></td>
-                        <td class="logo-right"><img src="/assets/images/hotelfereshteh1.png" alt="Logo"></td>
+                        <td class="header-center"><?php echo nl2br(htmlspecialchars("داشبورد گزارشات\nپروژه فرشته")); ?></td>
+                        <td class="logo-right"><img src="/assets/images/arad.png" alt="Logo"></td>
                     </tr>
                 </table>
             </div>

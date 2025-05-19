@@ -1,6 +1,6 @@
 <?php
 // hpc_panels_manager.php
-// --- Basic Setup, Dependencies, Session, Auth, DB Connection ---
+
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 ob_start();
@@ -41,77 +41,50 @@ try {
     die("خطا در اتصال به پایگاه داده پروژه.");
 }
 
+if (!function_exists('translate_panel_data_to_persian')) {
+    function translate_panel_data_to_persian($key, $english_value)
+    {
+        if ($english_value === null || $english_value === '') return '-'; // Handle empty or null
 
-// --- Helper Functions ---
-if (!function_exists('toLatinDigitsPhp')) {
-    function toLatinDigitsPhp($num)
-    {
-        if ($num === null || !is_scalar($num)) return '';
-        return str_replace(['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', '٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'], range(0, 9), strval($num));
-    }
-}
-if (!function_exists('gregorianToShamsi')) {
-    function gregorianToShamsi($date)
-    {
-        if (empty($date) || $date == '0000-00-00' || $date == null) return '';
-        try {
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/', $date)) {
-                if ($date instanceof DateTime) $date = $date->format('Y-m-d');
-                else {
-                    return '';
-                }
-            }
-            $date_part = explode(' ', $date)[0];
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_part)) {
-                return '';
-            }
-            list($year, $month, $day) = explode('-', $date_part);
-            $year = (int)$year;
-            $month = (int)$month;
-            $day = (int)$day;
-            if ($year <= 0 || $month <= 0 || $month > 12 || $day <= 0 || $day > 31 || !checkdate($month, $day, $year)) {
-                return '';
-            }
-            $gDays = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-            $gy = $year - 1600;
-            $gm = $month - 1;
-            $gd = $day - 1;
-            $gDayNo = 365 * $gy + floor(($gy + 3) / 4) - floor(($gy + 99) / 100) + floor(($gy + 399) / 400);
-            $gDayNo += $gDays[$gm];
-            if ($gm > 1 && (($gy % 4 == 0 && $gy % 100 != 0) || ($gy % 400 == 0))) $gDayNo++;
-            $gDayNo += $gd;
-            $jDayNo = $gDayNo - 79;
-            $jNp = floor($jDayNo / 12053);
-            $jDayNo %= 12053;
-            $jy = 979 + 33 * $jNp + 4 * floor($jDayNo / 1461);
-            $jDayNo %= 1461;
-            if ($jDayNo >= 366) {
-                $jy += floor(($jDayNo - 1) / 365);
-                $jDayNo = ($jDayNo - 1) % 365;
-            }
-            $jDaysInMonth = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
-            if (in_array($jy % 33, [1, 5, 9, 13, 17, 22, 26, 30])) $jDaysInMonth[11] = 30;
-            for ($i = 0; $i < 12; $i++) {
-                if ($jDayNo < $jDaysInMonth[$i]) break;
-                $jDayNo -= $jDaysInMonth[$i];
-            }
-            $jm = $i + 1;
-            $jd = $jDayNo + 1;
-            if ($jy < 1300 || $jy > 1500 || $jm < 1 || $jm > 12 || $jd < 1 || $jd > 31) {
-                return '';
-            }
-            return sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
-        } catch (Exception $e) {
-            error_log("Error gregorianToShamsi date '$date': " . $e->getMessage());
-            return '';
+        $translations = [
+            'zone' => [
+                'zone 1' => 'زون ۱',
+                'zone 2' => 'زون ۲',
+                'zone 3' => 'زون ۳',
+                'zone 4' => 'زون ۴',
+                'zone 5' => 'زون ۵',
+                'zone 6' => 'زون ۶',
+                'zone 7' => 'زون ۷',
+                'zone 8' => 'زون ۸',
+                // Add other zones as needed
+            ],
+            'panel_position' => [ // Assuming 'type' column stores panel_position
+                'terrace edge' => 'لبه تراس',
+                'wall panel'   => 'پنل دیواری', // Example
+                // Add other positions
+            ],
+            'status' => [ // For consistency, though your JS handles this mostly
+                'pending'    => 'در انتظار تخصیص',
+                'planned'    => 'برنامه ریزی شده',
+                'mesh'       => 'مش بندی',
+                'concreting' => 'قالب‌بندی/بتن ریزی',
+                'assembly'   => 'فیس کوت', // Assuming 'assembly' is فیس کوت
+                'completed'  => 'تکمیل شده',
+                'shipped'    => 'ارسال شده'
+            ]
+            // Add other keys if needed, e.g., 'formwork_type'
+        ];
+
+        if (isset($translations[$key][$english_value])) {
+            return $translations[$key][$english_value];
         }
+        return escapeHtml($english_value); // Fallback to English if no translation
     }
 }
 
 // --- Mappings for Enum/Boolean values ---
 $status_map_persian = [
     'pending' => 'در انتظار',
-    'polystyrene' => 'قالب فوم', // Corrected
     'Mesh' => 'مش بندی',          // Corrected
     'Concreting' => 'قالب‌بندی/بتن ریزی', // Corrected
     'Assembly' => 'فیس کوت',       // Corrected
@@ -124,28 +97,58 @@ $packing_status_map_persian = [
     'assigned' => 'تخصیص یافته',
     'shipped' => 'ارسال شده'
 ];
-$polystyrene_map_persian = [
-    0 => 'انجام نشده',
-    1 => 'انجام شده'
-];
+
 
 // --- Define Available Columns for Display/Selection ---
 $available_columns = [
-    'address' => 'آدرس',
+    'row_num' => 'شماره ردیف', // Row Number (Keep)
+    'full_address_identifier' => 'آدرس',
     'type' => 'نوع',
     'area' => 'مساحت (m²)',
-    'width' => 'عرض (mm)',   // Updated Unit
-    'length' => 'طول (mm)',  // Updated Unit
-    'formwork_type' => 'نوع قالب', // Added
+    'width' => 'عرض (mm)',
+    'length' => 'طول (mm)',
+    'formwork_type' => 'نوع قالب',
     'Proritization' => 'اولویت',
-    'status' => 'وضعیت',
-    'assigned_date' => 'تاریخ تخصیص',
-    'polystyrene' => 'پلی استایرن',
+    // 'status' => 'وضعیت', // We are replacing this concept with latest_activity
+    'latest_activity' => 'آخرین فعالیت', // <-- NEW: Latest Activity based on dates
+    'assigned_date' => 'تاریخ تولید',
     'mesh_end_time' => 'پایان مش',
     'concrete_end_time' => 'پایان بتن',
     'assembly_end_time' => 'پایان فیس کوت',
+    'inventory_status' => 'موجودی/ارسال شده', // Inventory Status (Keep)
     'packing_status' => 'وضعیت بسته بندی',
+    'shipping_date' => 'تاریخ ارسال', // <-- NEW: Shipping Date
+    // Add other potential columns if needed
 ];
+
+$latest_activity_map_persian = [
+    'assembly_done' => 'فیس کوت انجام شد',
+    'concrete_done' => 'بتن ریزی انجام شد',
+    'mesh_done' => 'مش بندی انجام شد',
+    'pending' => 'شروع نشده / در انتظار', // Or choose a more suitable label
+];
+
+
+$persian_date_columns = ['assigned_date', 'mesh_end_time', 'concrete_end_time', 'assembly_end_time', 'shipping_date']; // Added shipping_date
+
+$default_columns = [
+    'row_num',
+    'full_address_identifier',
+    'type',
+    'area',
+    'width',
+    'length',
+    'Proritization',
+    'latest_activity',
+    'assigned_date',
+    'mesh_end_time',
+    'concrete_end_time',
+    'assembly_end_time',
+    'inventory_status',
+    'packing_status',
+    'shipping_date'
+]; // Added shipping_date
+
 $distinct_types = [];
 $distinct_priorities = [];
 try {
@@ -163,34 +166,49 @@ try {
 
 // Define fixed priorities
 $defined_priorities = [];
-for ($i = 1; $i <= 15; $i++) {
-    $defined_priorities[] = 'P' . $i;
+for ($i = 1; $i <= 8; $i++) {
+    $defined_priorities[] = 'zone ' . $i;
 }
 // --- Handle Column Selection ---
-$default_columns = ['address', 'type', 'area', 'width', 'length', 'formwork_type', 'status', 'assigned_date', 'packing_status']; // Sensible defaults
+$default_columns = ['row_num', 'full_address_identifier', 'type', 'area', 'width', 'length', 'formwork_type', 'status', 'assigned_date', 'inventory_status', 'packing_status']; // Sensible defaults including new cols
 $user_columns = getUserPreferences($current_user_id, 'hpc_panels_manager', 'columns', implode(',', $default_columns));
-// Parse the columns from saved preferences if present
 if (!empty($user_columns)) {
-    $selected_columns = explode(',', $user_columns);
+    $saved_cols_array = explode(',', $user_columns);
+
+    // Remove 'status' if it exists from old prefs
+    $saved_cols_array = array_filter($saved_cols_array, function ($col) {
+        return $col !== 'status';
+    });
+
+    // Add new defaults if missing
+    if (!in_array('row_num', $saved_cols_array)) array_unshift($saved_cols_array, 'row_num');
+    if (!in_array('latest_activity', $saved_cols_array)) $saved_cols_array[] = 'latest_activity'; // Add to end or specific pos
+    if (!in_array('inventory_status', $saved_cols_array)) $saved_cols_array[] = 'inventory_status';
+    if (!in_array('shipping_date', $saved_cols_array)) $saved_cols_array[] = 'shipping_date';
+
+
+    // Re-validate against the *new* available columns
+    $selected_columns = array_intersect($saved_cols_array, array_keys($available_columns));
+    // Ensure the order is somewhat preserved or re-apply default order logic if needed
+
 } else {
-    // Fall back to URL parameter or defaults
+    // Fall back to URL parameter or defaults (which now include the new columns)
     $selected_columns_str = trim($_GET['cols'] ?? implode(',', $default_columns));
     $selected_columns = !empty($selected_columns_str) ? explode(',', $selected_columns_str) : $default_columns;
 }
-$selected_columns_str = trim($_GET['cols'] ?? implode(',', $default_columns));
-$selected_columns = !empty($selected_columns_str) ? explode(',', $selected_columns_str) : $default_columns;
+
 // Validate selected columns against available columns
 $selected_columns = array_intersect($selected_columns, array_keys($available_columns));
-if (empty($selected_columns)) $selected_columns = $default_columns; // Fallback if validation fails
+if (empty($selected_columns)) $selected_columns = $default_columns;
 // --- Process Filters (from $_GET) ---
 $search_params = [];
 $sql_conditions = [];
 
-// Text Filters (Address only now)
-if (!empty($_GET["filter_address"])) {
-    $value = trim($_GET["filter_address"]);
-    $sql_conditions[] = "`address` LIKE :address"; // Use backticks
-    $search_params[":address"] = "%" . $value . "%";
+// Text Filters (full_address_identifier only now)
+if (!empty($_GET["filter_full_address_identifier"])) {
+    $value = trim($_GET["filter_full_address_identifier"]);
+    $sql_conditions[] = "`full_address_identifier` LIKE :full_address_identifier"; // Use backticks
+    $search_params[":full_address_identifier"] = "%" . $value . "%";
 }
 
 // Number Range Filters
@@ -213,25 +231,51 @@ foreach ($range_filters as $filter_key) {
 }
 
 // Exact Match / Enum Filters
-$exact_match_filters = ['type', 'Proritization', 'status', 'packing_status', 'polystyrene']; // Add type and Proritization
+$exact_match_filters = ['type', 'Proritization', 'packing_status']; // Add type and Proritization
 foreach ($exact_match_filters as $filter_key) {
     // Check if filter is set and not an empty string
     if (isset($_GET["filter_$filter_key"]) && $_GET["filter_$filter_key"] !== '') {
         $value = $_GET["filter_$filter_key"];
-        // Basic validation for polystyrene
-        if ($filter_key == 'polystyrene' && ($value === '0' || $value === '1')) {
-            $sql_conditions[] = "`$filter_key` = :$filter_key";
-            $search_params[":$filter_key"] = $value;
-        } elseif ($filter_key != 'polystyrene') { // For type, Proritization, status, packing_status
-            $sql_conditions[] = "`$filter_key` = :$filter_key";
-            $search_params[":$filter_key"] = $value;
-        }
     }
 }
 
+if (isset($_GET["filter_inventory_status"]) && $_GET["filter_inventory_status"] !== '') {
+    $inv_status_filter = $_GET["filter_inventory_status"];
+    if ($inv_status_filter === 'موجود') {
+        // Condition for 'موجود': Concrete is done AND Packing is NOT shipped
+        $sql_conditions[] = "(concrete_end_time IS NOT NULL AND concrete_end_time != '0000-00-00 00:00:00' AND packing_status != 'shipped')";
+        // Note: This assumes 'shipped' is the only status indicating not available. Adjust if null/pending/assigned also mean not shipped.
+        // A potentially safer condition if other packing statuses exist and mean "not shipped":
+        // $sql_conditions[] = "(concrete_end_time IS NOT NULL AND concrete_end_time != '0000-00-00 00:00:00' AND (packing_status IS NULL OR packing_status != 'shipped'))";
+    } elseif ($inv_status_filter === 'ارسال شده') {
+        // Condition for 'ارسال شده': Packing status is 'shipped'
+        $sql_conditions[] = "(packing_status = 'shipped')";
+        // No parameters needed here as values are hardcoded in SQL string
+    }
+    // Add hidden input value to keep filter selection
+    // No need to add to $search_params unless using placeholders, which isn't necessary here.
+}
 
+// Handle NEW "Latest Activity" Filter
+if (isset($_GET["filter_latest_activity"]) && $_GET["filter_latest_activity"] !== '') {
+    $activity_filter = $_GET["filter_latest_activity"];
+    // Define NULL/Empty date check condition string for readability
+    $null_date_check = "IS NULL OR %s = '0000-00-00 00:00:00'";
+    $not_null_date_check = "IS NOT NULL AND %s != '0000-00-00 00:00:00'";
+
+    if ($activity_filter === 'assembly_done') { // 'فیس کوت انجام شد'
+        $sql_conditions[] = sprintf("assembly_end_time $not_null_date_check", "assembly_end_time");
+    } elseif ($activity_filter === 'concrete_done') { // 'بتن ریزی انجام شد'
+        $sql_conditions[] = sprintf("concrete_end_time $not_null_date_check", "concrete_end_time") . " AND (" . sprintf("assembly_end_time $null_date_check", "assembly_end_time") . ")";
+    } elseif ($activity_filter === 'mesh_done') { // 'مش بندی انجام شد'
+        $sql_conditions[] = sprintf("mesh_end_time $not_null_date_check", "mesh_end_time") . " AND (" . sprintf("concrete_end_time $null_date_check", "concrete_end_time") . ")";
+    } elseif ($activity_filter === 'pending') { // 'شروع نشده / در انتظار'
+        $sql_conditions[] = "(" . sprintf("mesh_end_time $null_date_check", "mesh_end_time") . ")"; // Assumes mesh is the first step
+    }
+    // No parameters needed here as values are hardcoded in SQL string
+}
 // Date Range Filters
-$date_filters = ['assigned_date', 'mesh_end_time', 'concrete_end_time', 'assembly_end_time'];
+$date_filters = ['assigned_date', 'mesh_end_time', 'concrete_end_time', 'assembly_end_time', 'shipping_date'];
 foreach ($date_filters as $filter_key) {
     $date_from_j = $_GET["filter_{$filter_key}_from"] ?? '';
     $date_to_j = $_GET["filter_{$filter_key}_to"] ?? '';
@@ -277,46 +321,99 @@ if (!empty($sql_conditions)) {
 
 // --- Fetch Main Data ---
 $records = [];
+$total_filtered_count = 0; // Initialize total count
 try {
     // Select all columns initially, filtering/display is handled later
-    $sql_main = "SELECT * FROM hpc_panels" . $where_clause . " ORDER BY Proritization DESC, assigned_date DESC, id DESC"; // Example order
+    // Fetch only necessary columns for performance if $records gets very large
+    $sql_main = "SELECT id, full_address_identifier, type, area, width, length, formwork_type, Proritization, assigned_date,  mesh_end_time, concrete_end_time, assembly_end_time, packing_status, shipping_date FROM hpc_panels" . $where_clause . " ORDER BY Proritization DESC, assigned_date DESC, id DESC"; // Example order
     $stmt_main = $pdo->prepare($sql_main);
     $stmt_main->execute($search_params);
     $records = $stmt_main->fetchAll(PDO::FETCH_ASSOC);
+    $total_filtered_count = count($records); // Get total count from fetched records
 } catch (PDOException $e) {
     error_log("Error fetching HPC panels: " . $e->getMessage());
     $_SESSION['error_message'] = "خطا در بارگذاری داده‌های پنل‌ها.";
+    // $records will remain empty, $total_filtered_count will be 0
 }
 
-// --- Fetch Status Counts (Applying the SAME filters) ---
-$status_counts = [];
-$packing_status_counts = [];
-try {
-    // Status Counts
-    $sql_status_count = "SELECT status, COUNT(*) as count FROM hpc_panels" . $where_clause . " GROUP BY status";
-    $stmt_status_count = $pdo->prepare($sql_status_count);
-    $stmt_status_count->execute($search_params);
-    $status_results = $stmt_status_count->fetchAll(PDO::FETCH_KEY_PAIR); // Fetch as key=>value (status=>count)
-    // Map to Persian keys for display
-    foreach ($status_results as $status_en => $count) {
-        $status_fa = $status_map_persian[$status_en] ?? $status_en; // Fallback to English if no map
-        $status_counts[$status_fa] = $count;
+
+// --- Calculate Counts in PHP from Filtered Data ---
+$packing_status_counts_php = array_fill_keys(array_keys($packing_status_map_persian), 0);
+$inventory_status_counts_php = ['موجود' => 0, 'ارسال شده' => 0]; // Overall Inventory
+$latest_activity_counts_php = array_fill_keys(array_keys($latest_activity_map_persian), 0); // Counts for *latest* step completed
+$overall_mesh_done_count = 0;      // Total ever completed Mesh
+$overall_concrete_done_count = 0;   // Total ever completed Concrete
+$overall_assembly_done_count = 0;  // Total ever completed Assembly
+
+if (!empty($records)) { // Only calculate if there are records
+    foreach ($records as $record) {
+        // --- Check Date Validity ---
+        $mesh_done_valid = !empty($record['mesh_end_time']) && $record['mesh_end_time'] != '0000-00-00 00:00:00';
+        $concrete_done_valid = !empty($record['concrete_end_time']) && $record['concrete_end_time'] != '0000-00-00 00:00:00';
+        $assembly_done_valid = !empty($record['assembly_end_time']) && $record['assembly_end_time'] != '0000-00-00 00:00:00';
+        $packing_status = $record['packing_status'] ?? 'pending'; // Default to 'pending' if null
+
+        // --- 1. Latest Activity Count ---
+        // (Counts where this is the *last* completed major step)
+        if ($assembly_done_valid) {
+            $latest_activity_counts_php['assembly_done']++;
+        } elseif ($concrete_done_valid) {
+            $latest_activity_counts_php['concrete_done']++;
+        } elseif ($mesh_done_valid) {
+            $latest_activity_counts_php['mesh_done']++;
+        } else {
+            $latest_activity_counts_php['pending']++; // Not started Mesh yet
+        }
+
+        // --- 2. Overall Completion Counts ---
+        // (Counts if the step was *ever* completed, regardless of later steps)
+        if ($mesh_done_valid) {
+            $overall_mesh_done_count++;
+        }
+        if ($concrete_done_valid) {
+            $overall_concrete_done_count++;
+        }
+        if ($assembly_done_valid) {
+            $overall_assembly_done_count++;
+        }
+
+        // --- 3. Packing Status Count (Overall) ---
+        if (isset($packing_status_counts_php[$packing_status])) {
+            $packing_status_counts_php[$packing_status]++;
+        }
+
+        // --- 4. Inventory Status Count (Overall) ---
+        if ($packing_status === 'shipped') {
+            $inventory_status_counts_php['ارسال شده']++;
+        } elseif ($concrete_done_valid && $packing_status !== 'shipped') {
+            // Note: Inventory 'موجود' requires concrete to be done.
+            $inventory_status_counts_php['موجود']++;
+        }
     }
 
-    // Packing Status Counts
-    $sql_packing_count = "SELECT packing_status, COUNT(*) as count FROM hpc_panels" . $where_clause . " GROUP BY packing_status";
-    $stmt_packing_count = $pdo->prepare($sql_packing_count);
-    $stmt_packing_count->execute($search_params);
-    $packing_results = $stmt_packing_count->fetchAll(PDO::FETCH_KEY_PAIR);
-    // Map to Persian keys for display
-    foreach ($packing_results as $pack_status_en => $count) {
-        $pack_status_fa = $packing_status_map_persian[$pack_status_en] ?? $pack_status_en;
-        $packing_status_counts[$pack_status_fa] = $count;
-    }
+    // Optional: Remove status keys with zero counts if desired for display
+    // $packing_status_counts_php = array_filter($packing_status_counts_php);
+    // $inventory_status_counts_php = array_filter($inventory_status_counts_php);
+    // $latest_activity_counts_php = array_filter($latest_activity_counts_php);
+    // Keep overall counts even if zero, perhaps more informative here.
+}
+
+// We no longer need the separate SQL queries for status counts, so you can REMOVE
+// the try...catch block that fetched $status_counts and $packing_status_counts via SQL.
+/* --- REMOVE OR COMMENT OUT THIS BLOCK ---
+// --- Fetch Status Counts (Applying the SAME filters) ---
+$status_counts = []; // No longer used
+$packing_status_counts = []; // Will use $packing_status_counts_php instead
+try {
+    // Status Counts (No longer needed)
+    // ...
+    // Packing Status Counts (No longer needed here)
+    // $sql_packing_count = "SELECT packing_status, COUNT(*) as count FROM hpc_panels" . $where_clause . " GROUP BY packing_status";
+    // ... fetch logic ...
 } catch (PDOException $e) {
     error_log("Error fetching status counts: " . $e->getMessage());
-    // Don't stop the page, just counts might be missing
 }
+*/
 /**
  * Get user preferences from database
  * 
@@ -348,6 +445,7 @@ function getUserPreferences($user_id, $page, $preference_type = 'columns', $defa
 }
 
 $pageTitle = "مدیریت پنل‌های HPC";
+require_once 'header.php';
 ?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -367,6 +465,7 @@ $pageTitle = "مدیریت پنل‌های HPC";
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.rtl.min.css" />
+    <link rel="stylesheet" href="/assets/css/persian-datepicker-dark.min.css">
 
     <style>
         /* --- General Page Styles (Keep As Is) --- */
@@ -603,7 +702,7 @@ $pageTitle = "مدیریت پنل‌های HPC";
 </head>
 
 <body>
-    <?php require_once 'header.php'; ?>
+    <?php  ?>
     <div class="loading" style="display: none;">
         <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
     </div>
@@ -640,8 +739,8 @@ $pageTitle = "مدیریت پنل‌های HPC";
                     <div class="row g-2 mb-2">
                         <!-- Text Filters -->
                         <div class="col-md-2">
-                            <label for="filter_address" class="form-label">آدرس</label>
-                            <input type="text" class="form-control form-control-sm" id="filter_address" name="filter_address" value="<?php echo htmlspecialchars($_GET['filter_address'] ?? ''); ?>">
+                            <label for="filter_full_address_identifier" class="form-label">آدرس</label>
+                            <input type="text" class="form-control form-control-sm" id="filter_full_address_identifier" name="filter_full_address_identifier" value="<?php echo htmlspecialchars($_GET['filter_full_address_identifier'] ?? ''); ?>">
                         </div>
                         <div class="col-md-2">
                             <label for="filter_type" class="form-label">نوع</label>
@@ -659,6 +758,7 @@ $pageTitle = "مدیریت پنل‌های HPC";
                             <select class="form-select form-select-sm" id="filter_Proritization" name="filter_Proritization">
                                 <option value="">همه</option>
                                 <?php foreach ($defined_priorities as $priority_option): ?>
+
                                     <option value="<?php echo htmlspecialchars($priority_option); ?>" <?php echo (isset($_GET['filter_Proritization']) && $_GET['filter_Proritization'] === $priority_option) ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($priority_option); ?>
                                     </option>
@@ -675,11 +775,19 @@ $pageTitle = "مدیریت پنل‌های HPC";
 
                         <!-- Enum/Boolean Filters -->
                         <div class="col-md-2">
-                            <label for="filter_status" class="form-label">وضعیت</label>
-                            <select class="form-select form-select-sm" id="filter_status" name="filter_status">
+                            <label for="filter_inventory_status" class="form-label">موجودی/ارسال</label>
+                            <select class="form-select form-select-sm" id="filter_inventory_status" name="filter_inventory_status">
                                 <option value="">همه</option>
-                                <?php foreach ($status_map_persian as $key => $label): ?>
-                                    <option value="<?php echo $key; ?>" <?php echo (isset($_GET['filter_status']) && $_GET['filter_status'] === $key) ? 'selected' : ''; ?>>
+                                <option value="موجود" <?php echo (isset($_GET['filter_inventory_status']) && $_GET['filter_inventory_status'] === 'موجود') ? 'selected' : ''; ?>>موجود</option>
+                                <option value="ارسال شده" <?php echo (isset($_GET['filter_inventory_status']) && $_GET['filter_inventory_status'] === 'ارسال شده') ? 'selected' : ''; ?>>ارسال شده</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filter_latest_activity" class="form-label">آخرین فعالیت</label>
+                            <select class="form-select form-select-sm" id="filter_latest_activity" name="filter_latest_activity">
+                                <option value="">همه</option>
+                                <?php foreach ($latest_activity_map_persian as $key => $label): ?>
+                                    <option value="<?php echo $key; ?>" <?php echo (isset($_GET['filter_latest_activity']) && $_GET['filter_latest_activity'] === $key) ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($label); ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -696,14 +804,7 @@ $pageTitle = "مدیریت پنل‌های HPC";
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="col-md-2">
-                            <label for="filter_polystyrene" class="form-label">پلی استایرن</label>
-                            <select class="form-select form-select-sm" id="filter_polystyrene" name="filter_polystyrene">
-                                <option value="">همه</option>
-                                <option value="0" <?php echo (isset($_GET['filter_polystyrene']) && $_GET['filter_polystyrene'] === '0') ? 'selected' : ''; ?>>انجام نشده</option>
-                                <option value="1" <?php echo (isset($_GET['filter_polystyrene']) && $_GET['filter_polystyrene'] === '1') ? 'selected' : ''; ?>>انجام شده</option>
-                            </select>
-                        </div>
+
                     </div>
 
                     <div class="row g-2 mb-2">
@@ -833,24 +934,79 @@ $pageTitle = "مدیریت پنل‌های HPC";
 
         <!-- Status Counts -->
         <div class="counts-area">
-            <strong>تعداد کل پنل‌ها (فیلتر شده): <?php echo count($records); ?></strong> | 
-            <strong>وضعیت:</strong>
-            <?php if (!empty($status_counts)): ?>
-                <?php foreach ($status_counts as $status => $count): ?>
-                    <span><?php echo htmlspecialchars($status); ?>: <strong><?php echo $count; ?></strong></span>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <span>-</span>
-            <?php endif; ?>
-             | 
-            <strong>بسته‌بندی:</strong>
-            <?php if (!empty($packing_status_counts)): ?>
-                <?php foreach ($packing_status_counts as $status => $count): ?>
-                    <span><?php echo htmlspecialchars($status); ?>: <strong><?php echo $count; ?></strong></span>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <span>-</span>
-            <?php endif; ?>
+            <strong>تعداد کل (فیلتر شده): <?php echo $total_filtered_count; ?></strong>
+
+            <hr style="flex-basis: 100%; border: 0; border-top: 1px solid #ccc; margin: 5px 0;"> <!-- Separator -->
+
+            <!-- Latest Activity Counts -->
+            <div> <!-- Wrap in div for potential flex alignment -->
+                <strong>آخرین فعالیت تکمیل شده:</strong>
+                <?php
+                $ordered_activity_keys = array_keys($latest_activity_map_persian);
+                $latest_items = [];
+                foreach ($ordered_activity_keys as $activity_key) {
+                    if (isset($latest_activity_counts_php[$activity_key]) && $latest_activity_counts_php[$activity_key] > 0) {
+                        $label = $latest_activity_map_persian[$activity_key];
+                        $count = $latest_activity_counts_php[$activity_key];
+                        $latest_items[] = "<span>" . htmlspecialchars($label) . ": <strong>" . $count . "</strong></span>";
+                    }
+                }
+                echo !empty($latest_items) ? implode('  ', $latest_items) : '<span>-</span>';
+                ?>
+            </div>
+
+            <hr style="flex-basis: 100%; border: 0; border-top: 1px solid #ccc; margin: 5px 0;"> <!-- Separator -->
+
+            <!-- Overall Completion Counts -->
+            <div>
+                <strong>کل تکمیل شده (تاکنون):</strong>
+                <?php
+                $overall_items = [];
+                if ($overall_mesh_done_count > 0) {
+                    $overall_items[] = "<span>کل مش: <strong>{$overall_mesh_done_count}</strong></span>";
+                }
+                if ($overall_concrete_done_count > 0) {
+                    $overall_items[] = "<span>کل بتن: <strong>{$overall_concrete_done_count}</strong></span>";
+                }
+                if ($overall_assembly_done_count > 0) {
+                    $overall_items[] = "<span>کل فیس کوت: <strong>{$overall_assembly_done_count}</strong></span>";
+                }
+                echo !empty($overall_items) ? implode('  ', $overall_items) : '<span>-</span>';
+                ?>
+            </div>
+
+            <!-- Overall Inventory Status -->
+            <div>
+                <strong>وضعیت کلی موجودی:</strong>
+                <?php
+                $inventory_items = [];
+                if (isset($inventory_status_counts_php['موجود']) && $inventory_status_counts_php['موجود'] > 0) {
+                    $inventory_items[] = "<span>موجود: <strong>" . $inventory_status_counts_php['موجود'] . "</strong></span>";
+                }
+                if (isset($inventory_status_counts_php['ارسال شده']) && $inventory_status_counts_php['ارسال شده'] > 0) {
+                    $inventory_items[] = "<span>ارسال شده: <strong>" . $inventory_status_counts_php['ارسال شده'] . "</strong></span>";
+                }
+                echo !empty($inventory_items) ? implode('  ', $inventory_items) : '<span>-</span>';
+                ?>
+            </div>
+
+            <!-- Overall Packing Status -->
+            <div>
+                <strong>وضعیت کلی بسته‌بندی:</strong>
+                <?php
+                $packing_items = [];
+                $ordered_packing_keys = array_keys($packing_status_map_persian);
+                foreach ($ordered_packing_keys as $packing_key) {
+                    if (isset($packing_status_counts_php[$packing_key]) && $packing_status_counts_php[$packing_key] > 0) {
+                        $label = $packing_status_map_persian[$packing_key];
+                        $count = $packing_status_counts_php[$packing_key];
+                        $packing_items[] = "<span>" . htmlspecialchars($label) . ": <strong>" . $count . "</strong></span>";
+                    }
+                }
+                echo !empty($packing_items) ? implode('  ', $packing_items) : '<span>-</span>';
+                ?>
+            </div>
+
         </div>
 
         <!-- Data Table -->
@@ -893,43 +1049,83 @@ $pageTitle = "مدیریت پنل‌های HPC";
                         <tbody>
                             <?php if (empty($records)): ?>
                                 <tr>
-                                    <td colspan="<?php echo count($selected_columns); /* +1 if action col exists */ ?>" class="text-center text-muted py-3">رکوردی یافت نشد.</td>
+                                    <!-- Colspan calculation is dynamic, no change needed here -->
+                                    <td colspan="<?php echo count($selected_columns); ?>" class="text-center text-muted py-3">رکوردی یافت نشد.</td>
                                 </tr>
                             <?php else: ?>
+                                <?php $row_number = 1; // <-- Initialize row number counter 
+                                ?>
                                 <?php foreach ($records as $record): ?>
                                     <tr>
                                         <?php foreach ($selected_columns as $col_key): ?>
                                             <td>
                                                 <?php
-                                                $value = $record[$col_key] ?? null;
-                                                if ($value === null) {
-                                                    echo '-';
-                                                } elseif (in_array($col_key, ['assigned_date', 'mesh_end_time', 'concrete_end_time', 'assembly_end_time', 'shipping_date', 'planned_finish_date', 'formwork_end_time'])) {
-                                                    // Format Dates (Handle datetime columns by taking date part)
-                                                    $date_part = ($value) ? explode(' ', $value)[0] : null;
-                                                    echo gregorianToShamsi($date_part) ?: '-';
-                                                } elseif ($col_key === 'polystyrene') {
-                                                    echo $polystyrene_map_persian[$value] ?? htmlspecialchars($value);
-                                                } elseif ($col_key === 'status') {
-                                                    echo $status_map_persian[$value] ?? htmlspecialchars($value);
-                                                } elseif ($col_key === 'packing_status') {
-                                                    echo $packing_status_map_persian[$value] ?? htmlspecialchars($value);
-                                                } elseif (is_numeric($value) && $col_key === 'area') {
-                                                    // Format area with 3 decimals
-                                                    echo number_format((float)$value, 3);
-                                                } elseif (is_numeric($value) && ($col_key === 'width' || $col_key === 'length')) {
-                                                    // Display width/length as is (assuming whole mm) or format with 0 decimals
-                                                    echo number_format((float)$value, 0);
-                                                    // Or just: echo htmlspecialchars($value); if they are always integers
-                                                } else {
-                                                    echo htmlspecialchars($value);
+                                                // Check for the new special columns FIRST
+                                                if ($col_key === 'row_num') {
+                                                    echo $row_number; // Display the current row number
+                                                } elseif ($col_key === 'inventory_status') {
+                                                    // Logic for موجودی/ارسال شده
+                                                    $concrete_end = !empty($record['concrete_end_time']) && $record['concrete_end_time'] != '0000-00-00 00:00:00';
+                                                    $packing_status = $record['packing_status'] ?? null;
+
+                                                    if ($packing_status === 'shipped') {
+                                                        echo 'ارسال شده';
+                                                    } elseif ($concrete_end && $packing_status !== 'shipped') {
+                                                        // Includes cases where packing_status is 'pending', 'assigned', or null/empty,
+                                                        // as long as concrete_end_time has a valid date.
+                                                        echo 'موجود';
+                                                    } else {
+                                                        // Neither condition met (e.g., not shipped AND concrete not finished)
+                                                        echo '-';
+                                                    }
                                                 }
+                                                // --- THEN handle existing columns ---
+                                                elseif ($col_key === 'latest_activity') {
+                                                    // NEW: Determine latest activity based on dates
+                                                    $assembly_done = !empty($record['assembly_end_time']) && $record['assembly_end_time'] != '0000-00-00 00:00:00';
+                                                    $concrete_done = !empty($record['concrete_end_time']) && $record['concrete_end_time'] != '0000-00-00 00:00:00';
+                                                    $mesh_done = !empty($record['mesh_end_time']) && $record['mesh_end_time'] != '0000-00-00 00:00:00';
+
+                                                    if ($assembly_done) {
+                                                        echo $latest_activity_map_persian['assembly_done'];
+                                                    } elseif ($concrete_done) {
+                                                        echo $latest_activity_map_persian['concrete_done'];
+                                                    } elseif ($mesh_done) {
+                                                        echo $latest_activity_map_persian['mesh_done'];
+                                                    } else {
+                                                        echo $latest_activity_map_persian['pending'];
+                                                    }
+                                                }
+                                                // --- Handle Standard DB Columns ---
+                                                else {
+                                                    $value = $record[$col_key] ?? null;
+                                                    if ($value === null) {
+                                                        echo '-';
+                                                    }
+                                                    // UPDATED: Use the $persian_date_columns array
+                                                    elseif (in_array($col_key, $persian_date_columns)) {
+                                                        $date_part = ($value) ? explode(' ', $value)[0] : null;
+                                                        echo gregorianToShamsi($date_part) ?: '-';
+                                                    }
+                                                    // REMOVED: elseif ($col_key === 'status') { ... }
+                                                    elseif ($col_key === 'packing_status') {
+                                                        echo $packing_status_map_persian[$value] ?? htmlspecialchars($value);
+                                                    } elseif (is_numeric($value) && $col_key === 'area') {
+                                                        echo number_format((float)$value, 3);
+                                                    } elseif (is_numeric($value) && ($col_key === 'width' || $col_key === 'length')) {
+                                                        echo number_format((float)$value, 0);
+                                                    } else {
+                                                        echo htmlspecialchars($value);
+                                                    }
+                                                } // End else for standard columns
                                                 ?>
                                             </td>
-                                        <?php endforeach; ?>
-
+                                        <?php endforeach; // End inner loop for columns 
+                                        ?>
                                     </tr>
-                                <?php endforeach; ?>
+                                    <?php $row_number++; ?>
+                                <?php endforeach; // End outer loop for records 
+                                ?>
                             <?php endif; ?>
                         </tbody>
                     </table>
