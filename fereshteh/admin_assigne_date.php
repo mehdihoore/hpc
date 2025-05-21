@@ -1480,6 +1480,9 @@ require_once 'header.php';
             <!-- Panel List -->
             <div class="bg-white p-4 rounded-lg shadow">
                 <h3 class="text-lg font-bold mb-4 text-gray-700">پنل‌های آماده</h3>
+                <div id="sidebarMessageArea" class="mb-3 text-sm p-2 rounded border hidden">
+                    <!-- Messages will be injected here -->
+                </div>
                 <!-- Updated Panel Stats Area -->
                 <div id="panelStats" class="text-sm text-gray-500 mb-3 border-b pb-2">
                     نمایش: <span id="visibleCountEl" class="font-semibold text-gray-700">0</span>
@@ -1536,6 +1539,14 @@ require_once 'header.php';
             <div class="bg-white p-4 rounded-lg shadow">
                 <h3 class="text-lg font-bold mb-4 text-gray-700">جستجو و فیلتر</h3>
                 <div class="space-y-3">
+                    <div>
+                        <label for="assignmentFilter" class="block text-sm font-medium text-gray-600 mb-1">وضعیت تخصیص</label>
+                        <select id="assignmentFilter" class="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                            <option value="unassigned">تخصیص داده نشده (پیش‌فرض)</option>
+                            <option value="assigned">تخصیص داده شده</option>
+                            <option value="">همه</option>
+                        </select>
+                    </div>
                     <div><label for="searchInput" class="block text-sm font-medium text-gray-600 mb-1">آدرس</label><input type="text" id="searchInput" class="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm" placeholder="..."></div>
                     <div><label for="typeFilter" class="block text-sm font-medium text-gray-600 mb-1">نوع</label><select id="typeFilter" class="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm">
                             <option value="">همه</option>
@@ -1553,11 +1564,7 @@ require_once 'header.php';
                             <?php endif;
                             endforeach; ?>
                         </select></div>
-                    <div><label for="assignmentFilter" class="block text-sm font-medium text-gray-600 mb-1">وضعیت</label><select id="assignmentFilter" class="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm">
-                            <option value="">همه</option>
-                            <option value="assigned">تخصیص داده</option>
-                            <option value="unassigned">تخصیص داده نشده</option>
-                        </select></div>
+
 
                     <div>
                         <label for="formworkFilter" class="block text-sm font-medium text-gray-600 mb-1">نوع قالب</label>
@@ -1747,6 +1754,204 @@ require_once 'header.php';
     body.calendar-multi-selecting .fc-event:not(.calendar-event-selected) {
         opacity: 0.4 !important;
     }
+
+    @media print {
+        body {
+            margin: 0;
+            padding: 0;
+            font-size: 6pt;
+            /* Base font size for print */
+
+        }
+
+        body.print-with-colors {
+            -webkit-print-color-adjust: exact !important;
+            /* Chrome/Safari */
+            print-color-adjust: exact !important;
+            /* Standard */
+        }
+
+        /* Hide elements not needed for print */
+        .md\:col-span-1,
+        /* Sidebar */
+        .top-header,
+        .fc-dayGridMonth-button,
+        .fc-dayGridWeek-button,
+        .fc-dayGridDay-button,
+        .fc-next-button,
+        .fc-prev-button,
+        .fc-today-button,
+        .header-content,
+        .nav-container,
+        footer,
+
+        #bulkScheduleResult,
+        /* Bulk schedule result area */
+        .persian-datepicker-container,
+        /* Hide datepicker UI */
+        .print\:hidden
+
+        /* Hide elements specifically marked */
+            {
+            display: none !important;
+        }
+
+        /* Make the main container and calendar container fill the page */
+        .container {
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 1mm !important;
+            /* Minimal padding for A4 */
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        .md\:col-span-3 {
+            width: 100% !important;
+            grid-column: span 4 / span 4 !important;
+            /* Override grid */
+            padding: 0 !important;
+            margin: 0 !important;
+            min-height: auto !important;
+            /* Remove min-height */
+            box-shadow: none !important;
+            border: none !important;
+        }
+
+        .bg-white.p-4.rounded-lg.shadow.min-h-\[600px\] {
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            min-height: auto !important;
+        }
+
+        /* Style the calendar itself */
+        #calendar {
+            width: auto !important;
+            height: auto !important;
+            /* Let content determine height */
+            overflow: visible !important;
+            /* No scrollbars */
+        }
+
+        /* Ensure week view is displayed if active */
+        /* (We'll also ensure it's active via JS) */
+        .fc-dayGridMonth-view {
+            display: none !important;
+        }
+
+        .fc-dayGridWeek-view {
+            display: block !important;
+            width: 100% !important;
+        }
+
+        /* Adjustments for tighter layout in week view */
+        .fc-daygrid-day-frame {
+            min-height: 120px;
+            /* Adjust based on expected content height */
+            /* Consider adding border for clarity */
+            border: 1px solid #eee;
+            margin: -1px 0 0 -1px;
+            width: 90%;
+            /* Overlap borders */
+        }
+
+        .fc .fc-daygrid-day-top {
+            flex-direction: row !important;
+            /* Date number horizontal */
+            padding: 2px;
+
+        }
+
+        .fc-daygrid-day-number {
+            font-size: 9pt;
+            padding: 1px 1px;
+        }
+
+        .fc-event {
+            font-size: 8pt;
+            /* Smaller font for events */
+            padding: 1px 2px;
+            margin-bottom: 2px;
+            page-break-inside: avoid;
+            /* Try to keep events on one page */
+        }
+
+        .fc-event-main-frame {
+            font-size: 8pt;
+            min-height: auto !important;
+            padding: 1px 2px !important;
+            width: 90% !important;
+        }
+
+        .fc-event-title,
+        .fc-event-detail {
+            font-size: 8pt;
+            color: #000000 !important;
+            line-height: 1.2;
+            margin-bottom: 0 !important;
+        }
+
+        .fc-daygrid-event-harness {
+            margin-bottom: 2px !important;
+            background-color: #ffffff !important;
+            width: 90%;
+            /* Reduce spacing between events */
+        }
+
+        /* Hide 'more' links if they clutter */
+        .fc-daygrid-more-link {
+            /* display: none !important; */
+            /* Uncomment if necessary */
+            font-size: 8pt;
+        }
+
+        /* Ensure event colors print */
+        .fc-event {
+            background-color: var(--fc-event-bg-color, #3788d8) !important;
+            border-color: var(--fc-event-border-color, #3788d8) !important;
+            color: var(--fc-event-text-color, #fff) !important;
+        }
+
+        .fc-toolbar-title {
+            font-size: 8pt;
+            line-height: 1.2;
+            margin-bottom: 0 !important;
+        }
+
+        body.print-with-colors .fc-event {
+            background-color: var(--fc-event-bg-color, #3788d8) !important;
+            border-color: var(--fc-event-border-color, #3788d8) !important;
+            color: var(--fc-event-text-color, #fff) !important;
+        }
+
+        body.print-with-colors .fc-event-main-frame {
+            color: var(--fc-event-text-color, #fff) !important;
+            /* Ensure frame text matches */
+        }
+
+
+        /* Styles when printing WITHOUT colors (Black & White) */
+        body:not(.print-with-colors) .fc-event {
+            background-color: #ffffff !important;
+            /* White background */
+            border: 1px solid #000000 !important;
+            /* Black border */
+            color: #000000 !important;
+            /* Black text */
+        }
+
+        /* Ensure text inside the event frame is black for B&W */
+        body:not(.print-with-colors) .fc-event-main-frame {
+            color: #000000 !important;
+        }
+
+        body:not(.print-with-colors) .fc-event-title,
+        body:not(.print-with-colors) .fc-event-detail {
+            color: #000000 !important;
+        }
+    }
 </style>
 
 <script>
@@ -1773,6 +1978,7 @@ require_once 'header.php';
         const typeFilter = document.getElementById('typeFilter');
         const priorityFilter = document.getElementById('priorityFilter');
         const assignmentFilter = document.getElementById('assignmentFilter');
+        const sidebarMessageArea = document.getElementById('sidebarMessageArea');
         const formworkFilter = document.getElementById('formworkFilter'); // Added
 
         // Panel Stats Elements
@@ -1914,26 +2120,26 @@ require_once 'header.php';
             });
         }
 
-        function updateGlobalSelectionVisualState() {
+        function updateGlobalSelectionVisualState() { // Manages body class
             if (selectedCalendarEventIds.size > 0) {
                 document.body.classList.add(BODY_MULTI_SELECTING_CLASS);
             } else {
                 document.body.classList.remove(BODY_MULTI_SELECTING_CLASS);
             }
-            // This function just manages the body class.
-            // Individual event styling is now primarily handled by eventClassNames.
         }
 
-        function toggleEventElementSelection(eventEl, shouldBeSelected) {
-            if (eventEl) {
-                if (shouldBeSelected) {
-                    eventEl.classList.add(CALENDAR_EVENT_SELECTED_CLASS);
-                } else {
-                    eventEl.classList.remove(CALENDAR_EVENT_SELECTED_CLASS);
+        function clearCalendarSelection() {
+            const previouslySelectedIds = new Set(selectedCalendarEventIds);
+            selectedCalendarEventIds.clear();
+
+            previouslySelectedIds.forEach(id => {
+                const event = calendar.getEventById(id.toString()); // id from Set is string
+                if (event) {
+                    event.setExtendedProp('_selection_trigger_clear', Math.random()); // Nudge event
                 }
-            } else {
-                console.warn("toggleEventElementSelection: eventEl is null/undefined");
-            }
+            });
+            updateGlobalSelectionVisualState(); // Update body class
+            console.log("Calendar selection cleared.");
         }
 
         // --- Helper: Clear Calendar Selection ---
@@ -2175,7 +2381,7 @@ require_once 'header.php';
             searchText: '',
             selectedType: '',
             selectedPriority: '',
-            assignmentStatus: '',
+            assignmentStatus: 'unassigned',
             selectedFormwork: ''
         };
         let lastSelectedPanelFromList = null; // For shift-click selection
@@ -2364,14 +2570,14 @@ require_once 'header.php';
         let fcDraggableInstance = null;
 
         function initializeExternalEventDragging() {
-            if (fcDraggableInstance) { // Destroy previous instance if exists
-                // fcDraggableInstance.destroy(); // FullCalendar Draggable doesn't have a formal destroy in all versions easily.
-                // Instead, ensure itemSelector correctly targets only current, valid items.
+            if (fcDraggableInstance) {
+                console.log("Destroying previous Draggable instance"); // For debugging
+                fcDraggableInstance.destroy();
+                fcDraggableInstance = null;
             }
             if (externalEventsContainer && USER_CAN_EDIT) {
+                console.log("Creating new Draggable instance"); // For debugging
                 fcDraggableInstance = new FullCalendar.Draggable(externalEventsContainer, {
-                    // Critical: only target items that are NOT assigned and NOT read-only (if user can edit)
-                    // And ensure they are not hidden by client-side search!
                     itemSelector: '.panel-item:not([data-panel-assigned="true"]):not(.read-only-item):not(.hidden)',
                     eventData: function(eventEl) {
                         const address = eventEl.querySelector('.font-semibold')?.innerText || 'پنل';
@@ -2381,13 +2587,13 @@ require_once 'header.php';
                                 panelId: eventEl.getAttribute('data-panel-id'),
                                 formworkType: eventEl.getAttribute('data-panel-formwork'),
                                 address: address
-                            }
-                            // DO NOT set create: false here if you want it to be a "copy"
+                            },
+                            create: false // *** IMPORTANT: Prevent FC Draggable from auto-creating event visuals ***
                         };
                     },
                 });
                 addTouchListenersToPanelItems(externalEventsContainer.querySelectorAll('.panel-item:not([data-panel-assigned="true"]):not(.read-only-item)'));
-            } else if (externalEventsContainer) { // Read-only user
+            } else if (externalEventsContainer) {
                 externalEventsContainer.querySelectorAll('.panel-item:not([data-panel-assigned="true"])').forEach(p => {
                     p.style.cursor = 'default';
                 });
@@ -2442,26 +2648,38 @@ require_once 'header.php';
 
         // --- FullCalendar Init ---
         const calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: isMobile ? 'dayGridWeek' : 'dayGridMonth',
+            initialView: localStorage.getItem('fc_initialView') || (isMobile ? 'dayGridWeek' : 'dayGridMonth'),
+            initialDate: localStorage.getItem('fc_initialDate') || null, // null will default to current date
+
             locale: 'fa',
             direction: 'rtl',
-            firstDay: 6,
+            firstDay: 6, // Saturday
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
-                right: 'dayGridMonth,dayGridWeek'
+                right: 'dayGridMonth,dayGridWeek' // Add 'listWeek' or other views if you use them
             },
             buttonText: {
                 today: 'امروز',
                 month: 'ماه',
-                week: 'هفته'
+                week: 'هفته',
+                // list: 'لیست' // if you add list view
             },
-            editable: true,
-            droppable: true,
-            selectable: false,
+            editable: USER_CAN_EDIT,
+            droppable: USER_CAN_EDIT,
+            selectable: true,
+            selectMirror: true,
             longPressDelay: isMobile ? 150 : 50,
             eventLongPressDelay: isMobile ? 150 : 50,
-            height: 'auto',
+            height: 'auto', // Or '100%' or a fixed value if preferred
+            datesSet: function(dateInfo) {
+                // dateInfo.view.type gives the current view name (e.g., 'dayGridMonth')
+                // dateInfo.startStr or a date from dateInfo.view.currentStart can be used
+                // We'll use the view's active start date for consistency
+                localStorage.setItem('fc_initialView', dateInfo.view.type);
+                localStorage.setItem('fc_initialDate', moment(dateInfo.view.activeStart).format('YYYY-MM-DD'));
+                console.log('Calendar state saved:', dateInfo.view.type, moment(dateInfo.view.activeStart).format('YYYY-MM-DD'));
+            },
             // *** Conditional Editability ***
             editable: USER_CAN_EDIT, // Allow moving events only if user can edit
             droppable: USER_CAN_EDIT, // Allow dropping external panels only if user can edit
@@ -2475,27 +2693,26 @@ require_once 'header.php';
                 clearCalendarSelection();
             },
             eventClassNames: function(arg) {
+                let classes = [];
                 if (selectedCalendarEventIds.has(arg.event.id.toString())) {
-                    return [CALENDAR_EVENT_SELECTED_CLASS];
+                    classes.push(CALENDAR_EVENT_SELECTED_CLASS);
                 }
-                return [];
+                return classes;
             },
             eventDidMount: function(info) {
-                // info.event is the event object
-                // info.el is the event's root DOM element
-                console.log("eventDidMount - ID:", info.event.id, "el:", info.el);
-                if (selectedCalendarEventIds.has(info.event.id.toString())) { // Ensure comparing string ID
-                    console.log("   Applying selection class to newly mounted event:", info.event.id);
-                    info.el.classList.add(CALENDAR_EVENT_SELECTED_CLASS);
-                }
-
+                // eventClassNames should handle the selected class.
+                // Use eventDidMount for things like tooltips or other specific DOM manipulations on info.el
+                // if (info.el) { // Always check if info.el is present
+                //    info.el.title = `...`; // Example: if you want tooltips
+                // }
+                // console.log("eventDidMount:", info.event.id, "el:", info.el);
             },
 
             eventWillUnmount: function(info) {
-                // Optional: Clean up if needed, though usually not for simple class toggling
-                // console.log("eventWillUnmount - ID:", info.event.id);
+                // console.log("eventWillUnmount:", info.event.id);
             },
-            eventDrop: async function(info) {
+
+            eventDrop: async function(info) { // Moving an existing event on the calendar
                 if (!USER_CAN_EDIT) {
                     info.revert();
                     return;
@@ -2503,71 +2720,70 @@ require_once 'header.php';
 
                 const droppedEvent = info.event;
                 const newDate = moment(droppedEvent.start).format('YYYY-MM-DD');
-                let eventsToMove = []; // Array of { id: panelId, formworkType: baseFormworkType, originalEvent: eventObj }
+                let eventsToMove = [];
+                let originalEventPositions = new Map();
 
-                showGlobalLoading("در حال جابجایی پنل(ها)...");
-
-                if (selectedCalendarEventIds.size > 0 && selectedCalendarEventIds.has(droppedEvent.id)) {
-                    // Multi-event drop: move all selected events
-                    console.log(`Multi-drop detected. Processing ${selectedCalendarEventIds.size} events.`);
+                if (selectedCalendarEventIds.size > 0 && selectedCalendarEventIds.has(droppedEvent.id.toString())) {
                     selectedCalendarEventIds.forEach(eventId => {
-                        const eventObj = calendar.getEventById(eventId);
+                        const eventObj = calendar.getEventById(eventId); // eventId is already string from Set
                         if (eventObj) {
                             eventsToMove.push({
                                 id: eventObj.extendedProps.panelId,
-                                formworkType: eventObj.extendedProps.formworkType, // Make sure this is base type
-                                address: eventObj.title, // Or eventObj.extendedProps.address
-                                currentEventObject: eventObj // Keep reference to FullCalendar event
+                                formworkType: eventObj.extendedProps.formworkType,
+                                address: eventObj.title,
+                                currentEventObject: eventObj
+                            });
+                            originalEventPositions.set(eventObj.extendedProps.panelId.toString(), {
+                                start: eventObj.start
                             });
                         }
                     });
                 } else {
-                    // Single event drop (or an event not part of the current multi-selection was dragged)
-                    // In this case, we should probably only move the one event that was physically dragged.
-                    // And clear any other multi-selection.
-                    clearCalendarSelection(); // Clear selection as we are processing a single non-group drag
-                    console.log("Single event drop detected for panel ID:", droppedEvent.extendedProps.panelId);
+                    // If a non-selected event or the only selected event is dragged, clear other selections
+                    clearCalendarSelection(); // Clears the Set and nudges previously selected events
                     eventsToMove.push({
                         id: droppedEvent.extendedProps.panelId,
                         formworkType: droppedEvent.extendedProps.formworkType,
                         address: droppedEvent.title,
                         currentEventObject: droppedEvent
                     });
+                    originalEventPositions.set(droppedEvent.extendedProps.panelId.toString(), {
+                        start: info.oldEvent.start
+                    });
+                    // Visually select just the dragged event (if not already handled by clear + single add)
+                    selectedCalendarEventIds.add(droppedEvent.id.toString());
+                    droppedEvent.setExtendedProp('_selection_trigger_drag', Math.random()); // Nudge to apply class
+                    updateGlobalSelectionVisualState(); // Update body class
                 }
 
                 if (eventsToMove.length === 0) {
                     alert("هیچ پنلی برای جابجایی مشخص نشد.");
-                    hideGlobalLoading();
-                    info.revert(); // Revert the visually dragged event
+                    info.revert();
                     return;
                 }
 
-                // --- Backend Call for Multiple Panel Updates ---
-                // We'll use the existing 'scheduleMultiplePanels' endpoint.
-                // It's designed to take a list of panel IDs and a date range.
-                // For a move, the "old date" handling (unassignment, order deletion) needs to happen
-                // BEFORE the new assignment. This is tricky with a single endpoint.
+                if (eventsToMove.length > 1) {
+                    if (!confirm(`آیا از جابجایی ${eventsToMove.length} پنل انتخاب شده به تاریخ ${moment(newDate).format('jYYYY/jMM/jDD')} اطمینان دارید؟\n(هر پنل جداگانه برای پیشرفت و ظرفیت بررسی خواهد شد)`)) {
+                        info.revert();
+                        eventsToMove.forEach(eventData => { // Revert other (non-dragged) selected events
+                            if (eventData.currentEventObject !== droppedEvent) {
+                                const originalPos = originalEventPositions.get(eventData.id.toString());
+                                if (eventData.currentEventObject && originalPos) {
+                                    eventData.currentEventObject.setStart(originalPos.start, {
+                                        maintainDuration: true
+                                    });
+                                }
+                            }
+                        });
+                        // No need to clear selection here as the operation was cancelled, selection should remain.
+                        return;
+                    }
+                }
 
-                // A more robust backend would be:
-                // action: 'moveMultiplePanels'
-                // payload: { panels: [{id, oldDate, formworkType}], newDate }
-
-                // For now, let's try a simplified client-side loop and call 'updatePanelDate' for each.
-                // This is NOT ideal for true multi-update atomicity and can lead to partial updates.
-                // A dedicated backend endpoint is much better.
-
+                showGlobalLoading("در حال جابجایی پنل(ها)...");
                 let allSucceeded = true;
                 let results = [];
-                let originalEventPositions = new Map(); // Store original positions to revert if needed
-
-                // Store original positions before attempting moves
-                eventsToMove.forEach(eventData => {
-                    originalEventPositions.set(eventData.id, {
-                        start: eventData.currentEventObject.start,
-                        // end: eventData.currentEventObject.end // if you use end dates
-                    });
-                });
-
+                let successCount = 0;
 
                 for (const eventData of eventsToMove) {
                     const panelId = eventData.id;
@@ -2575,7 +2791,7 @@ require_once 'header.php';
 
                     if (!baseFormworkType) {
                         results.push({
-                            panelId: panelId,
+                            panelId,
                             address: eventData.address,
                             success: false,
                             error: 'نوع قالب نامشخص.'
@@ -2583,57 +2799,50 @@ require_once 'header.php';
                         allSucceeded = false;
                         continue;
                     }
-
                     try {
-                        // 1. Check Availability for this specific panel
                         const availData = await makeAjaxCall({
                             action: 'checkFormworkAvailability',
-                            panelId: panelId, // Pass panelId to exclude itself from count if it was already on newDate
+                            panelId,
                             date: newDate,
                             formworkType: baseFormworkType
                         });
                         if (!availData.available) {
                             results.push({
-                                panelId: panelId,
+                                panelId,
                                 address: eventData.address,
                                 success: false,
                                 error: availData.error || 'ظرفیت تکمیل.'
                             });
                             allSucceeded = false;
-                            continue; // Skip this panel
+                            continue;
                         }
-
-                        // 2. Attempt Update (this handles progress check, panel DB update, order logic)
                         let updateResponse = await makeAjaxCall({
-                            action: 'updatePanelDate', // This action already handles unassign from old + assign to new
-                            panelId: panelId,
+                            action: 'updatePanelDate',
+                            panelId,
                             date: newDate
                         });
-
-                        // 3. Handle Progress Warning
                         if (updateResponse.progress_exists) {
                             if (confirm(`پنل "${eventData.address}" دارای اطلاعات پیشرفت است. برای جابجایی، پیشرفت پاک خواهد شد. ادامه می‌دهید؟`)) {
                                 updateResponse = await makeAjaxCall({
                                     action: 'updatePanelDate',
-                                    panelId: panelId,
+                                    panelId,
                                     date: newDate,
                                     forceUpdate: true
                                 });
                             } else {
                                 results.push({
-                                    panelId: panelId,
+                                    panelId,
                                     address: eventData.address,
                                     success: false,
                                     error: 'جابجایی به دلیل وجود پیشرفت لغو شد.'
                                 });
                                 allSucceeded = false;
-                                continue; // Skip this panel, user cancelled
+                                continue;
                             }
                         }
-
                         if (!updateResponse.success) {
                             results.push({
-                                panelId: panelId,
+                                panelId,
                                 address: eventData.address,
                                 success: false,
                                 error: updateResponse.error || 'خطا در به‌روزرسانی تاریخ.'
@@ -2641,24 +2850,22 @@ require_once 'header.php';
                             allSucceeded = false;
                         } else {
                             results.push({
-                                panelId: panelId,
+                                panelId,
                                 address: eventData.address,
                                 success: true,
                                 message: updateResponse.message
                             });
-                            // FullCalendar might have already moved it visually if it's the primary `info.event`.
-                            // For other selected events, we need to ensure they are moved on the calendar if success.
+                            successCount++;
+                            // Client-side move for non-primary dragged events if multi-select drag
                             if (eventData.currentEventObject !== droppedEvent) {
-                                // Calculate the date difference if the original drag was across multiple days
                                 const dateDelta = moment(droppedEvent.start).diff(moment(info.oldEvent.start), 'days');
-                                const originalStartDate = moment(originalEventPositions.get(panelId)?.start);
-                                if (originalStartDate) {
-                                    const newCalculatedStartDate = originalStartDate.clone().add(dateDelta, 'days');
+                                const originalStartDateMoment = moment(originalEventPositions.get(eventData.id.toString())?.start);
+                                if (originalStartDateMoment.isValid()) {
+                                    const newCalculatedStartDate = originalStartDateMoment.clone().add(dateDelta, 'days');
                                     eventData.currentEventObject.setStart(newCalculatedStartDate.toDate(), {
                                         maintainDuration: true
                                     });
-                                    // If you have end dates: eventData.currentEventObject.setEnd(...);
-                                } else { // Fallback if original position not found, just move to newDate
+                                } else { // Fallback
                                     eventData.currentEventObject.setStart(newDate, {
                                         maintainDuration: true
                                     });
@@ -2666,94 +2873,71 @@ require_once 'header.php';
                             }
                         }
                     } catch (error) {
-                        console.error(`Error processing panel ${panelId} during multi-drop:`, error);
                         results.push({
-                            panelId: panelId,
+                            panelId,
                             address: eventData.address,
                             success: false,
                             error: 'خطای سرور هنگام جابجایی.'
                         });
                         allSucceeded = false;
                     }
-                } // End loop through eventsToMove
-
+                }
                 hideGlobalLoading();
-
-                // --- Display Results ---
                 let summaryMessage = "نتایج جابجایی گروهی:\n";
-                let successCount = 0;
                 results.forEach(res => {
-                    if (res.success) {
-                        successCount++;
-                        summaryMessage += `✅ ${res.address}: ${res.message || 'موفق'}\n`;
-                    } else {
-                        summaryMessage += `❌ ${res.address}: ${res.error}\n`;
-                        // Revert failed ones on the calendar
-                        const eventToRevert = eventsToMove.find(e => e.id === res.panelId)?.currentEventObject;
-                        const originalPos = originalEventPositions.get(res.panelId);
-                        if (eventToRevert && originalPos) {
-                            eventToRevert.setStart(originalPos.start, {
+                    summaryMessage += `${res.success ? '✅' : '❌'} ${res.address}: ${res.success ? (res.message || 'موفق') : res.error}\n`;
+                    if (!res.success) {
+                        const eventToRevertData = eventsToMove.find(e => e.id === res.panelId);
+                        const originalPos = originalEventPositions.get(res.panelId.toString());
+                        if (eventToRevertData && eventToRevertData.currentEventObject && originalPos) {
+                            eventToRevertData.currentEventObject.setStart(originalPos.start, {
                                 maintainDuration: true
                             });
-                            // if (originalPos.end) eventToRevert.setEnd(originalPos.end);
-                            console.log(`Reverted event ${eventToRevert.id} due to failure.`);
-                        } else if (eventToRevert === droppedEvent) { // If primary dragged event failed
-                            info.revert();
+                            console.log(`Reverted event ${eventToRevertData.currentEventObject.id} due to failure.`);
+                        } else if (eventToRevertData && eventToRevertData.currentEventObject === droppedEvent) {
+                            info.revert(); // Revert the primary dragged one if it failed
                         }
-
                     }
                 });
                 alert(summaryMessage);
 
-                if (successCount > 0 && successCount < eventsToMove.length) {
-                    // Partial success, refetch to ensure calendar is accurate for successful ones
-                    calendar.refetchEvents();
-                } else if (successCount === 0 && eventsToMove.length > 0) {
-                    // All failed, the individual reverts should handle it.
-                    // The primary dragged event info.revert() might also be needed if it was one of the failed.
-                } else if (successCount === eventsToMove.length) {
-                    // All succeeded. Visual updates might have already happened.
-                    // A calendar.refetchEvents() can ensure consistency.
+                // Decide on refetching
+                if (successCount > 0 && successCount < eventsToMove.length) { // Partial success
+                    console.log("Partial success in eventDrop, refetching events for consistency.");
                     calendar.refetchEvents();
                 }
+                // If all success, client-side moves are done. If all fail, client-side reverts are done.
+                // A refetch might still be good after any server interaction to ensure perfect sync,
+                // but can be omitted if client-side updates are reliable.
+                // For now, only refetch on partial.
 
-
-                clearCalendarSelection(); // Clear selection after processing
-            },
+                clearCalendarSelection(); // Clear selection state after operation
+            }, // End eventDrop
 
             // --- Clicking to remove an assignment ---
             eventClick: async function(info) {
                 if (!USER_CAN_EDIT) return;
-                info.jsEvent.preventDefault(); // Prevent default browser action
+                info.jsEvent.preventDefault();
 
                 const clickedEvent = info.event;
-                const clickedEventEl = info.el; // DOM element of the clicked event
                 const clickedEventIdStr = clickedEvent.id.toString();
 
-                console.log("Event clicked:", clickedEventIdStr, "Ctrl/Meta:", info.jsEvent.ctrlKey || info.jsEvent.metaKey);
-
-                if (info.jsEvent.ctrlKey || info.jsEvent.metaKey) {
+                if (info.jsEvent.ctrlKey || info.jsEvent.metaKey) { // Toggle selection
                     if (selectedCalendarEventIds.has(clickedEventIdStr)) {
                         selectedCalendarEventIds.delete(clickedEventIdStr);
-                        toggleEventElementSelection(clickedEventEl, false); // Immediate visual feedback
                     } else {
                         selectedCalendarEventIds.add(clickedEventIdStr);
-                        toggleEventElementSelection(clickedEventEl, true); // Immediate visual feedback
                     }
+                    clickedEvent.setExtendedProp('_selection_trigger_toggle', Math.random()); // Nudge
                 } else { // Normal click
-                    const isOnlySelected = selectedCalendarEventIds.has(clickedEventIdStr) && selectedCalendarEventIds.size === 1;
+                    const isCurrentlyOnlySelected = selectedCalendarEventIds.has(clickedEventIdStr) && selectedCalendarEventIds.size === 1;
 
-                    if (isOnlySelected) {
-                        // --- ACTION: UNASSIGN ---
-                        // Clicked on an event that was already the *only* selected one.
-                        console.log("Attempting to unassign event:", clickedEventIdStr);
+                    if (isCurrentlyOnlySelected) { // Attempt to unassign
                         const panelId = clickedEvent.extendedProps.panelId;
                         const dateStr = moment(clickedEvent.start).isValid() ? moment(clickedEvent.start).format('jYYYY/jMM/jDD') : '?';
                         const title = clickedEvent.title || 'پنل';
-
-                        if (confirm(`لغو تخصیص پنل "${title}" در ${dateStr}؟\n(این کار سفارش مربوطه را نیز لغو می‌کند)`)) {
+                        if (confirm(`لغو تخصیص پنل "${title}" در ${dateStr}؟\n(این کار سفارش(های) یونولیت مربوطه را نیز لغو می‌کند)`)) {
                             showGlobalLoading("در حال لغو تخصیص...");
-                            let unassignmentSuccessful = false;
                             try {
                                 let response = await makeAjaxCall({
                                     action: 'updatePanelDate',
@@ -2769,76 +2953,59 @@ require_once 'header.php';
                                             forceUpdate: true
                                         });
                                     } else {
-                                        // User cancelled due to progress warning. Do nothing to selection. Event remains selected.
-                                        hideGlobalLoading();
-                                        updateGlobalSelectionVisualState(); // Just ensure body class is correct
-                                        return; // Exit eventClick
+                                        hideGlobalLoading(); /* User cancelled, selection state unchanged */
+                                        return;
                                     }
                                 }
                                 if (response.success) {
-                                    unassignmentSuccessful = true;
-                                    clickedEvent.remove(); // Remove from FullCalendar's internal model & DOM
-                                    selectedCalendarEventIds.delete(clickedEventIdStr); // Remove from our selection state
-
-                                    // Update corresponding panel in the sidebar list
+                                    selectedCalendarEventIds.delete(clickedEventIdStr); // Remove from selection
+                                    clickedEvent.remove(); // Remove from calendar
                                     const pEl = document.querySelector(`.panel-item[data-panel-id="${panelId}"]`);
                                     if (pEl) {
+                                        /* Update sidebar item */
                                         pEl.dataset.panelAssigned = 'false';
                                         pEl.classList.remove('bg-gray-200', 'text-gray-500', 'cursor-not-allowed', 'panel-selected');
                                         pEl.classList.add('bg-blue-100', 'text-blue-800', 'hover:bg-blue-200', 'cursor-grab');
                                     }
-                                    applyClientSideSearchHighlightingAndCount(); // Update sidebar panel list counts
-                                    console.log("Unassigned and removed:", clickedEventIdStr);
+                                    applyClientSideSearchHighlightingAndCount();
                                 } else {
                                     alert('خطا در لغو تخصیص: ' + (response.error || 'Unknown error.'));
-                                    // Unassignment failed, event remains on calendar and should remain selected.
-                                    // No change to selectedCalendarEventIds needed as it was already the only one.
                                 }
                             } catch (error) {
-                                console.error('Error during event unassignment:', error);
+                                /* Handle error */
                                 alert('خطای اساسی در لغو تخصیص.');
-                                // On fundamental error, assume it's still selected.
                             } finally {
                                 hideGlobalLoading();
                             }
-                            // After unassignment attempt, whether successful or not, the selection state
-                            // (selectedCalendarEventIds and body class) needs to reflect reality.
-                            // If successful, it was deleted. If failed/cancelled, it should still be the only selected.
-                        } else {
-                            // User cancelled the unassignment confirmation. Event remains selected.
-                            console.log("Unassignment confirm cancelled by user for", clickedEventIdStr);
                         }
-                    } else {
-                        // Clear other selections visually and from the Set, then select this one.
-                        selectedCalendarEventIds.forEach(idToDeselect => {
-                            if (idToDeselect !== clickedEventIdStr) {
-                                const eventToDeselect = calendar.getEventById(idToDeselect);
-                                if (eventToDeselect && eventToDeselect.el) {
-                                    toggleEventElementSelection(eventToDeselect.el, false);
-                                }
-                            }
-                        });
+                    } else { // Select this event, deselect others
+                        const previouslySelectedIds = new Set(selectedCalendarEventIds);
                         selectedCalendarEventIds.clear();
                         selectedCalendarEventIds.add(clickedEventIdStr);
-                        toggleEventElementSelection(clickedEventEl, true); // Ensure this one is visually selected
+
+                        previouslySelectedIds.forEach(id => { // Nudge previously selected
+                            if (id !== clickedEventIdStr) {
+                                const event = calendar.getEventById(id);
+                                if (event) event.setExtendedProp('_selection_trigger_deselect_other', Math.random());
+                            }
+                        });
+                        clickedEvent.setExtendedProp('_selection_trigger_select_this', Math.random()); // Nudge current
                     }
                 }
                 updateGlobalSelectionVisualState(); // Update body class
-            },
+            }, // End eventClick
+
+
             // --- Dropping an external panel ---
-            drop: async function(info) {
+            drop: async function(info) { // Dropping an external panel from sidebar
                 if (!info.date || !USER_CAN_EDIT) return;
+                clearCalendarSelection();
 
-                clearCalendarSelection(); // Clear any calendar multi-selection
-
-                const draggedEl = info.draggedEl; // The single element physically dragged
+                const draggedEl = info.draggedEl;
                 const targetDate = moment(info.date).format('YYYY-MM-DD');
-                let panelsToProcessClientInfo = []; // Array of {id, formworkType, address, element}
+                let panelsToProcessClientInfo = [];
 
-                if (draggedEl.dataset.panelAssigned === 'true' || draggedEl.classList.contains('read-only-item')) {
-                    console.warn("Attempted to drop an invalid panel.", draggedEl);
-                    return;
-                }
+                if (draggedEl.dataset.panelAssigned === 'true' || draggedEl.classList.contains('read-only-item')) return;
 
                 const selectedPanelElements = Array.from(
                     externalEventsContainer.querySelectorAll('.panel-item.panel-selected:not([data-panel-assigned="true"]):not(.read-only-item):not(.hidden)')
@@ -2859,76 +3026,54 @@ require_once 'header.php';
                         element: draggedEl
                     });
                 }
-
                 panelsToProcessClientInfo = panelsToProcessClientInfo.filter(p => p.id && p.formworkType);
-
                 if (panelsToProcessClientInfo.length === 0) {
                     alert('هیچ پنل معتبری برای تخصیص انتخاب نشده است.');
                     return;
                 }
 
                 if (panelsToProcessClientInfo.length > 1) {
-                    if (!confirm(`آیا از تخصیص ${panelsToProcessClientInfo.length} پنل به تاریخ ${moment(targetDate).format('jYYYY/jMM/jDD')} اطمینان دارید؟ (هر پنل جداگانه بررسی می‌شود)`)) {
-                        return;
-                    }
+                    if (!confirm(`آیا از تخصیص ${panelsToProcessClientInfo.length} پنل به تاریخ ${moment(targetDate).format('jYYYY/jMM/jDD')} اطمینان دارید؟`)) return;
                 }
 
                 showGlobalLoading(`در حال تخصیص ${panelsToProcessClientInfo.length} پنل...`);
-                bulkScheduleResultEl.innerHTML = ''; // Clear previous results
+                bulkScheduleResultEl.innerHTML = '';
                 bulkScheduleResultEl.className = 'mt-2 text-sm p-2 rounded border bg-gray-50 border-gray-200 min-h-[3em]';
-
                 let resultsSummary = [];
                 let overallSuccessCount = 0;
 
                 for (const panelInfo of panelsToProcessClientInfo) {
-                    const panelId = panelInfo.id;
-                    const baseFormworkType = panelInfo.formworkType;
-                    const panelAddress = panelInfo.address;
-                    const panelElement = panelInfo.element;
-
+                    const {
+                        id: panelId,
+                        formworkType: baseFormworkType,
+                        address: panelAddress,
+                        element: panelElement
+                    } = panelInfo;
                     try {
-                        // 1. Client-side check for formwork type (already done when creating panelsToProcessClientInfo)
-                        if (!baseFormworkType) {
-                            resultsSummary.push({
-                                address: panelAddress,
-                                success: false,
-                                reason: 'نوع قالب نامشخص.'
-                            });
-                            panelElement.classList.remove('panel-selected'); // Deselect if failed
-                            continue;
-                        }
-
-                        // 2. AJAX Call to checkFormworkAvailability (as in original single drop)
                         const availData = await makeAjaxCall({
                             action: 'checkFormworkAvailability',
-                            panelId: null, // For new assignment, panelId is not relevant for *this* check here
                             date: targetDate,
                             formworkType: baseFormworkType
                         });
-
                         if (!availData.available) {
                             resultsSummary.push({
                                 address: panelAddress,
                                 success: false,
                                 reason: availData.error || 'ظرفیت تکمیل.'
                             });
-                            panelElement.classList.remove('panel-selected'); // Deselect if failed
+                            panelElement.classList.remove('panel-selected');
                             continue;
                         }
-
-                        // 3. AJAX Call to updatePanelDate (this handles progress, panel update, orders)
                         let updateData = await makeAjaxCall({
                             action: 'updatePanelDate',
-                            panelId: panelId,
+                            panelId,
                             date: targetDate
                         });
-
-                        // 4. Handle Progress Warning (if `updatePanelDate` returns progress_exists)
                         if (updateData.progress_exists) {
                             if (confirm(`پنل "${panelAddress}" دارای اطلاعات پیشرفت است. برای تخصیص، اطلاعات پیشرفت پاک خواهد شد. ادامه می‌دهید؟`)) {
                                 updateData = await makeAjaxCall({
                                     action: 'updatePanelDate',
-                                    panelId: panelId,
+                                    panelId,
                                     date: targetDate,
                                     forceUpdate: true
                                 });
@@ -2938,102 +3083,95 @@ require_once 'header.php';
                                     success: false,
                                     reason: 'تخصیص به دلیل وجود پیشرفت لغو شد.'
                                 });
-                                panelElement.classList.remove('panel-selected'); // Deselect if failed
-                                continue; // User cancelled
+                                panelElement.classList.remove('panel-selected');
+                                continue;
                             }
                         }
-
-                        // 5. Check final update result from updatePanelDate
                         if (!updateData.success) {
                             resultsSummary.push({
                                 address: panelAddress,
                                 success: false,
                                 reason: updateData.error || 'خطا در ذخیره تاریخ.'
                             });
-                            panelElement.classList.remove('panel-selected'); // Deselect if failed
+                            panelElement.classList.remove('panel-selected');
                         } else {
-                            // SUCCESS for this panel
                             overallSuccessCount++;
                             resultsSummary.push({
                                 address: panelAddress,
                                 success: true,
                                 message: updateData.message
                             });
-
-                            // Update UI for this specific panelElement
                             panelElement.dataset.panelAssigned = 'true';
                             panelElement.classList.remove('panel-selected', 'bg-blue-100', 'text-blue-800', 'hover:bg-blue-200', 'cursor-grab');
                             panelElement.classList.add('bg-gray-200', 'text-gray-500', 'cursor-not-allowed');
-                            // No need to remove 'panel-item' class
 
-                            // Add event to calendar (if not already added by some other mechanism - updatePanelDate doesn't add to calendar)
-                            // We need to manually add it here since updatePanelDate is a generic backend.
-                            const calendarEvent = calendar.getEventById(panelId.toString()); // Check if event already exists by chance
-                            if (!calendarEvent) {
-                                calendar.addEvent({
-                                    id: panelId.toString(), // Ensure event has an ID
-                                    title: panelAddress,
-                                    start: targetDate,
-                                    extendedProps: {
-                                        panelId: panelId,
-                                        address: panelAddress,
-                                        formworkType: baseFormworkType,
-                                        // You might want to fetch other props if needed, or rely on refetchEvents later
-                                    },
-                                    // backgroundColor: '#22c55e', // Example: Green for newly added
-                                    // borderColor: '#16a34a'
-                                });
-                            } else { // If event somehow exists, update its date (shouldn't happen for new drop)
-                                calendarEvent.setStart(targetDate);
-                            }
+                            // Add event to calendar client-side
+                            calendar.addEvent({
+                                id: panelId.toString(),
+                                title: panelAddress,
+                                start: targetDate,
+                                extendedProps: {
+                                    panelId,
+                                    address: panelAddress,
+                                    formworkType: baseFormworkType,
+                                    /* other props like width, priority from panelElement.dataset */
+                                }
+                            });
                         }
                     } catch (error) {
-                        console.error(`Error processing panel ${panelAddress} (ID: ${panelId}) during drop:`, error);
                         resultsSummary.push({
                             address: panelAddress,
                             success: false,
-                            reason: 'خطای کلاینت یا شبکه: ' + error.message
+                            reason: 'خطای کلاینت: ' + error.message
                         });
                         panelElement.classList.remove('panel-selected');
                     }
-                } // End loop through panelsToProcessClientInfo
-
+                }
                 hideGlobalLoading();
-
-                // Display summary message
-                let summaryMsgHtml = '';
+                // Display summary message (same as before)
+                // ...
+                let alertMessage = `نتایج تخصیص ${panelsToProcessClientInfo.length} پنل:\n\n`;
+                let detailedSidebarMessageHtml = `<div class="font-semibold mb-2">نتایج تخصیص ${panelsToProcessClientInfo.length} پنل به تاریخ ${moment(targetDate).format('jYYYY/jMM/jDD')}:</div>`;
                 let failedCount = 0;
                 resultsSummary.forEach(res => {
+                    const icon = res.success ? '✅' : '❌';
+                    const messagePart = res.success ? (res.message || 'موفق') : res.reason;
+                    alertMessage += `${icon} ${res.address}: ${messagePart}\n`;
+
                     if (res.success) {
-                        summaryMsgHtml += `<div class="text-green-700">✅ ${res.address}: ${res.message || 'موفق'}</div>`;
+                        detailedSidebarMessageHtml += `<div class="text-green-700">${icon} ${res.address}: ${messagePart}</div>`;
                     } else {
                         failedCount++;
-                        summaryMsgHtml += `<div class="text-red-700">❌ ${res.address}: ${res.reason}</div>`;
+                        detailedSidebarMessageHtml += `<div class="text-red-700">${icon} ${res.address}: ${messagePart}</div>`;
                     }
                 });
+                alert(alertMessage); // *** PRIMARY FEEDBACK VIA ALERT ***
 
-                let cls = 'border-gray-300 bg-gray-100';
-                if (overallSuccessCount > 0 && failedCount > 0) {
-                    cls = 'border-yellow-400 bg-yellow-50';
-                } else if (overallSuccessCount > 0 && failedCount === 0) {
-                    cls = 'border-green-400 bg-green-50';
-                } else if (failedCount > 0 && overallSuccessCount === 0) {
-                    cls = 'border-red-400 bg-red-50';
+                // --- Optional: Update the persistent sidebar message area ---
+                if (sidebarMessageArea) { // Check if the element exists
+                    sidebarMessageArea.innerHTML = detailedSidebarMessageHtml;
+                    let cls = 'border-gray-300 bg-gray-100';
+                    if (overallSuccessCount > 0 && failedCount > 0) cls = 'border-yellow-400 bg-yellow-50';
+                    else if (overallSuccessCount > 0 && failedCount === 0) cls = 'border-green-400 bg-green-50';
+                    else if (failedCount > 0 && overallSuccessCount === 0) cls = 'border-red-400 bg-red-50';
+                    sidebarMessageArea.className = `mb-3 text-sm p-3 rounded border ${cls}`; // Make it visible
+                    sidebarMessageArea.classList.remove('hidden');
+
+                    // Optional: Auto-hide sidebar message after a delay
+                    setTimeout(() => {
+                        sidebarMessageArea.classList.add('hidden');
+                        sidebarMessageArea.innerHTML = '';
+                    }, 10000); // Hide after 10 seconds
                 }
 
-                bulkScheduleResultEl.innerHTML = `<div class="font-semibold mb-2">نتایج تخصیص ${panelsToProcessClientInfo.length} پنل:</div>${summaryMsgHtml}`;
-                bulkScheduleResultEl.className = `mt-2 text-sm p-3 rounded border ${cls} min-h-[3em]`;
 
-                // Refresh FullCalendar events from server to ensure consistency, especially if some failed
-                // or if extendedProps need to be fully up-to-date.
-                if (overallSuccessCount > 0) { // Only refetch if at least one was successful
-                    calendar.refetchEvents();
-                }
+                // NO calendar.refetchEvents(); here. Client-side additions are done.
+                // The server state is the source of truth for next page load or explicit refetch.
 
-                applyClientSideSearchHighlightingAndCount(); // Update panel list counts/visibility
-                initializeExternalEventDragging(); // Re-initialize draggable for list items
+                applyClientSideSearchHighlightingAndCount();
+                initializeExternalEventDragging(); // Re-initialize for sidebar
+            }, // End drop
 
-            }, // End drop callback
             // --- Fetch Initial Events ---
             events: function(fetchInfo, successCallback, failureCallback) {
                 makeAjaxCall({
@@ -3043,10 +3181,12 @@ require_once 'header.php';
                         if (Array.isArray(response)) {
                             const eventsWithFcIds = response.map(event => ({
                                 ...event,
-                                id: event.extendedProps.panelId.toString()
+                                id: event.extendedProps.panelId.toString() // Ensure event ID is set for FC
                             }));
                             successCallback(eventsWithFcIds);
-                            setTimeout(updateGlobalSelectionVisualState, 50);
+                            // After events are loaded, ensure visual state of selection is correct
+                            // But this might be too early if DOM isn't ready, eventClassNames should handle it.
+                            // setTimeout(updateGlobalSelectionVisualState, 100); // Delay slightly
                         } else {
                             console.error("Invalid event data format:", response);
                             failureCallback(new Error("فرمت نامعتبر رویداد"));
@@ -3451,7 +3591,10 @@ require_once 'header.php';
             if (visibleCountEl) visibleCountEl.textContent = initialPanelElements.length; // Initial visible = initial loaded
             if (loadedPanelsCountEl) loadedPanelsCountEl.textContent = initialPanelElements.length;
             if (totalFilteredPanelsCountEl) totalFilteredPanelsCountEl.textContent = externalEventsContainer.dataset.grandTotalPanels || '0'; // Before any filter, total filtered = grand total
-
+            if (assignmentFilter) {
+                assignmentFilter.value = 'unassigned'; // Set dropdown to default
+            }
+            fetchAndRenderPanels(1, false); // Initial fetch with default filters
             initializeExternalEventDragging(); // Init draggable for initial items
             addTouchListenersToPanelItems(initialPanelElements); // Add touch for initial
             populatePriorityLegend();

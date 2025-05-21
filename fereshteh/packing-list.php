@@ -2,7 +2,7 @@
 // packing-list.php - Refactored Version
 
 // --- Basic Setup, Dependencies, Session Auth ---
-ini_set('display_errors', 1); // Keep for debugging during development
+ini_set('display_errors', 1);
 error_reporting(E_ALL);
 ob_start();
 header('Content-Type: text/html; charset=utf-8');
@@ -55,9 +55,7 @@ $report_key = 'packing_list'; // Unique key for these settings
 
 
 // --- PHP Helper Functions (Only those needed for display) ---
-// Add gregorianToShamsi if not globally available or in functions.php
-// (Using jdate from jdf.php is generally preferred if available)
-// Add sanitize_css_value and sanitize_color if not globally available
+
 function sanitize_css_value($value, $default = '', $allow_auto = false)
 {
     $value = trim($value);
@@ -79,7 +77,7 @@ function sanitize_color($value, $default = '#000000')
 // --- Load Print Settings ---
 $default_print_settings = [
     'print_header' => "لیست بارگیری پنل‌های HPC\nشرکت آلومنیوم شیشه تهران\nپروژه فرشته",
-    'print_footer' => "تاریخ چاپ: " . jdate('Y/m/d'),
+    'print_footer' => "تاریخ چاپ: ",
     'print_signature_area' => "<td>تهیه کننده</td><td>راننده کامیون</td><td>تحویل گیرنده (سایت)</td>",
     'show_logos' => true,
     'custom_header_html' => '',
@@ -368,8 +366,25 @@ function renderFooter($settings, $static_truck_info, $static_shipment_info)
     if (!empty($settings['custom_footer_html'])) {
         return $settings['custom_footer_html'];
     } else {
-        $footerText = $settings['print_footer'] ?? '';
-        $footer = '<div class="footer-text">' . nl2br(htmlspecialchars($footerText)) . '</div>';
+        $footerContent = '';
+
+        // Get any user-defined text for the footer (excluding the date part we will add)
+        $user_defined_footer_text = $settings['print_footer'] ?? '';
+
+        // If the user-defined text already contains "تاریخ چاپ:", remove it to avoid duplication.
+        // This is a bit simplistic and might need a more robust way if formats vary.
+        $user_defined_footer_text = preg_replace('/تاریخ چاپ:.*(\n|$)/i', '', $user_defined_footer_text);
+        $user_defined_footer_text = trim($user_defined_footer_text);
+
+        if (!empty($user_defined_footer_text)) {
+            $footerContent .= nl2br(escapeHtml($user_defined_footer_text)) . '<br>'; // Add line break if user text exists
+        }
+
+        // Always add the current print date
+        $current_jalali_date_only = function_exists('jdate') ? jdate('Y/m/d') : date('Y/m/d') . ' (Gregorian)'; // CHANGED FORMAT
+        $footerContent .= 'تاریخ چاپ: ' . $current_jalali_date_only;
+
+        $footer = '<div class="footer-text">' . $footerContent . '</div>';
         $signatureArea = $settings['print_signature_area'] ?? '';
         if (!empty($signatureArea)) {
             $footer .= '<table class="signature-table">';
@@ -383,37 +398,31 @@ function renderFooter($settings, $static_truck_info, $static_shipment_info)
                     $headerRow .= '<th>' . htmlspecialchars(trim(strip_tags($title))) . '</th>';
                 }
             }
+            $headerRow = '<tr>';
+            preg_match_all('/<td[^>]*>(.*?)<\/td>/i', $signatureArea, $matches);
+            $numCols = 0;
+            if (!empty($matches[1])) {
+                $numCols = count($matches[1]);
+                foreach ($matches[1] as $title) {
+                    $headerRow .= '<th>' . escapeHtml(trim(strip_tags($title))) . '</th>';
+                }
+            }
             $headerRow .= '</tr>';
             $footer .= '<thead>' . $headerRow . '</thead>';
-
-            // Add dynamic info row + signature box row
             $footer .= '<tbody>';
-            $footer .= '<tr class="signature-info-row">'; // Row for names/dates
-            // Column 1: Preparer (Use preparer name from settings if available, else default, else static user info)
-            $preparer_display_name = $settings['footer_preparer_name'] ?? $default_print_settings['footer_preparer_name'];
-            // Option: Fallback to logged-in user if setting is empty but static info exists
-            if (empty(trim($preparer_display_name)) && !empty($static_shipment_info) && !empty(trim(($static_shipment_info['first_name'] ?? '') . ($static_shipment_info['last_name'] ?? '')))) {
-                $preparer_display_name = htmlspecialchars(trim(($static_shipment_info['first_name'] ?? '') . ' ' . ($static_shipment_info['last_name'] ?? '')));
-            } else {
-                $preparer_display_name = htmlspecialchars($preparer_display_name); // Use setting/default
-            }
-            $footer .= '<td style="direction: rtl; text-align: right;"><p>نام: ' . $preparer_display_name . '</p><p>تاریخ: ' . jdate('Y/m/d') . '</p></td>';
-
-            // Column 2: Driver
-            $driver_name = htmlspecialchars($static_truck_info['driver_name'] ?? '');
+            $footer .= '<tr class="signature-info-row">';
+            $preparer_display_name = escapeHtml($settings['footer_preparer_name'] ?? $default_print_settings['footer_preparer_name'] ?? '');
+            $footer .= '<td style="direction: rtl; text-align: right;"><p>نام: ' . $preparer_display_name . '</p><p>تاریخ: ' . (function_exists('jdate') ? jdate('Y/m/d') : date('Y/m/d')) . '</p></td>';
+            $driver_name = escapeHtml($static_truck_info['driver_name'] ?? '');
             $footer .= '<td style="direction: rtl; text-align: right;"><p>نام: ' . $driver_name . '</p><p>تاریخ:</p></td>';
-
-            // Column 3: Receiver (Use receiver name from settings, else default)
-            $receiver_display_name = htmlspecialchars($settings['footer_receiver_name'] ?? $default_print_settings['footer_receiver_name']);
+            $receiver_display_name = escapeHtml($settings['footer_receiver_name'] ?? $default_print_settings['footer_receiver_name'] ?? '');
             $footer .= '<td style="direction: rtl; text-align: right;"><p>نام: ' . $receiver_display_name . '</p><p>تاریخ:</p></td>';
-            // Add empty TDs if signature setting had more columns
             if ($numCols > 3) $footer .= str_repeat('<td><p>نام:</p><p>تاریخ:</p></td>', $numCols - 3);
             $footer .= '</tr>';
-            $footer .= '<tr class="signature-box-row">'; // Row for signature boxes
+            $footer .= '<tr class="signature-box-row">';
             if ($numCols > 0) $footer .= str_repeat('<td><div class="signature-box"></div></td>', $numCols);
             $footer .= '</tr>';
             $footer .= '</tbody>';
-
             $footer .= '</table>';
         }
         return $footer;

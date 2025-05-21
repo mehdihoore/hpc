@@ -16,60 +16,45 @@ if (!isLoggedIn()) {
     exit();
 }
 if ($current_project_config_key !== $expected_project_key) {
-    // Log attempted context mismatch
     error_log("Project context mismatch: {$current_project_config_key}, Expected: {$expected_project_key} by {$_SESSION['user_id']}");
     header('Location: /select_project.php?msg=context_mismatch');
     exit();
 }
-$allowed_roles = ['admin', 'supervisor', 'planner', 'cnc_operator', 'superuser', 'user']; // Add other roles as needed
+$allowed_roles = ['admin', 'supervisor', 'planner', 'cnc_operator', 'superuser', 'user'];
 if (!in_array($_SESSION['role'], $allowed_roles)) {
     logError("Unauthorized role '{$_SESSION['role']}' attempt on {$expected_project_key} map. User: {$_SESSION['user_id']}");
     header('Location: dashboard.php?msg=unauthorized');
     exit();
 }
-// --- End Authorization ---
 $user_id = $_SESSION['user_id'];
-$pdo = null; // Initialize
+$pdo = null;
 try {
-    // Get PROJECT-SPECIFIC database connection
-    $pdo = getProjectDBConnection(); // Uses session key ('fereshteh' or 'arad')
+    $pdo = getProjectDBConnection();
 } catch (Exception $e) {
     error_log("{$expected_project_key}/panel_status.php: " . $e->getMessage());
     die("خطا در اتصال به پایگاه داده پروژه.");
 }
 
-// Define status colors and Persian translations
 $status_colors = [
     'pending' => '#cccccc',
-    'shipped' => '#009900'     // Dark green for completed
-    // Dark orange for Formwork
+    'shipped' => '#ff0000'
 ];
-
 $status_map_persian = [
     'pending' => 'ارسال نشده',
     'shipped' => 'ارسال شده'
-
 ];
-
 
 $stmtn = $pdo->prepare("SELECT address, packing_status FROM hpc_panels WHERE address LIKE 'N-%'");
 $stmtn->execute();
-$panelsn = $stmtn->fetchAll(PDO::FETCH_ASSOC);
+$panelsn_raw = $stmtn->fetchAll(PDO::FETCH_ASSOC);
 $shipped_countn = 0;
-foreach ($panelsn as $panel) {
-    $panel_datan[] = $panel;
-
+$panel_datan = [];
+foreach ($panelsn_raw as $panel) {
     if (isset($panel['packing_status']) && strtolower($panel['packing_status']) === 'shipped') {
         $shipped_countn++;
     }
-}
-
-// Output or use the $shipped_count as needed
-
-$panel_datan = [];
-foreach ($panelsn as $panel) {
     $address = $panel['address'];
-    $status = $panel['packing_status'];
+    $status = $panel['packing_status'] ?? 'pending';
     $panel_datan[$address] = [
         'packing_status' => $status,
         'persian_status' => $status_map_persian[$status] ?? $status,
@@ -79,22 +64,15 @@ foreach ($panelsn as $panel) {
 
 $stmts = $pdo->prepare("SELECT address, packing_status FROM hpc_panels WHERE address LIKE 'S-%'");
 $stmts->execute();
-$panelss = $stmts->fetchAll(PDO::FETCH_ASSOC);
+$panelss_raw = $stmts->fetchAll(PDO::FETCH_ASSOC);
 $shipped_counts = 0;
-foreach ($panelss as $panel) {
-    $panel_datas[] = $panel;
-
+$panel_datas = [];
+foreach ($panelss_raw as $panel) {
     if (isset($panel['packing_status']) && strtolower($panel['packing_status']) === 'shipped') {
         $shipped_counts++;
     }
-}
-
-// Output or use the $shipped_count as needed
-
-$panel_datas = [];
-foreach ($panelss as $panel) {
     $address = $panel['address'];
-    $status = $panel['packing_status'];
+    $status = $panel['packing_status'] ?? 'pending';
     $panel_datas[$address] = [
         'packing_status' => $status,
         'persian_status' => $status_map_persian[$status] ?? $status,
@@ -102,16 +80,16 @@ foreach ($panelss as $panel) {
     ];
 }
 
-// Load the SVG file
 $svg_file1 = file_get_contents('panel_status_maps.svg');
 $svg_file2 = file_get_contents('panel_status_mapn.svg');
 
-// Function to generate JavaScript to modify SVG
 function generateSvgJavaScript($panel_data, $svgContainerId)
 {
+    // This function remains the same as your working version
+    // It applies the panel data to the SVG
     $js = "
       document.addEventListener('DOMContentLoaded', function() {
-        const svgContainerDiv = document.getElementById('{$svgContainerId}'); // Use passed ID
+        const svgContainerDiv = document.getElementById('{$svgContainerId}');
         if (!svgContainerDiv) {
             console.error('SVG container with ID {$svgContainerId} not found.');
             return;
@@ -127,7 +105,7 @@ function generateSvgJavaScript($panel_data, $svgContainerId)
         if (!svgElement.getAttribute('viewBox')) {
             const width = svgElement.getAttribute('width') || svgElement.getBoundingClientRect().width;
             const height = svgElement.getAttribute('height') || svgElement.getBoundingClientRect().height;
-            if (width && height) { // Ensure width and height are available
+            if (width && height) {
                 svgElement.setAttribute('viewBox', `0 0 \${width} \${height}`);
                 svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
             } else {
@@ -146,37 +124,30 @@ function generateSvgJavaScript($panel_data, $svgContainerId)
         tooltip.style.display = 'none';
         document.body.appendChild(tooltip);
         
-        // Find all text elements in SVG and create a map for quick lookup
-          const textElements = {};
+        const textElements = {};
         const allTextElements = svgElement.querySelectorAll('text');
         allTextElements.forEach(textEl => {
             const content = textEl.textContent.trim();
             textElements[content] = textEl;
         });
         
-        // Process each panel and add lines
         for (const address in panelData) {
-            const panelPoints = extractPanelPoints(address);
+            const panelPoints = extractPanelPoints(address); 
             if (!panelPoints) continue;
             
             const firstPoint = panelPoints.first_point;
             const secondPoint = panelPoints.second_point;
             
-            // Find corresponding elements in SVG using our map
             const firstElement = textElements[firstPoint];
             const secondElement = textElements[secondPoint];
             
             if (firstElement && secondElement) {
-                // Create line as a separate SVG element that doesn't affect text positioning
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                
-                // Get coordinates from the text elements - not modifying the text elements themselves
                 const firstX = parseFloat(firstElement.getAttribute('x'));
                 const firstY = parseFloat(firstElement.getAttribute('y'));
                 const secondX = parseFloat(secondElement.getAttribute('x'));
                 const secondY = parseFloat(secondElement.getAttribute('y'));
                 
-                // Set line attributes - connecting between text elements but not moving them
                 line.setAttribute('x1', firstX);
                 line.setAttribute('y1', firstY);
                 line.setAttribute('x2', secondX);
@@ -186,7 +157,6 @@ function generateSvgJavaScript($panel_data, $svgContainerId)
                 line.setAttribute('data-address', address);
                 line.setAttribute('data-status', panelData[address].persian_status);
                 
-                // Add hover events
                 line.addEventListener('mouseover', function(e) {
                     tooltip.innerHTML = `آدرس: \${address} <br> وضعیت: \${panelData[address].persian_status}`;
                     tooltip.style.display = 'block';
@@ -205,68 +175,36 @@ function generateSvgJavaScript($panel_data, $svgContainerId)
                     this.setAttribute('stroke-width', '5');
                 });
                 
-                // Add line to SVG - important: add to the end of the SVG to ensure it appears above other elements
-                svgElement.appendChild(line); // Append to the correct svgElement
+                svgElement.appendChild(line);
             }
         }
         
-        // Make sure text elements remain at their original positions
         allTextElements.forEach(textEl => {
-            // Ensure text stays at original position by creating a pointer to it in the parent
-            const originalX = textEl.getAttribute('x');
-            const originalY = textEl.getAttribute('y');
-            
-            // Add a class to make text easier to select and style
             textEl.classList.add('panel-label');
-            
-            // Ensure the text stays in place
             textEl.style.transformOrigin = 'center';
         });
-    });
-    
-    function extractPanelPoints(address) {
-        const regex = /([NSEW])-([A-Z])(\d+)-([A-Z])(\d+)/;
-        const matches = address.match(regex);
-        
-        if (matches) {
-            return {
-                direction: matches[1],
-                first_point: matches[2] + matches[3],
-                second_point: matches[4] + matches[5]
-            };
-        }
-        return null;
-    }";
-
+    });";
     return $js;
 }
 
-// Define a legend for status colors
 function generateStatusLegend($status_colors, $status_map_persian, $shipped_count = 0, $region_label = '')
 {
+    // This function remains the same
     $legend = '<div class="status-legend" style="margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 8px; background-color: #fcfcfc;">';
-
-    // Region title
     $legend .= '<h3 style="margin: 0 0 10px 0; font-size: 1.1em;">راهنمای وضعیت پنل‌ها' . ($region_label ? ' - ' . htmlspecialchars($region_label) : '') . '</h3>';
-
-    // Status list
     $legend .= '<ul style="list-style-type: none; padding: 0; margin: 0;">';
-
     foreach ($status_map_persian as $status => $persian) {
         $color = $status_colors[$status] ?? '#cccccc';
         $is_shipped = strtolower($status) === 'shipped';
-
         $legend .= '<li style="display: flex; align-items: center; justify-content: normal; margin-bottom: 8px;">';
 
         // Status label with color
         $legend .= '<div style="display: flex; align-items: center;">';
         $legend .= '<span style="display: inline-block; width: 18px; height: 18px; background-color: ' . $color . '; margin-left: 10px; border: 1px solid #000; border-radius: 3px;"></span>';
-        $legend .= $persian;
+        $legend .= htmlspecialchars($persian);
         $legend .= '</div>';
-
-        // If "shipped", add the count bubble
         if ($is_shipped) {
-            $legend .= '<span style="display: inline-block; min-width: 26px; height: 26px; background-color: #28a745; color: white; text-align: center; line-height: 26px; border-radius: 50%; font-size: 0.85em; font-weight: bold;">' . $shipped_count . '</span>';
+            $legend .= '<span style="display: inline-block; min-width: 26px; height: 26px; background-color:rgb(230, 22, 22); color: white; text-align: center; line-height: 26px; border-radius: 50%; font-size: 0.85em; font-weight: bold;">' . $shipped_count . '</span>';
         }
 
         $legend .= '</li>';
@@ -278,20 +216,17 @@ function generateStatusLegend($status_colors, $status_map_persian, $shipped_coun
     return $legend;
 }
 
-
 if ($_SESSION['current_project_config_key'] === 'fereshteh') {
-    $pageTitle = 'صفحه نمای شمالی و جنوبی - پروژه فرشته'; // Force read-only for this project
+    $pageTitle = 'صفحه نمای شمالی و جنوبی - پروژه فرشته';
 } elseif ($_SESSION['current_project_config_key'] === 'arad') {
-    $pageTitle = 'صفحه نمای شمالی و جنوبی - پروژه آراد'; // Force read-only for this project
+    $pageTitle = 'صفحه نمای شمالی و جنوبی - پروژه آراد';
 } else {
-    $pageTitle = 'صفحه نمای شمالی- پروژه نامشخص'; // Force read-only for this project
+    $pageTitle = 'صفحه نمای شمالی- پروژه نامشخص';
 }
 
 require_once 'header.php';
-// Generate the final HTML
 $js_coden = generateSvgJavaScript($panel_datan, 'panel-svg-container-north');
 $js_codes = generateSvgJavaScript($panel_datas, 'panel-svg-container-south');
-
 ?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -300,6 +235,7 @@ $js_codes = generateSvgJavaScript($panel_datas, 'panel-svg-container-south');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>وضعیت پنل‌ها</title>
+    <!-- REMOVED jsPDF and svg2pdf.js script tags -->
     <style>
         @font-face {
             font-family: 'Vazir';
@@ -336,7 +272,6 @@ $js_codes = generateSvgJavaScript($panel_datas, 'panel-svg-container-south');
             border-radius: 5px;
         }
 
-        /* Add additional styling for the SVG elements */
         svg {
             max-width: 100%;
             height: auto;
@@ -345,15 +280,60 @@ $js_codes = generateSvgJavaScript($panel_datas, 'panel-svg-container-south');
         svg text {
             pointer-events: all;
             cursor: default;
-            /* Ensure text isn't affected by other elements */
-            dominant-baseline: middle;
-            position: relative !important;
+            /* dominant-baseline: middle; */
+            /* REMOVE or comment this out for now */
+            /* position: relative !important; */
+            /* REMOVE this, it's not standard for SVG text */
+
+            /* If you want to ensure text elements from the SVG *without* an explicit font-family get Vazir: */
+            /* font-family: 'Vazir', sans-serif; */
         }
+
 
         svg line {
             cursor: pointer;
             pointer-events: stroke;
             stroke-linecap: round;
+        }
+
+        .btn {
+            display: inline-block;
+            font-weight: 400;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: middle;
+            user-select: none;
+            border: 1px solid transparent;
+            padding: .375rem .75rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            border-radius: .25rem;
+            transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+            margin-left: 5px;
+            /* Added some margin for all buttons */
+        }
+
+        .btn-primary {
+            color: #fff;
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+
+        .btn-info {
+            color: #fff;
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+        }
+
+        /* For Print button */
+        .btn-info:hover {
+            background-color: #117a8b;
+            border-color: #117a8b;
         }
     </style>
 </head>
@@ -362,16 +342,16 @@ $js_codes = generateSvgJavaScript($panel_datas, 'panel-svg-container-south');
     <!-- نمای شمالی -->
     <div class="container">
         <h1>نمایش وضعیت پنل ها در نمای شمالی</h1>
-
         <?php echo generateStatusLegend($status_colors, $status_map_persian, $shipped_countn, 'شمال'); ?>
         <div class="svg-container">
-            <div id="panel-svg-container-north"> <!-- UNIQUE ID -->
+            <div id="panel-svg-container-north">
                 <?php echo $svg_file2; ?>
             </div>
         </div>
         <div class="panel-info">
             <p>نمایش وضعیت <?php echo count($panel_datan); ?> پنل</p>
-            <button id="download-svg-north" class="btn btn-primary">دانلود نقشه</button> <!-- UNIQUE ID -->
+            <button id="download-svg-north" class="btn btn-primary">دانلود نقشه SVG</button>
+            <button id="print-svg-north" class="btn btn-info">چاپ / ذخیره PDF نقشه</button> <!-- CHANGED -->
         </div>
     </div>
 
@@ -380,17 +360,19 @@ $js_codes = generateSvgJavaScript($panel_datas, 'panel-svg-container-south');
         <h1>نمایش وضعیت پنل ها در نمای جنوبی</h1>
         <?php echo generateStatusLegend($status_colors, $status_map_persian, $shipped_counts, 'جنوب'); ?>
         <div class="svg-container">
-            <div id="panel-svg-container-south"> <!-- UNIQUE ID -->
+            <div id="panel-svg-container-south">
                 <?php echo $svg_file1; ?>
             </div>
         </div>
         <div class="panel-info">
             <p>نمایش وضعیت <?php echo count($panel_datas); ?> پنل</p>
-            <button id="download-svg-south" class="btn btn-primary">دانلود نقشه</button> <!-- UNIQUE ID -->
+            <button id="download-svg-south" class="btn btn-primary">دانلود نقشه SVG</button>
+            <button id="print-svg-south" class="btn btn-info">چاپ / ذخیره PDF نقشه</button> <!-- CHANGED -->
         </div>
     </div>
 
     <script>
+        // Define extractPanelPoints globally once
         function extractPanelPoints(address) {
             const regex = /([NSEW])-([A-Z])(\d+)-([A-Z])(\d+)/;
             const matches = address.match(regex);
@@ -404,46 +386,137 @@ $js_codes = generateSvgJavaScript($panel_datas, 'panel-svg-container-south');
             return null;
         }
 
-        <?php echo $js_codes; // For South 
+        <?php echo $js_codes; // For South (applies panel data) 
         ?>
-        <?php echo $js_coden; // For North 
+        <?php echo $js_coden; // For North (applies panel data) 
         ?>
 
-        // Add download functionality
+        // --- SVG Download Functionality (remains the same) ---
         document.getElementById('download-svg-south').addEventListener('click', function() {
             const svgElement = document.getElementById('panel-svg-container-south').querySelector('svg');
+            if (!svgElement) {
+                console.error("SVG South not found");
+                alert("خطا: SVG نمای جنوبی یافت نشد.");
+                return;
+            }
             const svgData = new XMLSerializer().serializeToString(svgElement);
             const svgBlob = new Blob([svgData], {
                 type: 'image/svg+xml;charset=utf-8'
             });
             const svgUrl = URL.createObjectURL(svgBlob);
-
             const downloadLink = document.createElement('a');
             downloadLink.href = svgUrl;
-            downloadLink.download = 'panel_status_map_south.svg'; // Unique filename
+            downloadLink.download = 'panel_status_map_south.svg';
             document.body.appendChild(downloadLink);
             downloadLink.click();
             document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(svgUrl);
         });
-        <?php echo $js_coden; ?>
+
         document.getElementById('download-svg-north').addEventListener('click', function() {
             const svgElement = document.getElementById('panel-svg-container-north').querySelector('svg');
+            if (!svgElement) {
+                console.error("SVG North not found");
+                alert("خطا: SVG نمای شمالی یافت نشد.");
+                return;
+            }
             const svgData = new XMLSerializer().serializeToString(svgElement);
             const svgBlob = new Blob([svgData], {
                 type: 'image/svg+xml;charset=utf-8'
             });
             const svgUrl = URL.createObjectURL(svgBlob);
-
             const downloadLink = document.createElement('a');
             downloadLink.href = svgUrl;
-            downloadLink.download = 'panel_status_map_north.svg'; // Unique filename
+            downloadLink.download = 'panel_status_map_north.svg';
             document.body.appendChild(downloadLink);
             downloadLink.click();
             document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(svgUrl);
+        });
+
+        // --- NEW Print/Save as PDF Functionality ---
+        function openSvgForPrinting(svgContainerId, title) {
+            const svgContainer = document.getElementById(svgContainerId);
+            if (!svgContainer) {
+                console.error(`SVG container #${svgContainerId} not found.`);
+                alert(`خطا: محفظه SVG برای ${title} یافت نشد.`);
+                return;
+            }
+            const svgElement = svgContainer.querySelector('svg');
+            if (!svgElement) {
+                console.error(`SVG element in container #${svgContainerId} not found for printing.`);
+                alert(`خطا: عنصر SVG برای ${title} یافت نشد.`);
+                return;
+            }
+
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+
+            // Ensure the Vazir font is available in the new window
+            // Path to font must be absolute or correctly relative from the root
+            const vazirFontUrl = '/assets/fonts/Vazir-Regular.woff2'; // ADJUST THIS PATH IF NEEDED
+
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html lang="fa" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>${title || 'چاپ نقشه'}</title>
+                    <style>
+                        @font-face {
+                            font-family: 'Vazir';
+                            src: url('${vazirFontUrl}') format('woff2');
+                        }
+                        body {
+                            margin: 20px; /* Add some margin for better printing */
+                            text-align: center; /* Center the SVG */
+                            font-family: 'Vazir', sans-serif; /* Apply font to body */
+                        }
+                          svg {
+                            max-width: 100%;
+                            max-height: 90vh;
+                        }
+                       
+                       @media print {
+                            body {
+                                -webkit-print-color-adjust: exact;
+                                print-color-adjust: exact;
+                                margin: 10mm;
+                            }
+                            @page {
+                                size: auto;
+                                margin: 10mm;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${svgData}
+
+                </body>
+                </html>
+            `; // Note: Escaped 
+
+
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.open();
+                printWindow.document.write(htmlContent);
+                printWindow.document.close();
+                printWindow.focus(); // Bring the new window to the front
+            } else {
+                alert('لطفاً پاپ‌آپ‌ها را برای این سایت فعال کنید تا بتوانید نقشه را برای چاپ باز کنید.');
+            }
+        }
+
+        document.getElementById('print-svg-north').addEventListener('click', function() {
+            openSvgForPrinting('panel-svg-container-north', 'چاپ نقشه نمای شمالی');
+        });
+
+        document.getElementById('print-svg-south').addEventListener('click', function() {
+            openSvgForPrinting('panel-svg-container-south', 'چاپ نقشه نمای جنوبی');
         });
     </script>
     <?php
-    // Include footer
     include('footer.php');
     ?>
 </body>
