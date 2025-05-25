@@ -58,6 +58,7 @@ $uniquePanelAddresses = [];
 $uniqueCompletedPanelAddresses = [];
 $uniqueAssignedDatePanelAddresses = [];
 $uniqushippedAddresses = [];
+$uniquePanelTypes = [];
 
 try {
     // Get the connection for the CURRENT project based on session data
@@ -79,8 +80,39 @@ try {
     $prioritizationLevels = $stmtPrio->fetchAll(PDO::FETCH_COLUMN);
 
     // Fetch Formwork Types for Filter for this project
-    $stmtFormwork = $pdo->query("SELECT formwork_type FROM available_formworks ORDER BY formwork_type ASC");
-    $formworkTypeNames = $stmtFormwork->fetchAll(PDO::FETCH_COLUMN);
+    $stmtFormwork = $pdo->query("SELECT DISTINCT formwork_type FROM available_formworks WHERE formwork_type IS NOT NULL AND formwork_type != '' ORDER BY formwork_type ASC");
+    $rawFormworkTypeNames = $stmtFormwork->fetchAll(PDO::FETCH_COLUMN);
+
+    // Prepare formwork types for the filter, including CFM-N and CFM-S options
+    $formworkTypeNames = [];
+    $hasCfmN = false;
+    $hasCfmS = false;
+    foreach ($rawFormworkTypeNames as $ftName) {
+        if (strpos($ftName, 'CFM-N') === 0) {
+            $hasCfmN = true;
+        } elseif (strpos($ftName, 'CFM-S') === 0) {
+            $hasCfmS = true;
+        }
+        // Add individual F-H-X types directly
+        if (strpos($ftName, 'F-H-') === 0) {
+            $formworkTypeNames[] = $ftName;
+        }
+    }
+    // Add CFM group options if relevant CFM types exist
+    if ($hasCfmN) {
+        array_unshift($formworkTypeNames, 'CFM-N (همه)'); // Add to the beginning
+    }
+    if ($hasCfmS) {
+        array_unshift($formworkTypeNames, 'CFM-S (همه)'); // Add to the beginning
+    }
+    // You might want to sort $formworkTypeNames again if order matters after unshift
+    // sort($formworkTypeNames); // Optional: re-sort if needed
+
+
+    // --- NEW: Fetch Distinct Panel Types for this project ---
+    $stmtPanelTypes = $pdo->query("SELECT DISTINCT type FROM hpc_panels WHERE type IS NOT NULL AND type != '' ORDER BY type ASC");
+    $uniquePanelTypes = $stmtPanelTypes->fetchAll(PDO::FETCH_COLUMN);
+    // --- END NEW ---
 
     // Calculate unique addresses based on the fetched panels for *this project*
     $uniquePanelAddresses = array_unique(array_column($allPanels, 'address'));
@@ -157,7 +189,17 @@ require_once __DIR__ . '/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
-
+            <div class="bg-white p-4 rounded-lg shadow-md">
+                <label for="panelTypeFilter" class="block text-sm font-medium text-gray-700 mb-1">نوع پنل</label>
+                <select id="panelTypeFilter" class="w-full p-2 border rounded">
+                    <option value="">همه انواع</option>
+                    <?php foreach ($uniquePanelTypes as $panelType): ?>
+                        <option value="<?php echo htmlspecialchars($panelType); ?>">
+                            <?php echo htmlspecialchars($panelType); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
             <!-- Assigned Date Filter -->
             <div class="bg-white p-4 rounded-lg shadow-md">
                 <label class="block text-sm font-medium text-gray-700 mb-1">تاریخ شروع (Assigned)</label>
@@ -230,6 +272,7 @@ require_once __DIR__ . '/header.php';
         const prioritizationFilter = document.getElementById('prioritizationFilter');
         const formworkFilter = document.getElementById('formworkFilter');
         const statusFilter = document.getElementById('statusFilter');
+        const panelTypeFilter = document.getElementById('panelTypeFilter');
         const assignedStartDateFilter = document.getElementById('assignedStartDateFilter');
         const assignedEndDateFilter = document.getElementById('assignedEndDateFilter');
         const plannedStartDateFilter = document.getElementById('plannedStartDateFilter');
@@ -399,6 +442,7 @@ require_once __DIR__ . '/header.php';
             const selectedProritization = prioritizationFilter.value;
             const selectedFormworkType = formworkFilter.value;
             const selectedStatus = statusFilter.value.toLowerCase(); // Selected value from the dropdown
+            const selectedPanelType = panelTypeFilter.value;
             const minLen = minLengthFilter.value ? parseInt(minLengthFilter.value) : null;
             const maxLen = maxLengthFilter.value ? parseInt(maxLengthFilter.value) : null;
             const minWid = minWidthFilter.value ? parseInt(minWidthFilter.value) : null;
@@ -412,19 +456,31 @@ require_once __DIR__ . '/header.php';
             // console.log("Filtering with status:", selectedStatus); // Debug selected filter
 
             filteredPanels = allPanels.filter(panel => {
-                // --- Determine the panel's actual status key using the helper ---
                 const panelActualStatusKey = getPanelStatusKey(panel);
 
-                // --- Filter Checks ---
                 const matchesSearch = !searchText || panel.address.toLowerCase().includes(searchText);
                 const matchesPrio = !selectedProritization || (panel.Proritization && panel.Proritization === selectedProritization);
-                const matchesFormwork = !selectedFormworkType || (panel.formwork_type && panel.formwork_type === selectedFormworkType);
-                // Filter based on the determined actual status vs the selected dropdown value
                 const matchesStatus = !selectedStatus || panelActualStatusKey === selectedStatus;
+                const matchesPanelType = !selectedPanelType || (panel.type && panel.type === selectedPanelType); // <<< NEW
                 const matchesLength = (minLen === null || panel.length >= minLen) && (maxLen === null || panel.length <= maxLen);
                 const matchesWidth = (minWid === null || panel.width >= minWid) && (maxWid === null || panel.width <= maxWid);
 
-                // --- Date Filtering (Keep existing logic) ---
+                // Formwork Filter Logic Update
+                let matchesFormwork = true; // Default to true
+                if (selectedFormworkType) {
+                    if (selectedFormworkType === 'CFM-N (همه)') {
+                        matchesFormwork = panel.formwork_type && panel.formwork_type.startsWith('CFM-N');
+                    } else if (selectedFormworkType === 'CFM-S (همه)') {
+                        matchesFormwork = panel.formwork_type && panel.formwork_type.startsWith('CFM-S');
+                    } else {
+                        // Specific formwork type (e.g., F-H-1)
+                        matchesFormwork = panel.formwork_type && panel.formwork_type === selectedFormworkType;
+                    }
+                }
+                // --- End Formwork Filter Logic Update ---
+
+
+                // Date Filtering (Keep existing logic)
                 let panelAssignedDate = null;
                 if (panel.assigned_date && panel.assigned_date !== '0000-00-00' && !panel.assigned_date.startsWith('0000-00-00')) {
                     panelAssignedDate = panel.assigned_date.split(' ')[0];
@@ -434,30 +490,28 @@ require_once __DIR__ . '/header.php';
                     panelPlannedDate = panel.planned_finish_date.split(' ')[0];
                 }
 
-                const matchesAssignDate = ( /* ... (keep existing date comparison logic) ... */
+                const matchesAssignDate = (
                     (!assignStart && !assignEnd) ||
                     (assignStart && !assignEnd && panelAssignedDate && panelAssignedDate >= assignStart) ||
                     (!assignStart && assignEnd && panelAssignedDate && panelAssignedDate <= assignEnd) ||
                     (assignStart && assignEnd && panelAssignedDate && panelAssignedDate >= assignStart && panelAssignedDate <= assignEnd) ||
-                    // If filtering by date, panel must have a date. If not filtering, panel without date passes.
                     (!panelAssignedDate && !assignStart && !assignEnd)
                 );
-                const matchesPlanDate = ( /* ... (keep existing date comparison logic) ... */
+                const matchesPlanDate = (
                     (!planStart && !planEnd) ||
                     (planStart && !planEnd && panelPlannedDate && panelPlannedDate >= planStart) ||
                     (!planStart && planEnd && panelPlannedDate && panelPlannedDate <= planEnd) ||
                     (planStart && planEnd && panelPlannedDate && panelPlannedDate >= planStart && panelPlannedDate <= planEnd) ||
-                    // If filtering by date, panel must have a date. If not filtering, panel without date passes.
                     (!panelPlannedDate && !planStart && !planEnd)
                 );
 
-                return matchesSearch && matchesPrio && matchesFormwork && matchesStatus &&
+                return matchesSearch && matchesPrio && matchesFormwork && matchesStatus && matchesPanelType /* <<< NEW */ &&
                     matchesLength && matchesWidth && matchesAssignDate && matchesPlanDate;
             });
 
-            // console.log("Filtered panels count:", filteredPanels.length); // Debug count
             displayResults(filteredPanels);
         }
+
 
         // --- Initialize Date Pickers ---
         $(document).ready(function() {
@@ -552,6 +606,7 @@ require_once __DIR__ . '/header.php';
         prioritizationFilter.addEventListener('change', filterPanels);
         formworkFilter.addEventListener('change', filterPanels);
         statusFilter.addEventListener('change', filterPanels);
+        panelTypeFilter.addEventListener('change', filterPanels);
         minLengthFilter.addEventListener('input', filterPanels);
         maxLengthFilter.addEventListener('input', filterPanels);
         minWidthFilter.addEventListener('input', filterPanels);

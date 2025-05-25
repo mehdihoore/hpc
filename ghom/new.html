@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پروژه بیمارستان هزار تخت خوابی قم</title>
+    <style>
+        body {
+
+            font-family: 'Tahoma', 'Vazirmatn', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            box-sizing: border-box;
+            text-align: right;
+        }
+
+        .controls {
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .controls label {
+            font-weight: bold;
+        }
+
+        .controls select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-family: inherit;
+            min-width: 150px;
+        }
+
+        .layer-controls {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .layer-controls button {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .layer-controls button.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .layer-controls button.inactive {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+
+
+        h1,
+        p.description {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        #svgContainer {
+
+            width: 90vw;
+            height: 65vh;
+            max-width: 1200px;
+            border: 1px solid #007bff;
+            background-color: #e9ecef;
+            overflow: hidden;
+            margin: 10px auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #svgContainer.loading::before {
+            content: "در حال بارگذاری SVG...";
+            font-style: italic;
+            color: #666;
+        }
+
+        #svgContainer svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .form-popup {
+
+            display: none;
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            border: 2px solid #555;
+            z-index: 10;
+            background-color: #f9f9f9;
+            padding: 15px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            max-width: 95vw;
+            max-height: 80vh;
+            overflow: auto;
+        }
+
+        .form-popup h3 {
+            margin-top: 0;
+            text-align: center;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+
+        .form-popup table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .form-popup th,
+        .form-popup td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: right;
+            vertical-align: middle;
+        }
+
+        .form-popup th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        .form-popup .notes {
+            margin-top: 15px;
+            font-size: 0.8em;
+            white-space: pre-line;
+        }
+
+        .form-popup .btn-container {
+            text-align: left;
+            margin-top: 15px;
+        }
+
+        .form-popup .btn {
+            padding: 8px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 3px;
+        }
+
+        .form-popup .btn.cancel {
+            background-color: #dc3545;
+        }
+
+        .form-popup .btn:hover {
+            opacity: 0.9;
+        }
+
+        .highlight-issue {
+            background-color: #fff3cd;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>پروژه بیمارستان هزار تخت خوابی قم</h1>
+    <div class="controls">
+        <label for="zoneSelector">انتخاب زون:</label>
+        <select id="zoneSelector">
+            <option value="zz9.svg" selected>زون 9</option>
+            <option value="Zone1.svg">زون 1</option>
+            <option value="Zone2.svg">زون 2</option>
+            <option value="Zone3.svg">زون 3</option>
+            <option value="Zone4.svg">زون 4</option>
+            <option value="Zone5.svg">زون 5</option>
+            <option value="Zone6.svg">زون 6</option>
+            <option value="Zone7.svg">زون 7</option>
+            <option value="Zone8.svg">زون 8</option>
+        </select>
+    </div>
+
+    <div class="layer-controls" id="layerControlsContainer">
+        <!-- Buttons will be added here by JavaScript -->
+    </div>
+
+    <p class="description">برای مشاهده چک لیست GFRC، روی یک پنل مربوطه در دیاگرام SVG کلیک کنید.</p>
+    <div id="svgContainer"></div>
+    <div class="form-popup" id="gfrcChecklistForm">
+        <h3 id="gfrcFormTitle">چک لیست کنترل کیفی - GFRC</h3>
+        <div id="gfrcStaticData">
+            <p><strong>پیمانکار:</strong> <span id="gfrcContractor"></span></p>
+            <p><strong>محدوده:</strong> <span id="gfrcArea"></span></p>
+            <p><strong>بلوک:</strong> <span id="gfrcBlock"></span></p>
+            <p><strong>وضع تحویل:</strong> <span id="gfrcDeliveryStatus"></span></p>
+            <p><strong>نوع پنل:</strong> <span id="gfrcPanelType"></span></p>
+            <p><strong>شماره پنل بازگشایی شده:</strong> <span id="gfrcPanelNumber"></span></p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>شرح بررسی</th>
+                    <th>وضعیت / مقدار</th>
+                </tr>
+            </thead>
+            <tbody id="gfrcChecklistBody"></tbody>
+        </table>
+        <div class="notes" id="gfrcNotes"></div>
+        <div class="btn-container"><button type="button" class="btn cancel"
+                onclick="closeForm('gfrcChecklistForm')">بستن</button></div>
+    </div>
+
+    <script>
+        // --- Configuration for SVG Groups ---
+        const svgGroupConfig = {
+            // ID in SVG : { label (Persian), color, defaultVisible, isTextGroup (optional), elementRef (set by script) }
+            "GFRC": { label: "GFRC", color: "rgba(200, 200, 200, 0.6)", defaultVisible: true, interactive: true },
+            "glass_40%": { label: "شیشه 40%", color: "rgba(173, 216, 230, 0.7)", defaultVisible: true },
+            "glass_opaque": { label: "شیشه مات", color: "rgba(144, 238, 144, 0.7)", defaultVisible: true },
+            "glass_80%": { label: "شیشه 80%", color: "rgba(255, 255, 102, 0.7)", defaultVisible: true },
+            "Mullion": { label: "مولیون", color: "rgba(128, 128, 128, 0.9)", defaultVisible: true }, // Darker grey for Mullion
+            "Transom": { label: "ترنزوم", color: "rgba(169, 169, 169, 0.9)", defaultVisible: true }, // Lighter grey for Transom
+            "glass_name": { label: "نام شیشه", color: "rgba(30, 30, 30, 1)", defaultVisible: true, isTextGroup: true },
+            "$TEXT": { label: "متون", color: "rgba(30, 30, 30, 1)", defaultVisible: true, isTextGroup: true }
+        };
+
+        // --- Sample Data Store for GFRC Checklists  ---
+        const panelChecklistDataStore = {
+            "GFRC": {
+                staticInfo: { contractor: "شرکت ساختمانی رس", area: "زون 7 ضلع غربی بین محورهای X و Y", block: "A", deliveryStatus: "نما تحویل نظارت گردیده است", notes: "×: عدم تطابق\nA: نوع ایراد استفاده از جوش به جای پیچ\nB: نوع ایراد برش نبشی\nC: استفاده اشتباه از کلمپ های با طول غیر یکسان\nاعداد کنار حروف انگلیسی: تعداد ایرادات مشاهده شده می باشد" },
+                panels: {
+                    "-G40": { panelType: "عمودی", panelNumber: "1 (مثال)", items: [{ check: "مطابقت فیس نمای نصب شده با شاپ", value: "6mm" }, { check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC", value: "6mm" }, { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" }, { check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول", value: "" }, { check: "نصب کامل اتصالات کیل", value: "×" }, { check: "فلزی بودن اتصالات کیل", value: "" }, { check: "لاستیک پشت اتصالات کیل", value: "×" }, { check: "دفرمگی اتصالات کیل", value: "" }, { check: "انطباق با جزئیات مصوب", value: "A7,C" }, { check: "اجرای صحیح پلیتهای کاشته شده", value: "×" }, { check: "اجرای کامل پیچ و مهره", value: "" }, { check: "جوشکاری اتصالات زیرسازی", value: "×" }, { check: "پلیت اتصال تیر به ستون", value: "" }, { check: "دفرمگی نبشی های زیرسازی", value: "" }, { check: "ضد زنگ زیرسازی", value: "" }, { check: "وضعیت ورق گالوانیزه", value: "" }, { check: "وضعیت پشم سنگ", value: "" }, { check: "وضعیت درزبندی", value: "" }, { check: "ملاحظات دیگر", value: "نیاز به بررسی مجدد" }] },
+                    "-G41": { panelType: "افقی", panelNumber: "2 (مثال)", items: [{ check: "مطابقت فیس نمای نصب شده با شاپ", value: "12mm" }, { check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC", value: "12mm" }, { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" }, { check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول", value: "بررسی شده" }, { check: "نصب کامل اتصالات کیل", value: "×" }, { check: "فلزی بودن اتصالات کیل", value: "مطابق" }, { check: "لاستیک پشت اتصالات کیل", value: "×" }, { check: "دفرمگی اتصالات کیل", value: "" }, { check: "انطباق با جزئیات مصوب", value: "A24,B7" }, { check: "اجرای صحیح پلیتهای کاشته شده", value: "" }, { check: "اجرای کامل پیچ و مهره", value: "×" }, { check: "جوشکاری اتصالات زیرسازی", value: "" }, { check: "پلیت اتصال تیر به ستون", value: "×" }, { check: "دفرمگی نبشی های زیرسازی", value: "×" }, { check: "ضد زنگ زیرسازی", value: "×" }, { check: "وضعیت ورق گالوانیزه", value: "" }, { check: "وضعیت پشم سنگ", value: "" }, { check: "وضعیت درزبندی", value: "" }, { check: "ملاحظات دیگر", value: "" }] }
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const zoneSelector = document.getElementById('zoneSelector');
+            const svgContainer = document.getElementById('svgContainer');
+            const layerControlsContainer = document.getElementById('layerControlsContainer');
+
+            function applyGroupStylesAndControls(svgElement) {
+                layerControlsContainer.innerHTML = ''; // Clear old buttons
+
+                for (const groupId in svgGroupConfig) {
+                    const config = svgGroupConfig[groupId];
+                    const groupElement = svgElement.getElementById(groupId);
+                    config.elementRef = groupElement; // Store reference
+
+                    if (groupElement) {
+                        // Apply fixed color
+                        const elementsToColor = groupElement.querySelectorAll(config.isTextGroup ? 'text, tspan' : 'path, rect, circle, polygon, polyline, line, ellipse');
+                        elementsToColor.forEach(el => {
+                            el.style.fill = config.isTextGroup ? config.color : 'none'; // Text gets fill, shapes get fill if not overwritten
+                            if (!config.isTextGroup) { // Apply color to shapes
+                                el.style.fill = config.color;
+                                // Keep original stroke unless specified otherwise
+                                // el.style.stroke = el.style.stroke || 'black'; // Example: ensure stroke is visible
+                            } else { // Text elements
+                                el.style.stroke = 'none'; // Usually no stroke for text names
+                            }
+                        });
+
+                        // Set initial visibility
+                        groupElement.style.display = config.defaultVisible ? '' : 'none';
+
+                        // Create toggle button
+                        const button = document.createElement('button');
+                        button.textContent = config.label;
+                        button.classList.add(config.defaultVisible ? 'active' : 'inactive');
+                        button.addEventListener('click', () => {
+                            const isVisible = groupElement.style.display !== 'none';
+                            groupElement.style.display = isVisible ? 'none' : '';
+                            button.classList.toggle('active', !isVisible);
+                            button.classList.toggle('inactive', isVisible);
+                        });
+                        layerControlsContainer.appendChild(button);
+
+                    } else {
+                        console.warn(`گروه با شناسه '${groupId}' در SVG یافت نشد.`);
+                        const button = document.createElement('button');
+                        button.textContent = config.label + " (یافت نشد)";
+                        button.disabled = true;
+                        layerControlsContainer.appendChild(button);
+                    }
+                }
+            }
+
+
+            function loadAndDisplaySVG(svgFilename) {
+                svgContainer.innerHTML = '';
+                svgContainer.classList.add('loading');
+                closeForm('gfrcChecklistForm');
+
+                fetch(svgFilename)
+                    .then(response => {
+                        svgContainer.classList.remove('loading');
+                        if (!response.ok) throw new Error(`خطا در بارگذاری ${svgFilename}: ${response.status}`);
+                        return response.text();
+                    })
+                    .then(svgData => {
+                        svgContainer.innerHTML = svgData;
+                        setTimeout(() => {
+                            const svgElement = svgContainer.querySelector('svg');
+                            if (svgElement) {
+                                svgElement.removeAttribute('width');
+                                svgElement.removeAttribute('height');
+                                svgElement.style.width = '100%';
+                                svgElement.style.height = '100%';
+                                if (!svgElement.getAttribute('viewBox')) {
+                                    console.warn(`SVG ${svgFilename} فاقد مشخصه viewBox است.`);
+                                }
+
+                                applyGroupStylesAndControls(svgElement); // Apply general styles and controls
+                                initializeInteractiveGFRCPanels(svgElement); // Setup GFRC specific interactivity
+
+                            } else {
+                                console.error("محتوای SVG بارگذاری شد، اما عنصر <svg> پیدا نشد.");
+                                svgContainer.textContent = `خطا: عنصر <svg> در ${svgFilename} پیدا نشد.`;
+                            }
+                        }, 0);
+                    })
+                    .catch(error => {
+                        svgContainer.classList.remove('loading');
+                        console.error(`خطا در بارگذاری یا تجزیه ${svgFilename}:`, error);
+                        svgContainer.textContent = `خطا در بارگذاری ${svgFilename}: ${error.message}. لطفا از وجود فایل و قابل دسترس بودن آن اطمینان حاصل کنید.`;
+                    });
+            }
+
+            zoneSelector.addEventListener('change', (event) => loadAndDisplaySVG(event.target.value));
+            loadAndDisplaySVG(zoneSelector.value); // Initial load
+        });
+
+        function initializeInteractiveGFRCPanels(svg) {
+            const gfrcConfig = svgGroupConfig["GFRC"];
+            if (!gfrcConfig || !gfrcConfig.elementRef) {
+                console.warn("گروه GFRC برای تعامل تعریف نشده یا یافت نشد.");
+                return;
+            }
+            const gfrcGroupElement = gfrcConfig.elementRef;
+
+            const paths = gfrcGroupElement.querySelectorAll('path'); // Only paths within GFRC group
+            const texts = svg.querySelectorAll('text'); // Consider texts from whole SVG for association, or scope to GFRC texts too
+
+            function getRectangleDimensions(dAttribute) {
+                const commands = dAttribute.trim().toUpperCase().split(/(?=[LMCZHV])/);
+                let points = [];
+                let currentX = 0, currentY = 0;
+                commands.forEach(commandStr => {
+                    const type = commandStr.charAt(0);
+                    const rawArgs = commandStr.substring(1).trim();
+                    let args = rawArgs ? rawArgs.split(/[\s,]+/).map(Number) : [];
+                    let i = 0;
+                    switch (type) {
+                        case 'M': currentX = args[i++]; currentY = args[i++]; points.push({ x: currentX, y: currentY }); while (i < args.length) { currentX = args[i++]; currentY = args[i++]; points.push({ x: currentX, y: currentY }); } break;
+                        case 'L': while (i < args.length) { currentX = args[i++]; currentY = args[i++]; points.push({ x: currentX, y: currentY }); } break;
+                        case 'H': while (i < args.length) { currentX = args[i++]; points.push({ x: currentX, y: currentY }); } break;
+                        case 'V': while (i < args.length) { currentY = args[i++]; points.push({ x: currentX, y: currentY }); } break;
+                        case 'Z': break;
+                    }
+                });
+                if (points.length < 3) return null;
+                const xValues = points.map(p => p.x), yValues = points.map(p => p.y);
+                const minX = Math.min(...xValues), maxX = Math.max(...xValues);
+                const minY = Math.min(...yValues), maxY = Math.max(...yValues);
+                const width = maxX - minX, height = maxY - minY;
+                if (width <= 0 || height <= 0) return null;
+                return { x: minX, y: minY, width, height, points };
+            }
+
+            paths.forEach((path, index) => {
+                path.dataset.generatedId = `gfrc_rect_${index + 1}`;
+                const dAttr = path.getAttribute('d');
+                if (!dAttr) return;
+                const dims = getRectangleDimensions(dAttr);
+
+                if (dims) {
+                    // Fixed color for GFRC is applied by applyGroupStylesAndControls
+                    // No need to color based on orientation here anymore
+                    // path.style.fill = dims.width > dims.height ? 'rgba(255,160,122,0.6)' : ... ; // REMOVED
+
+                    let associatedTextsContent = [];
+                    texts.forEach(textEl => { // This still searches ALL text elements in the SVG
+                        const textBBox = textEl.getBBox();
+                        const textCenterX = textBBox.x + textBBox.width / 2;
+                        const textCenterY = textBBox.y + textBBox.height / 2;
+                        if (textCenterX >= dims.x && textCenterX <= dims.x + dims.width &&
+                            textCenterY >= dims.y && textCenterY <= dims.y + dims.height) {
+                            associatedTextsContent.push(textEl.textContent.trim());
+                        }
+                    });
+                    path.dataset.associatedText = associatedTextsContent.join(' ');
+
+                    if (gfrcConfig.interactive) { // Check if GFRC group is marked as interactive
+                        path.addEventListener('click', (event) => {
+                            event.stopPropagation();
+                            let panelId = path.dataset.associatedText.match(/-G\d+/i);
+                            if (panelId) {
+                                panelId = panelId[0].toUpperCase();
+                            } else {
+                                panelId = path.dataset.associatedText.split(' ')[0] || path.dataset.generatedId;
+                            }
+
+                            if (panelChecklistDataStore.GFRC && panelChecklistDataStore.GFRC.panels[panelId]) {
+                                openGfrcChecklistForm(panelId, panelChecklistDataStore.GFRC.panels[panelId], panelChecklistDataStore.GFRC.staticInfo);
+                            } else {
+                                alert(`داده‌های چک لیست GFRC برای پنل '${panelId}' یافت نشد.`);
+                                console.warn("GFRC Data not found for panelId:", panelId, "Available GFRC panel IDs:", Object.keys(panelChecklistDataStore.GFRC.panels));
+                            }
+                        });
+                        const originalStroke = path.getAttribute('stroke') || "black";
+                        const originalStrokeWidth = path.getAttribute('stroke-width') || "1";
+                        path.addEventListener('mouseenter', () => { if (gfrcGroupElement.style.display !== 'none') { path.style.stroke = "darkblue"; path.style.strokeWidth = (parseFloat(originalStrokeWidth) * 2 + 1).toString(); path.style.cursor = 'pointer'; } });
+                        path.addEventListener('mouseleave', () => { if (gfrcGroupElement.style.display !== 'none') { path.style.stroke = originalStroke; path.style.strokeWidth = originalStrokeWidth; path.style.cursor = 'default'; } });
+                    }
+                }
+            });
+        }
+
+        function openGfrcChecklistForm(panelId, panelData, staticData) {
+            document.getElementById('gfrcFormTitle').textContent = `چک لیست کنترل کیفی - GFRC - پنل: ${panelId}`;
+            document.getElementById('gfrcContractor').textContent = staticData.contractor || "تعیین نشده";
+            document.getElementById('gfrcArea').textContent = staticData.area || "تعیین نشده";
+            document.getElementById('gfrcBlock').textContent = staticData.block || "تعیین نشده";
+            document.getElementById('gfrcDeliveryStatus').textContent = staticData.deliveryStatus || "تعیین نشده";
+            document.getElementById('gfrcPanelType').textContent = panelData.panelType || "تعیین نشده";
+            document.getElementById('gfrcPanelNumber').textContent = panelData.panelNumber || "تعیین نشده";
+            const checklistBody = document.getElementById('gfrcChecklistBody');
+            checklistBody.innerHTML = '';
+            panelData.items.forEach(item => {
+                const row = checklistBody.insertRow();
+                const cellCheck = row.insertCell();
+                const cellValue = row.insertCell();
+                cellCheck.textContent = item.check;
+                cellValue.textContent = item.value || '-';
+                if (item.value && (item.value.includes('×') || item.value.match(/[A-Z]\d+/))) {
+                    cellValue.classList.add('highlight-issue');
+                }
+            });
+            document.getElementById('gfrcNotes').textContent = staticData.notes || "";
+            document.getElementById('gfrcChecklistForm').style.display = 'block';
+        }
+        function closeForm(formId) { document.getElementById(formId).style.display = 'none'; }
+
+    </script>
+</body>
+
+</html>

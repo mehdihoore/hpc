@@ -5,16 +5,24 @@
 require_once __DIR__ . '/../../sercon/bootstrap.php';
 
 // --- Capacities & Helpers (Unchanged) ---
-$formworkDailyCapacity = ['F-H-1' => 1, 'F-H-2' => 3, 'F-H-3' => 2, 'F-H-4' => 1, 'F-H-5' => 2, 'F-H-6' => 2, 'F-H-7' => 2, 'F-H-8' => 1, 'F-H-9' => 2, 'F-H-10' => 1, 'F-H-11' => 1, 'F-H-12' => 1, 'F-H-13' => 1, 'F-H-14' => 1, 'F-H-15' => 1, 'F-H-16' => 1];
+/* $formworkDailyCapacity = ['F-H-1' => 1, 'F-H-2' => 3, 'F-H-3' => 2, 'F-H-4' => 1, 'F-H-5' => 2, 'F-H-6' => 2, 'F-H-7' => 2, 'F-H-8' => 1, 'F-H-9' => 2, 'F-H-10' => 1, 'F-H-11' => 1, 'F-H-12' => 1, 'F-H-13' => 1, 'F-H-14' => 1, 'F-H-15' => 1, 'F-H-16' => 1]; */
 function getBaseFormworkType($type)
 {
     if (!$type) return null;
     $trimmedType = trim((string)$type);
     $parts = explode('-', $trimmedType);
+
+    // If it's an F-H-X type, and might have more segments for instance details (e.g., F-H-1-InstanceA)
+    // This part ensures we only take the F-H-Number part.
     if (count($parts) >= 3 && strtoupper($parts[0]) === 'F' && strtoupper($parts[1]) === 'H' && is_numeric($parts[2])) {
-        return $parts[0] . '-' . $parts[1] . '-' . $parts[2];
+        return strtoupper($parts[0]) . '-' . strtoupper($parts[1]) . '-' . $parts[2]; // Return F-H-1
     }
-    return null;
+
+    // For CFM types or any other type that is already stored as a base type in hpc_panels.formwork_type
+    // and directly matches an entry in available_formworks.formwork_type.
+    // No further processing needed, just return the trimmed type.
+    // Example: "CFM-S-A5-B6" should be returned as "CFM-S-A5-B6"
+    return $trimmedType;
 }
 
 // List of progress columns to check/clear
@@ -68,57 +76,43 @@ class PanelScheduler
 {
     private PDO $pdo;
     private ?int $userId; // Nullable if scheduling can be system-initiated without a user
-    private array $dailyProcessCapacities; // General capacities like F-H-1 => 1
+    //private array $dailyProcessCapacities; // General capacities like F-H-1 => 1
     private array $progressCols;
 
     // New constants for daily limits
-    private const MAX_PANELS_THURSDAY = 6;
-    private const MAX_PANELS_OTHER_WEEKDAY = 12;
+    public const MAX_PANELS_THURSDAY = 10;
+    public const MAX_PANELS_OTHER_WEEKDAY = 20;
 
-    public function __construct(PDO $pdo, ?int $userId, array $dailyProcessCapacities, array $progressCols)
+    public function __construct(PDO $pdo, ?int $userId, array $progressCols)
     {
         $this->pdo = $pdo;
-        $this->userId = $userId; // Can be null
-        $this->dailyProcessCapacities = $dailyProcessCapacities; // These are per formwork type
+        $this->userId = $userId;
         $this->progressCols = $progressCols;
+        // $this->dailyProcessCapacities is removed
     }
 
     private function getBaseFormworkTypeExternal($type)
     { // Using the global helper
-        return getBaseFormworkType($type);
+        return getBaseFormworkType($type); // Ensure this global function is correctly defined (Step 1)
     }
 
-    private function getAvailableInstanceCounts(): array
+    private function getPhysicalFormworkInventory(): array
     {
-        $currentAvailableCounts = [];
-        // Initialize with 0 for all types defined in daily capacity limits
-        // This ensures the array always contains keys for all relevant types.
-        foreach (array_keys($this->dailyProcessCapacities) as $baseType) {
-            $currentAvailableCounts[$baseType] = 0;
-        }
-
+        $inventory = [];
         try {
-            // Query the available_formworks table for types with > 0 available
-            // Fetch directly into a key-pair array [formwork_type => available_count]
-            $stmt = $this->pdo->query("SELECT formwork_type, available_count FROM available_formworks WHERE available_count > 0");
-            $dbCounts = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-
-            // Merge the results from the database into our initialized array
-            // This overwrites the initial 0 with the actual count if found in DB and > 0
-            foreach ($dbCounts as $type => $count) {
-                // We only care about types that have a defined daily process limit
-                // If a type exists in available_formworks but not in daily limits, it won't be scheduled anyway.
-                if (array_key_exists($type, $currentAvailableCounts)) {
-                    $currentAvailableCounts[$type] = (int)$count;
-                }
-                // Optionally log types available but without daily limit configured
-                // else { error_log("Notice: Formwork type '{$type}' has available instances but no defined daily process limit."); }
+            // Query the available_formworks table
+            // It's important that formwork_type in this table are the "base" types.
+            $stmt = $this->pdo->query("SELECT formwork_type, available_count FROM available_formworks");
+            $inventory = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            // Cast counts to int
+            foreach ($inventory as $type => $count) {
+                $inventory[$type] = (int)$count;
             }
         } catch (PDOException $e) {
-            error_log("DB Error in getAvailableInstanceCounts: " . $e->getMessage());
-            // Return the initialized (mostly zeros) array on error, preventing scheduling
+            error_log("DB Error in getPhysicalFormworkInventory: " . $e->getMessage());
+            // On error, return empty inventory; this will prevent scheduling.
         }
-        return $currentAvailableCounts;
+        return $inventory;
     }
 
     private function isFriday(DateTime $date): bool
@@ -173,7 +167,7 @@ class PanelScheduler
     }
 
     // Gets available formwork instances (total, not per day)
-    private function getAvailableFormworkInstances(): array
+    /*  private function getAvailableFormworkInstances(): array
     {
         $stmt = $this->pdo->query("SELECT formwork_type, available_count FROM available_formworks WHERE available_count > 0");
         $available = [];
@@ -184,7 +178,7 @@ class PanelScheduler
             }
         }
         return $available;
-    }
+    } */
 
     private function getAssignmentsCountByBaseTypeAndDate(string $startDate, string $endDate): array
     {
@@ -405,7 +399,7 @@ class PanelScheduler
     public function autoScheduleForTargetDate(string $targetDateStr): array
     {
         $scheduledOnTargetDate = [];
-        $rescheduledFromTargetDate = []; // Tracks panels moved OFF the targetDate
+        $rescheduledFromTargetDate = [];
         $failedToSchedule = [];
 
         try {
@@ -418,25 +412,25 @@ class PanelScheduler
             return ['success' => false, 'error' => 'Target date cannot be a Friday.', 'target_date_invalid' => true];
         }
 
-        $dailyPanelLimit = $this->isThursday($targetDateObj) ? self::MAX_PANELS_THURSDAY : self::MAX_PANELS_OTHER_WEEKDAY;
+        $dailyOverallPanelLimit = $this->isThursday($targetDateObj) ? self::MAX_PANELS_THURSDAY : self::MAX_PANELS_OTHER_WEEKDAY;
 
         $this->pdo->beginTransaction();
         try {
-            // --- Stage 1: Attempt to schedule new panels ---
             $candidatePanels = $this->getCandidatePanelsToSchedule();
-            $currentPanelsOnTargetDate = $this->getScheduledPanelCountForDate($targetDateStr);
-            $formworkUsageOnTargetDate = $this->getFormworkUsageOnDate($targetDateStr);
-            $availableFormworkInstances = $this->getAvailableFormworkInstances(); // Total available inventory
+            $currentPanelsOnTargetDateCount = $this->getScheduledPanelCountForDate($targetDateStr);
+            $formworkUsageOnTargetDate = $this->getFormworkUsageOnDate($targetDateStr); // Usage per type for the target date
 
-            $slotsFilledToday = $currentPanelsOnTargetDate;
+            // This is the key change: get limits from the database table
+            $physicalFormworkInventory = $this->getPhysicalFormworkInventory();
+
+            $slotsFilledToday = $currentPanelsOnTargetDateCount;
 
             foreach ($candidatePanels as $candidate) {
-                if ($slotsFilledToday >= $dailyPanelLimit) {
-                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => 'Daily panel limit reached for target date.'];
-                    continue; // No more slots today
+                if ($slotsFilledToday >= $dailyOverallPanelLimit) {
+                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => 'Daily overall panel limit reached for target date.'];
+                    continue;
                 }
 
-                // Check progress for this candidate
                 $progressStmt = $this->pdo->prepare("SELECT " . implode(', ', $this->progressCols) . " FROM hpc_panels WHERE id = ?");
                 $progressStmt->execute([$candidate['id']]);
                 $progressData = $progressStmt->fetch(PDO::FETCH_ASSOC);
@@ -454,6 +448,7 @@ class PanelScheduler
                     continue;
                 }
 
+
                 // Check formwork type capacity for this specific panel
                 $baseCandidateFormworkType = $this->getBaseFormworkTypeExternal($candidate['formwork_type']);
                 if (!$baseCandidateFormworkType) {
@@ -461,33 +456,24 @@ class PanelScheduler
                     continue;
                 }
 
-                $formworkTypeDailyLimit = $this->dailyProcessCapacities[$baseCandidateFormworkType] ?? 0;
+                $baseCandidateFormworkType = $this->getBaseFormworkTypeExternal($candidate['formwork_type']);
+                if (!$baseCandidateFormworkType) {
+                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => 'Invalid or unidentifiable formwork type.'];
+                    continue;
+                }
+
+                // Get the number of physical instances available for this formwork type
+                $instancesAvailableForThisType = $physicalFormworkInventory[$baseCandidateFormworkType] ?? 0;
                 $formworkTypeUsageToday = $formworkUsageOnTargetDate[$baseCandidateFormworkType] ?? 0;
-                $totalOfTypeAvailable = $availableFormworkInstances[$baseCandidateFormworkType] ?? 0;
 
-
-                // Check if we have an instance of this formwork type available overall
-                // AND if adding one more to today doesn't exceed its specific daily process limit
-                // AND if adding one more doesn't exceed the total number of available instances of that type (inventory check)
-                // The inventory check is tricky: `getFormworkUsageOnDate` needs to be accurate for overall usage.
-                // For this specific method, let's simplify: the dailyProcessCapacities is key.
-                // We also need to ensure that the total number of *this specific formwork type* used on this day
-                // does not exceed the number of physical instances of that formwork available.
-
-                if ($formworkTypeDailyLimit <= 0) {
-                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => "No daily processing capacity for formwork {$baseCandidateFormworkType}."];
+                if ($instancesAvailableForThisType <= 0) {
+                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => "No physical instances of formwork '{$baseCandidateFormworkType}' are defined or available in inventory."];
                     continue;
                 }
-                if ($formworkTypeUsageToday >= $formworkTypeDailyLimit) {
-                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => "Daily limit for formwork {$baseCandidateFormworkType} reached on target date."];
+                if ($formworkTypeUsageToday >= $instancesAvailableForThisType) {
+                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => "All physical instances ({$instancesAvailableForThisType}) of formwork '{$baseCandidateFormworkType}' are already scheduled for use on target date {$targetDateStr}."];
                     continue;
                 }
-                // More advanced: check against total available instances if `formworkTypeDailyLimit` could be higher than total stock
-                if ($formworkTypeUsageToday >= $totalOfTypeAvailable) {
-                    $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => "All available instances of formwork {$baseCandidateFormworkType} are already in use or scheduled."];
-                    continue;
-                }
-
 
                 // If all checks pass, schedule this panel
                 $updateStmt = $this->pdo->prepare(
@@ -503,30 +489,18 @@ class PanelScheduler
                 ])) {
                     $scheduledOnTargetDate[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'assigned_to' => $targetDateStr];
                     $slotsFilledToday++;
+                    // Update our in-memory usage counter for the current scheduling loop
                     $formworkUsageOnTargetDate[$baseCandidateFormworkType] = ($formworkUsageOnTargetDate[$baseCandidateFormworkType] ?? 0) + 1;
                 } else {
                     $failedToSchedule[] = ['panel_id' => $candidate['id'], 'address' => $candidate['address'], 'reason' => 'DB update failed.'];
                 }
-            } // End foreach candidatePanel
-
-            // --- Stage 2: Reschedule lowest priority panels if new high-priority ones couldn't fit (Complex) ---
-            // This part is very tricky and can lead to cascading effects.
-            // For now, this example will NOT implement the automatic rescheduling of existing panels.
-            // It will simply fill available slots.
-            // To implement rescheduling:
-            // 1. If $slotsFilledToday was already >= $dailyPanelLimit before starting,
-            //    OR if after scheduling some new ones, higher priority candidates still exist but no slots left:
-            // 2. Get panels ALREADY scheduled on $targetDateStr, ordered by LOWEST priority (e.g., P12 before P1).
-            // 3. For each of these, try to find the NEXT available valid day (not Friday, respects its own day limits).
-            // 4. If a new slot is found, UPDATE that panel's assigned_date. Add to $rescheduledFromTargetDate.
-            // 5. This frees up a slot on $targetDateStr. Potentially re-run Stage 1 for remaining high-priority candidates.
-            // This needs careful loop control and state management.
+            }
 
             $this->pdo->commit();
             return [
                 'success' => true,
                 'scheduled_new' => $scheduledOnTargetDate,
-                'rescheduled_existing' => $rescheduledFromTargetDate, // Will be empty for now
+                'rescheduled_existing' => $rescheduledFromTargetDate,
                 'failed_to_schedule' => $failedToSchedule,
                 'message' => "Auto-scheduling complete for {$targetDateStr}."
             ];
@@ -542,28 +516,36 @@ class PanelScheduler
     // For now, I'm assuming the button uses the old logic.
     public function scheduleMultiplePanels(array $panels, string $startDate, string $endDate): array
     {
-
         $assignmentsMade = [];
         $unscheduledPanels = [];
         $createdOrdersInfo = [];
 
         try {
-            $currentAvailableCounts = $this->getAvailableInstanceCounts();
-            $assignmentsUsage = $this->getAssignmentsCountByBaseTypeAndDate($startDate, $endDate);
+            // Get physical inventory limits
+            $physicalFormworkInventory = $this->getPhysicalFormworkInventory();
+            $assignmentsUsageByDateAndType = $this->getAssignmentsCountByBaseTypeAndDate($startDate, $endDate);
 
             $dateRange = [];
             $current = new DateTime($startDate);
             $end = new DateTime($endDate);
             while ($current <= $end) {
-                $dateRange[] = $current->format('Y-m-d');
+                if (!$this->isFriday($current)) { // Skip Fridays
+                    $dateRange[] = $current->format('Y-m-d');
+                }
                 $current->modify('+1 day');
             }
+
             if (empty($dateRange)) {
-                return ['success' => false, 'error' => 'Invalid date range.', 'scheduled' => [], 'unscheduled' => array_map(fn($p) => ['panel_id' => $p['id'] ?? '?', 'reason' => 'Invalid date range'], $panels), 'createdOrders' => []];
+                $reason = 'No valid (non-Friday) dates in range.';
+                if ($this->isFriday(new DateTime($startDate)) && $startDate === $endDate) {
+                    $reason = 'Selected date is a Friday.';
+                }
+                return ['success' => true, 'message' => $reason, 'scheduled' => [], 'unscheduled' => array_map(fn($p) => ['panel_id' => $p['id'] ?? '?', 'reason' => $reason], $panels), 'createdOrders' => []];
             }
 
             $panelIds = array_column($panels, 'id');
             $panelDetailsFromDB = [];
+            // ... (fetching panel details and progress check remains the same) ...
             if (!empty($panelIds)) {
                 $placeholders = rtrim(str_repeat('?,', count($panelIds)), ',');
                 $progressColsSql = implode(', ', array_map(fn($col) => "`" . $col . "`", $this->progressCols));
@@ -585,6 +567,7 @@ class PanelScheduler
                 }
             }
 
+
             foreach ($panels as $panelInput) {
                 $panelId = $panelInput['id'] ?? null;
                 if (!$panelId || !isset($panelDetailsFromDB[$panelId])) {
@@ -602,41 +585,56 @@ class PanelScheduler
                     $unscheduledPanels[] = ['panel_id' => $panelId, 'reason' => 'Skipped: Existing progress data found.'];
                     continue;
                 }
-                $currentlyAvailableOfType = $currentAvailableCounts[$basePanelFormworkType] ?? 0;
-                if ($currentlyAvailableOfType <= 0) {
-                    $unscheduledPanels[] = ['panel_id' => $panelId, 'reason' => "No available instances for type '{$basePanelFormworkType}'"];
+
+                // Use the physical inventory count as the limit for this formwork type
+                $instancesAvailableForThisType = $physicalFormworkInventory[$basePanelFormworkType] ?? 0;
+
+                if ($instancesAvailableForThisType <= 0) {
+                    $unscheduledPanels[] = ['panel_id' => $panelId, 'reason' => "No physical instances of formwork '{$basePanelFormworkType}' are available in inventory."];
                     continue;
                 }
-                $dailyProcessLimit = $this->dailyProcessCapacities[$basePanelFormworkType] ?? 0;
-                if ($dailyProcessLimit <= 0) {
-                    $unscheduledPanels[] = ['panel_id' => $panelId, 'reason' => "Daily processing capacity not defined for '{$basePanelFormworkType}'"];
-                    continue;
-                }
+
                 $scheduledThisPanel = false;
-                foreach ($dateRange as $date) {
-                    $currentUsageOnDate = $assignmentsUsage[$basePanelFormworkType][$date] ?? 0;
-                    if ($currentUsageOnDate < $currentlyAvailableOfType && $currentUsageOnDate < $dailyProcessLimit) {
+                foreach ($dateRange as $date) { // $dateRange already excludes Fridays
+                    $currentUsageOnDateAndType = $assignmentsUsageByDateAndType[$basePanelFormworkType][$date] ?? 0;
+
+                    // Check overall daily panel limit for this specific date
+                    $currentTotalPanelsOnDate = $this->getScheduledPanelCountForDate($date);
+                    $dailyOverallPanelLimit = $this->isThursday(new DateTime($date)) ? self::MAX_PANELS_THURSDAY : self::MAX_PANELS_OTHER_WEEKDAY;
+
+                    if ($currentTotalPanelsOnDate >= $dailyOverallPanelLimit) {
+                        // This specific day is full based on overall panel limit, try next day in dateRange
+                        // No failure message here for the panel yet, as other dates might be available.
+                        continue;
+                    }
+
+                    // Now check formwork-specific limit for this day
+                    if ($currentUsageOnDateAndType < $instancesAvailableForThisType) {
                         $assignmentsMade[] = ['panel_id' => $panelId, 'assigned_date' => $date];
-                        $assignmentsUsage[$basePanelFormworkType][$date] = ($assignmentsUsage[$basePanelFormworkType][$date] ?? 0) + 1;
+                        // Update in-memory usage for the next panel in this batch
+                        $assignmentsUsageByDateAndType[$basePanelFormworkType][$date] = ($assignmentsUsageByDateAndType[$basePanelFormworkType][$date] ?? 0) + 1;
                         $scheduledThisPanel = true;
-                        break;
+                        break; // Panel scheduled, move to next panel
                     }
                 }
                 if (!$scheduledThisPanel) {
-                    $unscheduledPanels[] = ['panel_id' => $panelId, 'reason' => "ظرفیت قالب :  '{$basePanelFormworkType}' برای تاریخ {$startDate}-{$endDate} پر است."];
+                    $unscheduledPanels[] = ['panel_id' => $panelId, 'reason' => "Capacity for formwork '{$basePanelFormworkType}' or overall daily limit reached for all valid dates in range {$startDate} to {$endDate}."];
                 }
             }
 
             if (!empty($assignmentsMade)) {
                 $this->pdo->beginTransaction();
                 try {
+                    // ... (SQL statements for update, check order, insert order, get max order) ...
+                    // Make sure to use $this->userId where appropriate
                     $stmtUpdatePanel = $this->pdo->prepare(
                         "UPDATE hpc_panels
                          SET assigned_date = :assigned_date,
                             planned_finish_date = :planned_finish_date_val,
-                            planned_finish_user_id = :userId
+                            planned_finish_user_id = :userId 
                          WHERE id = :panel_id"
                     );
+                    // ... (rest of the order logic as it was, ensuring $this->userId)
                     $stmtCheckOrder = $this->pdo->prepare("SELECT 1 FROM polystyrene_orders WHERE hpc_panel_id = ? AND order_type = ? AND status = 'ordered' LIMIT 1");
                     $stmtGetMaxOrder = $this->pdo->prepare("SELECT MAX(CAST(SUBSTRING(order_number, 5) AS UNSIGNED)) FROM polystyrene_orders");
                     $stmtInsertOrder = $this->pdo->prepare(
@@ -655,7 +653,7 @@ class PanelScheduler
 
                         $stmtUpdatePanel->bindValue(':assigned_date', $assignedDate, PDO::PARAM_STR);
                         $stmtUpdatePanel->bindValue(':planned_finish_date_val', $plannedFinishDatePhp, PDO::PARAM_STR);
-                        $stmtUpdatePanel->bindValue(':userId', $this->userId, PDO::PARAM_INT);
+                        $stmtUpdatePanel->bindValue(':userId', $this->userId, PDO::PARAM_INT); // Use class property
                         $stmtUpdatePanel->bindValue(':panel_id', $panelId, PDO::PARAM_INT);
                         if (!$stmtUpdatePanel->execute()) {
                             throw new PDOException("DB Update failed for panel ID: $panelId");
@@ -678,10 +676,11 @@ class PanelScheduler
                     }
                     $this->pdo->commit();
                 } catch (PDOException | Exception $e) {
+                    // ... (error handling as before) ...
                     if ($this->pdo->inTransaction()) $this->pdo->rollBack();
-                    error_log("TRANSACTION FAILED in PanelScheduler (old scheduleMultiplePanels): " . $e->getMessage());
+                    error_log("TRANSACTION FAILED in PanelScheduler (scheduleMultiplePanels): " . $e->getMessage());
                     $dbFailedPanelIds = array_column($assignmentsMade, 'panel_id');
-                    $tempUnscheduled = $unscheduledPanels; // Keep pre-check failures
+                    $tempUnscheduled = $unscheduledPanels;
                     foreach ($panels as $inputPanelItem) {
                         $currentPanelId = $inputPanelItem['id'] ?? null;
                         if ($currentPanelId && in_array($currentPanelId, $dbFailedPanelIds)) {
@@ -702,11 +701,13 @@ class PanelScheduler
                 'createdOrders' => $createdOrdersInfo
             ];
         } catch (PDOException $e) {
-            $errorMsg = 'DB error during scheduling prep (old scheduleMultiplePanels): ' . $e->getMessage();
+            // ... (error handling as before) ...
+            $errorMsg = 'DB error during scheduling prep (scheduleMultiplePanels): ' . $e->getMessage();
             error_log($errorMsg);
             return ['success' => false, 'error' => $errorMsg, 'scheduled' => [], 'unscheduled' => array_map(fn($p) => ['panel_id' => $p['id'] ?? '?', 'reason' => 'DB Prep Error'], $panels), 'createdOrders' => []];
         } catch (Exception $e) {
-            $errorMsg = 'Unexpected error during scheduling prep (old scheduleMultiplePanels): ' . $e->getMessage();
+            // ... (error handling as before) ...
+            $errorMsg = 'Unexpected error during scheduling prep (scheduleMultiplePanels): ' . $e->getMessage();
             error_log($errorMsg);
             return ['success' => false, 'error' => $errorMsg, 'scheduled' => [], 'unscheduled' => array_map(fn($p) => ['panel_id' => $p['id'] ?? '?', 'reason' => 'Unexpected Prep Error'], $panels), 'createdOrders' => []];
         }
@@ -1052,11 +1053,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         // --- ACTION: checkFormworkAvailability  ---
         elseif ($action === 'checkFormworkAvailability') {
+            // global $formworkDailyCapacity; // REMOVE THIS GLOBAL
 
             $panelId = filter_input(INPUT_POST, 'panelId', FILTER_VALIDATE_INT);
             $date = $_POST['date'] ?? null;
             $formworkTypeInput = $_POST['formworkType'] ?? null;
-            $baseFormworkType = getBaseFormworkType($formworkTypeInput);
+            $baseFormworkType = getBaseFormworkType($formworkTypeInput); // Use the updated function
+
             if (!$date || !$baseFormworkType) {
                 $httpStatusCode = 400;
                 $response = ['success' => false, 'available' => false, 'error' => 'Missing required date or valid formwork type.'];
@@ -1065,66 +1068,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $response = ['success' => false, 'available' => false, 'error' => 'Invalid date format. Use YYYY-MM-DD.'];
             } else {
                 try {
+                    // Get physical inventory count for this specific formwork type
                     $stmt_avail = $pdo->prepare("SELECT available_count FROM available_formworks WHERE formwork_type = :baseType");
                     $stmt_avail->execute([':baseType' => $baseFormworkType]);
-                    $currentlyAvailableOfType = $stmt_avail->fetchColumn();
-                    if ($currentlyAvailableOfType === false || !is_numeric($currentlyAvailableOfType)) {
-                        $httpStatusCode = 404;
-                        $response = ['success' => false, 'available' => false, 'error' => "اطلاعات موجودی برای نوع قالب '{$baseFormworkType}' یافت نشد."];
-                    } elseif ($currentlyAvailableOfType <= 0) {
+                    $physicalInstancesAvailable = $stmt_avail->fetchColumn();
+
+                    if ($physicalInstancesAvailable === false) { // type not found in available_formworks
+                        $httpStatusCode = 404; // Or 200 with available:false
+                        $response = ['success' => false, 'available' => false, 'error' => "اطلاعات موجودی برای نوع قالب '{$baseFormworkType}' یافت نشد یا تعریف نشده است."];
+                    } elseif (!is_numeric($physicalInstancesAvailable) || (int)$physicalInstancesAvailable <= 0) {
                         $httpStatusCode = 200;
-                        $response = ['success' => true, 'available' => false, 'error' => "هیچ نمونه در دسترسی برای نوع قالب '{$baseFormworkType}' وجود ندارد."];
+                        $response = ['success' => true, 'available' => false, 'error' => "هیچ نمونه فیزیکی در دسترسی برای نوع قالب '{$baseFormworkType}' وجود ندارد."];
                     } else {
-                        $dailyProcessLimit = $formworkDailyCapacity[$baseFormworkType] ?? 0;
-                        if ($dailyProcessLimit <= 0) {
-                            error_log("Configuration Warning: Daily process capacity is zero or undefined for available formwork type '{$baseFormworkType}'.");
-                            $httpStatusCode = 500;
-                            $response = ['success' => false, 'available' => false, 'error' => "ظرفیت پردازش روزانه برای قالب '{$baseFormworkType}' به درستی تنظیم نشده است."];
-                        } else {
-                            $sql_usage = "SELECT COUNT(*) FROM hpc_panels WHERE formwork_type = :baseFormworkType AND assigned_date = :date";
-                            $params_usage = [':baseFormworkType' => $baseFormworkType, ':date' => $date];
-                            if ($panelId !== null && $panelId > 0) {
+                        $physicalInstancesAvailable = (int)$physicalInstancesAvailable; // Cast to int
+
+                        // Get current usage of this formwork type on the specified date
+                        $sql_usage = "SELECT COUNT(*) FROM hpc_panels WHERE formwork_type = :baseFormworkType AND assigned_date = :date";
+                        $params_usage = [':baseFormworkType' => $baseFormworkType, ':date' => $date];
+                        // If checking for an existing panel being moved, exclude it from usage count
+                        if ($panelId !== null && $panelId > 0) {
+                            $stmtPanelCheck = $pdo->prepare("SELECT assigned_date FROM hpc_panels WHERE id = :panelId");
+                            $stmtPanelCheck->execute([':panelId' => $panelId]);
+                            $currentPanelAssignedDate = $stmtPanelCheck->fetchColumn();
+                            if ($currentPanelAssignedDate === $date) { // Only exclude if it's currently on the date we are checking
                                 $sql_usage .= " AND id != :panelId";
                                 $params_usage[':panelId'] = $panelId;
                             }
-                            $stmt_usage = $pdo->prepare($sql_usage);
-                            $stmt_usage->execute($params_usage);
-                            $currentUsage = (int)$stmt_usage->fetchColumn();
-                            if ($currentUsage < $currentlyAvailableOfType && $currentUsage < $dailyProcessLimit) {
-                                $httpStatusCode = 200;
-                                $response = [
-                                    'success' => true,
-                                    'available' => true,
-                                    'currentlyAvailableOfType' => (int)$currentlyAvailableOfType,
-                                    'dailyProcessLimit' => $dailyProcessLimit,
-                                    'currentUsage' => $currentUsage,
-                                    'message' => "ظرفیت برای '{$baseFormworkType}' در {$date} موجود است."
-                                ];
-                            } else {
-                                $reason = "";
-                                if ($currentUsage >= $dailyProcessLimit) {
-                                    $reason = "ظرفیت پردازش روزانه ({$dailyProcessLimit}) تکمیل شده";
-                                } elseif ($currentUsage >= $currentlyAvailableOfType) {
-                                    $reason = "تمام نمونه‌های در دسترس ({$currentlyAvailableOfType}) در این روز استفاده شده‌اند";
-                                } else {
-                                    $reason = "ظرفیت تکمیل";
-                                }
-                                $httpStatusCode = 200;
-                                $response = [
-                                    'success' => true,
-                                    'available' => false,
-                                    'error' => "ظرفیت برای '{$baseFormworkType}' در {$date} تکمیل. {$reason}",
-                                    'currentlyAvailableOfType' => (int)$currentlyAvailableOfType,
-                                    'dailyProcessLimit' => $dailyProcessLimit,
-                                    'currentUsage' => $currentUsage
-                                ];
-                            }
+                        }
+                        $stmt_usage = $pdo->prepare($sql_usage);
+                        $stmt_usage->execute($params_usage);
+                        $currentUsageOnDayForType = (int)$stmt_usage->fetchColumn();
+
+                        // Also check overall daily panel limit
+                        $stmt_total_on_day = $pdo->prepare("SELECT COUNT(*) FROM hpc_panels WHERE assigned_date = :date");
+                        $stmt_total_on_day->execute([':date' => $date]);
+                        $currentTotalPanelsOnDate = (int)$stmt_total_on_day->fetchColumn();
+                        $overallDailyLimit = ((new DateTime($date))->format('N') == 4) ? PanelScheduler::MAX_PANELS_THURSDAY : PanelScheduler::MAX_PANELS_OTHER_WEEKDAY;
+
+
+                        if ($currentTotalPanelsOnDate >= $overallDailyLimit) {
+                            $httpStatusCode = 200;
+                            $response = [
+                                'success' => true,
+                                'available' => false,
+                                'error' => "ظرفیت کلی پنل برای تاریخ {$date} تکمیل است ({$currentTotalPanelsOnDate}/{$overallDailyLimit}).",
+                                'maxAllowedOnDayForType' => $physicalInstancesAvailable,
+                                'currentUsageForType' => $currentUsageOnDayForType,
+                                'overallDailyLimit' => $overallDailyLimit,
+                                'currentTotalPanelsOnDate' => $currentTotalPanelsOnDate
+                            ];
+                        } elseif ($currentUsageOnDayForType < $physicalInstancesAvailable) {
+                            $httpStatusCode = 200;
+                            $response = [
+                                'success' => true,
+                                'available' => true,
+                                'maxAllowedOnDayForType' => $physicalInstancesAvailable, // Max for this specific type
+                                'currentUsageForType' => $currentUsageOnDayForType, // Current usage for this type
+                                'message' => "ظرفیت برای '{$baseFormworkType}' در {$date} موجود است. (استفاده شده: {$currentUsageOnDayForType} از {$physicalInstancesAvailable})"
+                            ];
+                        } else {
+                            $httpStatusCode = 200;
+                            $response = [
+                                'success' => true,
+                                'available' => false,
+                                'error' => "تمام نمونه‌های فیزیکی ({$physicalInstancesAvailable}) برای قالب '{$baseFormworkType}' در تاریخ {$date} استفاده شده‌اند.",
+                                'maxAllowedOnDayForType' => $physicalInstancesAvailable,
+                                'currentUsageForType' => $currentUsageOnDayForType
+                            ];
                         }
                     }
                 } catch (PDOException $e) {
                     error_log("DB Error checking availability for {$baseFormworkType} on {$date}: " . $e->getMessage());
                     $httpStatusCode = 500;
                     $response = ['success' => false, 'available' => false, 'error' => 'خطای پایگاه داده هنگام بررسی در دسترس بودن.'];
+                } catch (Exception $e) { // Catch general exceptions like DateTime issues
+                    error_log("Error checking availability for {$baseFormworkType} on {$date}: " . $e->getMessage());
+                    $httpStatusCode = 500; // Or 400 if it's a date format issue
+                    $response = ['success' => false, 'available' => false, 'error' => 'خطای داخلی هنگام بررسی در دسترس بودن: ' . $e->getMessage()];
                 }
             }
         } elseif ($action === 'autoScheduleForDate') { // NEW ACTION
@@ -1140,7 +1160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $response = ['success' => false, 'error' => 'Invalid target date provided.'];
             } else {
                 // Ensure PanelScheduler class is available/included
-                $scheduler = new PanelScheduler($pdo, (int)$current_user_id, $formworkDailyCapacity, $progressColumns);
+                $scheduler = new PanelScheduler($pdo, (int)$current_user_id, $progressColumns);
                 $result = $scheduler->autoScheduleForTargetDate($targetDate); // Call the new method
 
                 // Set HTTP status code based on result
@@ -1187,7 +1207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $httpStatusCode = 200;
                     $response = ['success' => true, 'message' => 'No valid panel IDs provided.', 'scheduled' => [], 'unscheduled' => $panelsInput];
                 } else {
-                    $scheduler = new PanelScheduler($pdo, $current_user_id, $formworkDailyCapacity, $progressColumns);
+                    $scheduler = new PanelScheduler($pdo, $current_user_id, $progressColumns); // Ensure $current_user_id can be null if constructor allows
                     $result = $scheduler->scheduleMultiplePanels($panelsToSchedule, $startDate, $endDate); // Pass array of ['id'=>...]
 
                     // Map unscheduled IDs back to original input if needed for context, or just use the ID/reason from result
@@ -1231,7 +1251,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $httpStatusCode = 200; // Or 400 if you consider 0 an invalid input for a shift
                 $response = ['success' => true, 'message' => 'No shift requested (0 days).', 'shifted' => [], 'failed' => []];
             } else {
-                $scheduler = new PanelScheduler($pdo, (int)$current_user_id, $formworkDailyCapacity, $progressColumns);
+                $scheduler = new PanelScheduler($pdo, (int)$current_user_id, $progressColumns);
                 $result = $scheduler->shiftScheduledPanels($fromDate, (int)$shiftDays, (int)$current_user_id);
                 $httpStatusCode = $result['success'] ? 200 : 500; // Or 400 for specific validation errors from method
                 $response = $result;
@@ -1368,7 +1388,7 @@ try {
     die("Database error loading panel list.");
 }
 
-$pageTitle = 'پنل زمانبندی';
+$pageTitle = 'پنل زمانبندی - پروژه فرشته';
 require_once 'header.php';
 ?>
 <script>

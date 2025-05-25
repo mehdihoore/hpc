@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive SVG CAD Viewer (Resized)</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        h1,
+        p {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        #svgContainer {
+            width: 90vw;
+            /* 90% of viewport width */
+            height: 75vh;
+            /* 75% of viewport height */
+            max-width: 1200px;
+            /* Optional: max sensible width */
+            border: 1px solid #007bff;
+            /* Blue border */
+            background-color: #e9ecef;
+            /* Light grey background */
+            overflow: hidden;
+            /* Clip content that's too large, SVG should scale */
+            margin: 10px auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        #svgContainer svg {
+            /* Style the SVG element directly */
+            display: block;
+            /* Removes extra space below */
+            width: 100%;
+            /* Fill container width */
+            height: 100%;
+            /* Fill container height */
+            /* preserveAspectRatio="xMidYMid meet" is default, but can be explicit */
+        }
+
+        /* Form Popup Styles (no change from before) */
+        .form-popup {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            border: 2px solid #555;
+            z-index: 9;
+            background-color: #f9f9f9;
+            padding: 15px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+
+        .form-popup h3 {
+            margin-top: 0;
+        }
+
+        .form-popup input[type="text"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin: 5px 0 15px 0;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+
+        .form-popup .btn {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 3px;
+        }
+
+        .form-popup .btn.cancel {
+            background-color: #dc3545;
+        }
+
+        .form-popup .btn:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>SVG Interactive Diagram</h1>
+    <p>Loading SVG from <code>Zone9.svg</code>. Click on a rectangle to open a data form.</p>
+    <div id="svgContainer">
+        <!-- SVG content from Zone9.svg will be loaded here -->
+    </div>
+    <div class="form-popup" id="myForm">
+        <form class="form-container"
+            onsubmit="event.preventDefault(); alert('Form Submitted (no action defined yet)'); closeForm();">
+            <h3>Data for <span id="formRectId">Rectangle</span></h3>
+            <p>Associated Texts: <em id="formRectTexts"></em></p>
+            <label for="customData"><b>Enter Custom Data:</b></label>
+            <input type="text" placeholder="Enter some data" id="customData" name="customData" required>
+            <button type="submit" class="btn">Submit</button>
+            <button type="button" class="btn cancel" onclick="closeForm()">Close</button>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const svgContainer = document.getElementById('svgContainer');
+
+            fetch('Zone9.svg')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status} - Could not load Zone9.svg`);
+                    }
+                    return response.text();
+                })
+                .then(svgData => {
+                    svgContainer.innerHTML = svgData;
+                    // Use a minimal timeout to ensure DOM is fully updated after innerHTML
+                    setTimeout(() => {
+                        const svgElement = svgContainer.querySelector('svg');
+                        if (svgElement) {
+                            console.log("SVG Element found.");
+                            console.log("Original SVG width attribute:", svgElement.getAttribute('width'));
+                            console.log("Original SVG height attribute:", svgElement.getAttribute('height'));
+
+                            // Attempt to remove attributes
+                            svgElement.removeAttribute('width');
+                            svgElement.removeAttribute('height');
+
+                            // Force styles via JS for highest specificity if removeAttribute isn't enough
+                            // This is a stronger override.
+                            svgElement.style.width = '100%';
+                            svgElement.style.height = '100%';
+
+                            console.log("SVG width attribute after removeAttribute:", svgElement.getAttribute('width')); // Should be null
+                            console.log("SVG height attribute after removeAttribute:", svgElement.getAttribute('height')); // Should be null
+                            console.log("SVG style.width after JS set:", svgElement.style.width); // Should be 100%
+                            console.log("SVG style.height after JS set:", svgElement.style.height); // Should be 100%
+
+
+                            if (!svgElement.getAttribute('viewBox')) {
+                                console.warn("SVG loaded but has no viewBox attribute. Scaling may be unpredictable.");
+                            } else {
+                                console.log("SVG viewBox:", svgElement.getAttribute('viewBox'));
+                            }
+
+                            initializeInteractiveSVG(svgElement);
+                        } else {
+                            console.error("SVG content loaded, but no <svg> element found within it after timeout.");
+                            svgContainer.textContent = "Error: SVG content loaded, but no <svg> element found.";
+                        }
+                    }, 0); // Small timeout
+                })
+                .catch(error => {
+                    console.error("Error loading or parsing SVG:", error);
+                    svgContainer.textContent = `Error loading SVG: ${error.message}.`;
+                });
+        });
+
+        function initializeInteractiveSVG(svg) {
+            const gfrcGroup = svg.getElementById('GFRC');
+            if (!gfrcGroup) {
+                console.error("GFRC group not found within the loaded SVG!");
+                return;
+            }
+            const paths = gfrcGroup.querySelectorAll('path');
+            const texts = gfrcGroup.querySelectorAll('text');
+
+            function getRectangleDimensions(dAttribute) {
+                const commands = dAttribute.trim().toUpperCase().split(/(?=[LMCZHV])/);
+                let points = [];
+                let currentX = 0, currentY = 0;
+                commands.forEach(commandStr => {
+                    const type = commandStr.charAt(0);
+                    const rawArgs = commandStr.substring(1).trim();
+                    let args = rawArgs ? rawArgs.split(/[\s,]+/).map(Number) : [];
+                    let i = 0;
+                    switch (type) {
+                        case 'M': currentX = args[i++]; currentY = args[i++]; points.push({ x: currentX, y: currentY }); while (i < args.length) { currentX = args[i++]; currentY = args[i++]; points.push({ x: currentX, y: currentY }); } break;
+                        case 'L': while (i < args.length) { currentX = args[i++]; currentY = args[i++]; points.push({ x: currentX, y: currentY }); } break;
+                        case 'H': while (i < args.length) { currentX = args[i++]; points.push({ x: currentX, y: currentY }); } break;
+                        case 'V': while (i < args.length) { currentY = args[i++]; points.push({ x: currentX, y: currentY }); } break;
+                        case 'Z': break;
+                    }
+                });
+                if (points.length < 3) return null;
+                const xValues = points.map(p => p.x), yValues = points.map(p => p.y);
+                const minX = Math.min(...xValues), maxX = Math.max(...xValues);
+                const minY = Math.min(...yValues), maxY = Math.max(...yValues);
+                const width = maxX - minX, height = maxY - minY;
+                if (width <= 0 || height <= 0) return null;
+                return { x: minX, y: minY, width, height, points };
+            }
+
+            paths.forEach((path, index) => {
+                path.dataset.id = `rect_${index + 1}`;
+                const dAttr = path.getAttribute('d');
+                if (!dAttr) return;
+                const dims = getRectangleDimensions(dAttr);
+                if (dims) {
+                    path.style.fill = dims.width > dims.height ? 'rgba(255,160,122,0.7)' : (dims.height > dims.width ? 'rgba(32,178,170,0.7)' : 'rgba(211,211,211,0.7)');
+                    let associatedTextsContent = [];
+                    texts.forEach(textEl => {
+                        const textBBox = textEl.getBBox();
+                        const textCenterX = textBBox.x + textBBox.width / 2, textCenterY = textBBox.y + textBBox.height / 2;
+                        if (textCenterX >= dims.x && textCenterX <= dims.x + dims.width && textCenterY >= dims.y && textCenterY <= dims.y + dims.height) {
+                            associatedTextsContent.push(textEl.textContent.trim());
+                        }
+                    });
+                    path.dataset.associatedText = associatedTextsContent.join('; ');
+                    path.addEventListener('click', (event) => { event.stopPropagation(); openForm(path.dataset.id, path.dataset.associatedText, dims); });
+                    const originalStroke = path.getAttribute('stroke') || "black", originalStrokeWidth = path.getAttribute('stroke-width') || "1";
+                    path.addEventListener('mouseenter', () => { path.style.stroke = "blue"; path.style.strokeWidth = (parseFloat(originalStrokeWidth) * 1.5 + 0.5).toString(); path.style.cursor = 'pointer'; });
+                    path.addEventListener('mouseleave', () => { path.style.stroke = originalStroke; path.style.strokeWidth = originalStrokeWidth; path.style.cursor = 'default'; });
+                }
+            });
+        }
+        function openForm(rectId, texts, dims) { document.getElementById("myForm").style.display = "block"; document.getElementById("formRectId").textContent = rectId; document.getElementById("formRectTexts").textContent = texts || "N/A"; document.getElementById("customData").value = ""; document.getElementById("customData").focus(); }
+        function closeForm() { document.getElementById("myForm").style.display = "none"; }
+    </script>
+
+</body>
+
+</html>
