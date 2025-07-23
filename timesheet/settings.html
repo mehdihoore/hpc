@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>تنظیمات سیستم تایم‌شیت</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Vazirmatn", sans-serif;
+        background-color: #f3f4f6;
+      }
+      .jdp-container {
+        z-index: 10000 !important;
+      }
+      .jdp-icon-btn {
+        left: 0.5rem;
+        right: auto;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100">
+    <div class="container mx-auto p-4 md:p-8">
+      <header class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">تنظیمات</h1>
+        <a
+          href="./index.html"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+          >بازگشت به تقویم</a
+        >
+      </header>
+
+      <!-- General & Payroll Settings -->
+      <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+        <h2 class="text-2xl font-semibold mb-6 border-b pb-4">
+          تنظیمات عمومی و حقوق دستمزد
+        </h2>
+        <form id="generalSettingsForm" class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label
+                for="base_salary"
+                class="block mb-2 font-medium text-gray-700"
+                >حقوق پایه (ریال)</label
+              ><input
+                type="number"
+                id="base_salary"
+                name="base_salary"
+                class="w-full p-2 border rounded-lg"
+                placeholder="مثال: 10000000"
+              />
+            </div>
+            <div>
+              <label
+                for="housing_allowance"
+                class="block mb-2 font-medium text-gray-700"
+                >حق مسکن (ریال)</label
+              ><input
+                type="number"
+                id="housing_allowance"
+                name="housing_allowance"
+                class="w-full p-2 border rounded-lg"
+                placeholder="مثال: 9000000"
+              />
+            </div>
+            <div>
+              <label
+                for="food_allowance"
+                class="block mb-2 font-medium text-gray-700"
+                >بن خواربار (ریال)</label
+              ><input
+                type="number"
+                id="food_allowance"
+                name="food_allowance"
+                class="w-full p-2 border rounded-lg"
+                placeholder="مثال: 6000000"
+              />
+            </div>
+          </div>
+          <hr />
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div>
+              <label
+                for="default_work_hours"
+                class="block mb-2 font-medium text-gray-700"
+                >ساعات موظفی روز عادی</label
+              ><input
+                type="number"
+                step="0.01"
+                id="default_work_hours"
+                name="default_work_hours"
+                value="7.33"
+                class="w-full p-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label
+                for="thursday_work_hours"
+                class="block mb-2 font-medium text-gray-700"
+                >ساعات موظفی پنج‌شنبه</label
+              ><input
+                type="number"
+                step="0.5"
+                id="thursday_work_hours"
+                name="thursday_work_hours"
+                class="w-full p-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label
+                for="lunch_break_start"
+                class="block mb-2 font-medium text-gray-700"
+                >شروع ساعت ناهار</label
+              ><input
+                type="time"
+                id="lunch_break_start"
+                name="lunch_break_start"
+                class="w-full p-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label
+                for="lunch_break_end"
+                class="block mb-2 font-medium text-gray-700"
+                >پایان ساعت ناهار</label
+              ><input
+                type="time"
+                id="lunch_break_end"
+                name="lunch_break_end"
+                class="w-full p-2 border rounded-lg"
+              />
+            </div>
+          </div>
+          <div class="text-left">
+            <button
+              type="submit"
+              class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+            >
+              ذخیره تنظیمات
+            </button>
+          </div>
+          <p id="generalMessage" class="text-sm pt-2"></p>
+        </form>
+      </div>
+
+      <!-- Special Day Rules -->
+      <div class="bg-white p-6 rounded-xl shadow-md">
+        <h2 class="text-2xl font-semibold mb-6 border-b pb-4">
+          قوانین روزهای خاص (تعطیلات و ...)
+        </h2>
+        <form
+          id="addRuleForm"
+          class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-6"
+        >
+          <div class="relative">
+            <label for="rule_date" class="block mb-2 font-medium">تاریخ</label
+            ><input
+              type="text"
+              data-jdp
+              id="rule_date"
+              class="w-full bg-gray-50 p-2.5 border rounded-lg pr-4"
+              required
+            />
+          </div>
+          <div>
+            <label for="required_hours" class="block mb-2 font-medium"
+              >ساعات کاری موظفی</label
+            ><input
+              type="number"
+              step="0.5"
+              id="required_hours"
+              value="0"
+              class="w-full p-2.5 border rounded-lg"
+              required
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              برای روز تعطیل، 0 وارد کنید.
+            </p>
+          </div>
+          <div>
+            <label for="notes" class="block mb-2 font-medium">توضیحات</label
+            ><input
+              type="text"
+              id="notes"
+              placeholder="مثال: تعطیل رسمی"
+              class="w-full p-2.5 border rounded-lg"
+            />
+          </div>
+          <button
+            type="submit"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg"
+          >
+            افزودن قانون
+          </button>
+        </form>
+        <p id="ruleMessage" class="text-sm py-2"></p>
+        <h3 class="text-xl font-semibold mt-8 mb-4">قوانین ثبت شده</h3>
+        <div class="overflow-x-auto">
+          <table class="min-w-full bg-white">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="text-right py-3 px-4">تاریخ</th>
+                <th class="text-right py-3 px-4">ساعات موظفی</th>
+                <th class="text-right py-3 px-4">توضیحات</th>
+                <th class="py-3 px-4">عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="rulesTableBody"></tbody>
+          </table>
+          <p id="noRulesMessage" class="text-center py-8 text-gray-500 hidden">
+            هیچ قانون خاصی ثبت نشده است.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.js"
+    ></script>
+    <script>
+      const API_URL = "api.php";
+
+      // --- DATE CONVERSION UTILITIES (FIXED) ---
+      const DateConverter = {
+        toGregorian: function (jy, jm, jd) {
+          let sal_a, gy, gm, gd, days;
+          jy += 1595;
+          days =
+            -355668 +
+            365 * jy +
+            ~~(jy / 33) * 8 +
+            ~~(((jy % 33) + 3) / 4) +
+            jd +
+            (jm < 7 ? (jm - 1) * 31 : (jm - 7) * 30 + 186);
+          gy = 400 * ~~(days / 146097);
+          days %= 146097;
+          if (days > 36524) {
+            gy += 100 * ~~(--days / 36524);
+            days %= 36524;
+            if (days >= 365) days++;
+          }
+          gy += 4 * ~~(days / 1461);
+          days %= 1461;
+          if (days > 365) {
+            gy += ~~((days - 1) / 365);
+            days = (days - 1) % 365;
+          }
+          gd = days + 1;
+          sal_a = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+          if ((gy % 4 === 0 && gy % 100 !== 0) || gy % 400 === 0) sal_a[2] = 29;
+          for (gm = 1; gm <= 12; gm++) {
+            if (gd <= sal_a[gm]) break;
+            gd -= sal_a[gm];
+          }
+          return [gy, gm, gd];
+        },
+        toJalaali: function (gy, gm, gd) {
+          let g_d_m, jy, jd, gy2, days;
+          g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+          gy2 = gm > 2 ? gy + 1 : gy;
+          days =
+            355666 +
+            365 * gy +
+            ~~((gy2 + 3) / 4) -
+            ~~((gy2 + 99) / 100) +
+            ~~((gy2 + 399) / 400) +
+            gd +
+            g_d_m[gm - 1];
+          jy = -1595 + 33 * ~~(days / 12053);
+          days %= 12053;
+          jy += 4 * ~~(days / 1461);
+          days %= 1461;
+          if (days > 365) {
+            jy += ~~((days - 1) / 365);
+            days = (days - 1) % 365;
+          }
+          let jm = days < 186 ? 1 + ~~(days / 31) : 7 + ~~((days - 186) / 30);
+          jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30);
+          return [jy, jm, jd];
+        },
+      };
+      function convertJalaliToGregorian(jalaliStr) {
+        if (!jalaliStr) return null;
+        const [jy, jm, jd] = jalaliStr.split("/").map(Number);
+        const [gy, gm, gd] = DateConverter.toGregorian(jy, jm, jd);
+        return `${gy}-${String(gm).padStart(2, "0")}-${String(gd).padStart(
+          2,
+          "0"
+        )}`;
+      }
+      function convertGregorianToJalali(dateString) {
+        if (!dateString) return "";
+        const [gy, gm, gd] = dateString.split("T")[0].split("-").map(Number);
+        const [jy, jm, jd] = DateConverter.toJalaali(gy, gm, gd);
+        return `${jy}/${String(jm).padStart(2, "0")}/${String(jd).padStart(
+          2,
+          "0"
+        )}`;
+      }
+
+      // The rest of the JS is identical to the previous `settings.html`
+      document.addEventListener("DOMContentLoaded", async () => {
+        await checkSession();
+        jalaliDatepicker.startWatch({
+          persianDigits: true,
+          time: false,
+          selector: "input[data-jdp]",
+        });
+        loadSettings();
+        loadRules();
+        setupEventListeners();
+      });
+      async function checkSession() {
+        try {
+          const response = await fetch(`${API_URL}?action=get_session`);
+          if (!response.ok) throw new Error();
+          const session = await response.json();
+          if (!session.success) throw new Error();
+        } catch (error) {
+          window.location.href = "./login.html";
+        }
+      }
+      function setupEventListeners() {
+        document
+          .getElementById("generalSettingsForm")
+          .addEventListener("submit", handleSaveGeneralSettings);
+        document
+          .getElementById("addRuleForm")
+          .addEventListener("submit", handleAddRule);
+      }
+      async function loadSettings() {
+        try {
+          const response = await fetch(`${API_URL}?action=get_settings`);
+          const result = await response.json();
+          if (result.success) {
+            const settings = result.data;
+            Object.keys(settings).forEach((key) => {
+              const el = document.getElementById(key);
+              if (el) el.value = settings[key];
+            });
+          }
+        } catch (err) {
+          console.error("Error loading settings:", err);
+        }
+      }
+      async function handleSaveGeneralSettings(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        try {
+          const response = await fetch(`${API_URL}?action=save_settings`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          const result = await response.json();
+          showMessage(
+            document.getElementById("generalMessage"),
+            result.message,
+            result.success
+          );
+        } catch (err) {
+          console.error("Error saving settings:", err);
+        }
+      }
+      const rulesTableBody = document.getElementById("rulesTableBody");
+      const ruleMessage = document.getElementById("ruleMessage");
+      const noRulesMessage = document.getElementById("noRulesMessage");
+      async function loadRules() {
+        try {
+          const response = await fetch(`${API_URL}?action=get_rules`);
+          const result = await response.json();
+          if (result.success) renderRules(result.data);
+        } catch (err) {
+          console.error("Error loading rules:", err);
+        }
+      }
+      function renderRules(rules) {
+        rulesTableBody.innerHTML = "";
+        noRulesMessage.style.display = rules.length === 0 ? "block" : "none";
+        rules
+          .sort((a, b) => new Date(a.rule_date) - new Date(b.rule_date))
+          .forEach((rule) => {
+            const row = rulesTableBody.insertRow();
+            row.className = "border-b";
+            row.innerHTML = `<td class="py-3 px-4">${convertGregorianToJalali(
+              rule.rule_date
+            )}</td><td class="py-3 px-4">${
+              rule.required_hours
+            } ساعت</td><td class="py-3 px-4">${
+              rule.notes || "-"
+            }</td><td class="py-3 px-4 text-center"><button class="delete-rule-btn text-red-500 hover:text-red-700 font-semibold" data-id="${
+              rule.id
+            }">حذف</button></td>`;
+            row
+              .querySelector(".delete-rule-btn")
+              .addEventListener("click", handleDeleteRule);
+          });
+      }
+      async function handleAddRule(e) {
+        e.preventDefault();
+        const jalaliDate = document.getElementById("rule_date").value;
+        if (!jalaliDate)
+          return showMessage(ruleMessage, "لطفا تاریخ را انتخاب کنید.", false);
+        const data = {
+          rule_date: convertJalaliToGregorian(jalaliDate),
+          required_hours: document.getElementById("required_hours").value,
+          notes: document.getElementById("notes").value,
+        };
+        try {
+          const response = await fetch(`${API_URL}?action=save_rule`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          const result = await response.json();
+          showMessage(ruleMessage, result.message, result.success);
+          if (result.success) {
+            loadRules();
+            e.target.reset();
+          }
+        } catch (err) {
+          showMessage(ruleMessage, "خطا در ارتباط با سرور.", false);
+        }
+      }
+      async function handleDeleteRule(e) {
+        const ruleId = e.target.dataset.id;
+        if (confirm("آیا از حذف این قانون اطمینان دارید؟")) {
+          try {
+            const response = await fetch(`${API_URL}?action=delete_rule`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: ruleId }),
+            });
+            const result = await response.json();
+            showMessage(ruleMessage, result.message, result.success);
+            if (result.success) loadRules();
+          } catch (err) {
+            showMessage(ruleMessage, "خطا در ارتباط با سرور.", false);
+          }
+        }
+      }
+      function showMessage(element, text, isSuccess) {
+        element.textContent = text;
+        element.className = `text-sm pt-2 ${
+          isSuccess ? "text-green-600" : "text-red-600"
+        }`;
+        setTimeout(() => {
+          element.textContent = "";
+        }, 4000);
+      }
+    </script>
+  </body>
+</html>

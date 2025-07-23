@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>موکاپ بازرسی نما</title>
+    <link rel="stylesheet" href="assets/css/jalalidatepicker.min.css" />
+    <script
+      type="text/javascript"
+      src="assets/js/jalalidatepicker.min.js"
+    ></script>
+
+    <style>
+      @font-face {
+        font-family: "Samim";
+        src: url("assets//fonts/Samim-FD.woff2") format("woff2"),
+          url("assets/fonts/Samim-FD.woff") format("woff"),
+          url("assets/fonts/Samim-FD.ttf") format("truetype");
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Samim";
+        background-color: #f5f5f5;
+        direction: rtl;
+      }
+
+      .container {
+        display: flex;
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        width: 250px;
+        background-color: #2c3e50;
+        color: white;
+        padding: 20px 0;
+      }
+
+      .logo {
+        text-align: center;
+        padding: 20px;
+        border-bottom: 1px solid #34495e;
+      }
+
+      .logo h2 {
+        color: #ecf0f1;
+      }
+
+      .menu ul {
+        list-style: none;
+        padding: 20px 0;
+      }
+
+      .menu ul li {
+        margin: 5px 0;
+      }
+
+      .menu ul li a {
+        display: block;
+        color: #bdc3c7;
+        text-decoration: none;
+        padding: 15px 25px;
+        transition: all 0.3s;
+      }
+
+      .menu ul li a:hover,
+      .menu ul li a.active {
+        background-color: #3498db;
+        color: white;
+      }
+
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .main-header {
+        background-color: white;
+        padding: 15px 30px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+
+      .user-profile {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #3498db;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+      }
+
+      #page-content {
+        padding: 30px;
+        flex: 1;
+        background-color: white;
+        margin: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .grid-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+      }
+
+      .card {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        border: 1px solid #e9ecef;
+      }
+
+      .card h3 {
+        color: #2c3e50;
+        margin-bottom: 10px;
+      }
+
+      .card p {
+        font-size: 24px;
+        font-weight: bold;
+        color: #3498db;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+
+      table th,
+      table td {
+        padding: 12px;
+        text-align: right;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      table th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+        color: #2c3e50;
+      }
+
+      table tr:hover {
+        background-color: #f8f9fa;
+      }
+
+      .btn {
+        background-color: #3498db;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        margin: 10px 0;
+        transition: background-color 0.3s;
+      }
+
+      .btn:hover {
+        background-color: #2980b9;
+      }
+
+      .form-group {
+        margin: 15px 0;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        color: #2c3e50;
+        font-weight: bold;
+      }
+
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-family: inherit;
+      }
+
+      .form-group textarea {
+        height: 100px;
+        resize: vertical;
+      }
+
+      .form-group input[type="checkbox"] {
+        width: auto;
+        margin-left: 8px;
+      }
+
+      .login-page {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 80vh;
+      }
+
+      .login-form {
+        background-color: white;
+        padding: 40px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 400px;
+      }
+
+      .login-form h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        color: #2c3e50;
+      }
+
+      a {
+        color: #3498db;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      h1 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+      }
+
+      h2 {
+        color: #2c3e50;
+        margin: 20px 0 10px 0;
+      }
+      .jdp-container {
+        /* Replace with actual class */
+        border: 2px solid #3498db; /* Example: Blue border */
+      }
+
+      /* Example: Change header background and text color */
+      /* Common selectors might be .jdp-header, .jdp-month, .jdp-year */
+      .jdp-header {
+        /* Replace with actual class */
+        background-color: #1a1b1b !important; /* Dark blue background */
+        color: #ecf0f1 !important; /* Light text color */
+      }
+
+      /* Example: Change selected day style */
+      .jdp-day.jdp-selected {
+        /* Replace with actual classes */
+        background-color: #0b3653 !important; /* Blue selected day */
+        color: white !important;
+        border-radius: 50% !important;
+      }
+
+      /* Example: Change today's day style (if different from selected) */
+      .jdp-day.jdp-today {
+        /* Replace with actual classes */
+        border: 1px solid #3498db !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <aside class="sidebar">
+        <div class="logo">
+          <h2>بازرس نما</h2>
+        </div>
+        <nav class="menu">
+          <ul>
+            <li>
+              <a href="#" onclick="showPage('dashboard')">داشبورد</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('elements')">المان‌های نما</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('inspections')">بازرسی‌ها</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('new_inspection')">بازرسی جدید</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('checklists')">مدیریت چک‌لیست</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('users')">مدیریت کاربران</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('settings')">تنظیمات</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('login')">خروج (صفحه ورود)</a>
+            </li>
+          </ul>
+        </nav>
+      </aside>
+      <main class="main-content">
+        <header class="main-header">
+          <div class="user-profile">
+            <span>کاربر: مشاور نما (نمونه)</span>
+            <div class="avatar">ک</div>
+          </div>
+        </header>
+        <div id="page-content">
+          <!-- Content will be loaded here by JavaScript -->
+        </div>
+      </main>
+    </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // Load initial page (dashboard)
+        showPage("dashboard");
+      });
+
+      function showPage(pageId) {
+        const pageContent = document.getElementById("page-content");
+        const menuLinks = document.querySelectorAll(".menu ul li a");
+
+        // Remove active class from all menu links
+        menuLinks.forEach((link) => link.classList.remove("active"));
+
+        // Add active class to the current menu link
+        const currentLink = document.querySelector(
+          `.menu ul li a[onclick="showPage('${pageId}')"]`
+        );
+        if (currentLink) {
+          currentLink.classList.add("active");
+        }
+
+        let content = "<h1>صفحه مورد نظر یافت نشد</h1>";
+
+        if (pageId === "dashboard") {
+          content = `
+                  <h1>داشبورد مدیریتی</h1>
+                  <div class="grid-container">
+                      <div class="card">
+                          <h3>تعداد کل پنل‌ها</h3>
+                          <p>۱۲۰۰</p>
+                      </div>
+                      <div class="card">
+                          <h3>پنل‌های بازرسی شده</h3>
+                          <p>۷۵۰ (۶۲.۵%)</p>
+                      </div>
+                      <div class="card">
+                          <h3>پنل‌های دارای ایراد</h3>
+                          <p>۱۲۰</p>
+                      </div>
+                      <div class="card">
+                          <h3>ایرادات اصلاح شده</h3>
+                          <p>۸۵</p>
+                      </div>
+                  </div>
+                  <h2>آخرین فعالیت‌ها</h2>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>شرح فعالیت</th>
+                              <th>کاربر</th>
+                              <th>تاریخ</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>بازرسی پنل GFRC-Z7-A-001</td>
+                              <td>مشاور نما ۱</td>
+                              <td>۱۴۰۳/۰۲/۲۵</td>
+                          </tr>
+                          <tr>
+                              <td>ثبت ایراد برای CW-A-L2-005</td>
+                              <td>مشاور نوی ۱</td>
+                              <td>۱۴۰۳/۰۲/۲۴</td>
+                          </tr>
+                          <tr>
+                              <td>اصلاح ایراد پنل GFRC-Z7-B-010</td>
+                              <td>پیمانکار ۱</td>
+                              <td>۱۴۰۳/۰۲/۲۳</td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "elements") {
+          content = `
+                  <h1>مدیریت المان‌های نما</h1>
+                  <button class="btn" onclick="alert('افزودن المان جدید')">افزودن المان جدید</button>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>کد المان</th>
+                              <th>نوع نما</th>
+                              <th>زون</th>
+                              <th>محور</th>
+                              <th>وضعیت</th>
+                              <th>عملیات</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>GFRC-Z7-A-001</td>
+                              <td>GFRC</td>
+                              <td>۷</td>
+                              <td>A</td>
+                              <td>بازرسی شده - سالم</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a></td>
+                          </tr>
+                          <tr>
+                              <td>CW-A-L2-005</td>
+                              <td>کرتین وال</td>
+                              <td>A</td>
+                              <td>L2</td>
+                              <td>دارای ایراد</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a></td>
+                          </tr>
+                          <tr>
+                              <td>WW-B-03-012</td>
+                              <td>ویندو وال</td>
+                              <td>B</td>
+                              <td>۰۳</td>
+                              <td>منتظر بازرسی</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "inspections") {
+          content = `
+                  <h1>لیست بازرسی‌ها</h1>
+                  <button class="btn" onclick="showPage('new_inspection')">شروع بازرسی جدید</button>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>کد المان</th>
+                              <th>تاریخ بازرسی</th>
+                              <th>بازرس (نما)</th>
+                              <th>بازرس (نوی)</th>
+                              <th>وضعیت کلی</th>
+                              <th>عملیات</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>GFRC-Z7-A-001</td>
+                              <td>۱۴۰۳/۰۲/۲۵</td>
+                              <td>مشاور نما ۱</td>
+                              <td>مشاور نوی ۲</td>
+                              <td>سالم</td>
+                              <td><a href="#">مشاهده جزئیات</a></td>
+                          </tr>
+                          <tr>
+                              <td>CW-A-L2-005</td>
+                              <td>۱۴۰۳/۰۲/۲۴</td>
+                              <td>مشاور نما ۲</td>
+                              <td>مشاور نوی ۱</td>
+                              <td>دارای ایراد</td>
+                              <td><a href="#">مشاهده جزئیات</a></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "new_inspection") {
+          content = `
+                  <h1>فرم بازرسی جدید / ویرایش بازرسی</h1>
+                  <form onsubmit="event.preventDefault(); alert('بازرسی ذخیره شد!');">
+                      <div class="form-group">
+                          <label for="element_code">کد المان</label>
+                          <select id="element_code" name="element_code">
+                              <option value="GFRC-Z7-A-001">GFRC-Z7-A-001</option>
+                              <option value="CW-A-L2-005">CW-A-L2-005</option>
+                              <option value="WW-B-03-012">WW-B-03-012</option>
+                          </select>
+                      </div>
+                      <div class="form-group">
+                          <label for="inspection_date">تاریخ بازرسی</label>
+                          <input type="text" id="inspection_date" name="inspection_date" data-jdp readonly>
+                      </div>
+                      <div class="form-group">
+                          <label>چک لیست (نمونه آیتم‌ها - GFRC)</label>
+                          <div><input type="checkbox" id="item1" name="item1"><label for="item1">بررسی مختصات و موقعیت</label></div>
+                          <div><input type="checkbox" id="item2" name="item2"><label for="item2">بررسی اتصالات کیل</label></div>
+                          <div><input type="checkbox" id="item3" name="item3"><label for="item3">بررسی زیرسازی فلزی</label></div>
+                          <div><label for="item4_consultant1">نظر مشاور نما برای آیتم ۱:</label><input type="text" id="item4_consultant1"></div>
+                          <div><label for="item4_consultant2">نظر مشاور نوی برای آیتم ۱:</label><input type="text" id="item4_consultant2"></div>
+                      </div>
+                      <div class="form-group">
+                          <label for="remarks">ملاحظات کلی</label>
+                          <textarea id="remarks" name="remarks"></textarea>
+                      </div>
+                      <div class="form-group">
+                          <label for="image_upload">پیوست تصویر</label>
+                          <input type="file" id="image_upload" name="image_upload">
+                      </div>
+                      <button type="submit" class="btn">ذخیره بازرسی</button>
+                  </form>
+              `;
+        } else if (pageId === "checklists") {
+          content = `
+                  <h1>مدیریت قالب‌های چک‌لیست</h1>
+                  <button class="btn" onclick="alert('ایجاد قالب جدید')">ایجاد قالب جدید</button>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>نام قالب</th>
+                              <th>نوع نما مرتبط</th>
+                              <th>تعداد آیتم‌ها</th>
+                              <th>عملیات</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>چک‌لیست نمای GFRC - نسخه ۱</td>
+                              <td>GFRC</td>
+                              <td>۱۵</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a> | <a href="#">کپی</a></td>
+                          </tr>
+                          <tr>
+                              <td>چک‌لیست کرتین وال - نسخه ۲.۱</td>
+                              <td>کرتین وال</td>
+                              <td>۲۲</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a> | <a href="#">کپی</a></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "users") {
+          content = `
+                  <h1>مدیریت کاربران</h1>
+                  <button class="btn" onclick="alert('افزودن کاربر جدید')">افزودن کاربر جدید</button>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>نام کامل</th>
+                              <th>نام کاربری</th>
+                              <th>نقش</th>
+                              <th>ایمیل</th>
+                              <th>عملیات</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>کاربر ادمین</td>
+                              <td>admin</td>
+                              <td>ادمین</td>
+                              <td>admin@example.com</td>
+                              <td><a href="#">ویرایش</a> | <a href="#">تغییر رمز</a></td>
+                          </tr>
+                          <tr>
+                              <td>مشاور نمونه ۱</td>
+                              <td>consultant1</td>
+                              <td>مشاور نما</td>
+                              <td>consultant1@example.com</td>
+                              <td><a href="#">ویرایش</a> | <a href="#">تغییر رمز</a></td>
+                          </tr>
+                          <tr>
+                              <td>پیمانکار نمونه ۱</td>
+                              <td>contractor1</td>
+                              <td>پیمانکار</td>
+                              <td>contractor1@example.com</td>
+                              <td><a href="#">ویرایش</a> | <a href="#">تغییر رمز</a></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "settings") {
+          content = `
+                  <h1>تنظیمات سیستم</h1>
+                  <form onsubmit="event.preventDefault(); alert('تنظیمات ذخیره شد!');">
+                      <div class="form-group">
+                          <label for="system_name">نام سامانه</label>
+                          <input type="text" id="system_name" value="سامانه بازرسی نما بیمارستان خاتم">
+                      </div>
+                      <div class="form-group">
+                          <label for="notification_email">ایمیل اطلاع‌رسانی‌ها</label>
+                          <input type="email" id="notification_email" value="notify@example.com">
+                      </div>
+                      <button type="submit" class="btn">ذخیره تنظیمات</button>
+                  </form>
+              `;
+        } else if (pageId === "login") {
+          content = `
+                  <div class="login-page">
+                      <div class="login-form">
+                          <h1>ورود به سامانه بازرس نما</h1>
+                          <form onsubmit="event.preventDefault(); showPage('dashboard');">
+                              <div class="form-group">
+                                  <label for="username">نام کاربری</label>
+                                  <input type="text" id="username" name="username" required value="consultant_user">
+                              </div>
+                              <div class="form-group">
+                                  <label for="password">رمز عبور</label>
+                                  <input type="password" id="password" name="password" required value="password123">
+                              </div>
+                              <button type="submit" class="btn">ورود</button>
+                          </form>
+                      </div>
+                  </div>
+              `;
+        }
+        pageContent.innerHTML = content;
+
+        // Initialize Persian datepicker after content is loaded
+        if (pageId === "new_inspection") {
+          // Using setTimeout to ensure the DOM is updated before startWatch is called.
+          // jalaliDatepicker.startWatch() will scan the document for `data-jdp` attributes.
+          setTimeout(() => {
+            jalaliDatepicker.startWatch({
+              // You can add options here if needed, e.g.:
+              // minDate: "today",
+              // maxDate: "1403/12/29",
+              //节日
+              holidays: [
+                { day: 1, month: 1, title: "سال نو" },
+                { day: 12, month: 1, title: "روز جمهوری اسلامی" },
+              ],
+              //回调函数
+              // onSelect: function(element, date){
+              //    console.log("Date selected:", date, "for element:", element);
+              // }
+            });
+          }, 0); // A 0ms timeout defers execution until the browser has finished other processing.
+        }
+      }
+    </script>
+  </body>
+</html>

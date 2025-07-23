@@ -4,16 +4,89 @@
 
 require_once __DIR__ . '/../../sercon/bootstrap.php';
 
+// --- Helper function to convert numbers to Persian numerals ---
+function toPersianNum($number)
+{
+    $persian_digits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    $english_digits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    return str_replace($english_digits, $persian_digits, $number);
+}
+
+// --- Translation function as requested ---
+function translate_panel_data_to_persian1($key, $english_value)
+{
+    if ($english_value === null || $english_value === '') return '-'; // Handle empty or null
+
+    // Generate translations programmatically
+    $zone_translations = [];
+    $priority_translations = [];
+    for ($i = 1; $i <= 30; $i++) {
+        $persian_i = toPersianNum($i);
+        $zone_translations['zone ' . $i] = 'زون ' . $persian_i;
+        // Assuming priorities are in 'P1', 'P2' format
+        $priority_translations['P' . $i] = 'زون ' . $persian_i;
+    }
+
+    $translations = [
+        'zone' => $zone_translations,
+        'priority' => $priority_translations,
+        'panel_position' => [
+            'terrace edge' => 'لبه تراس',
+            'wall panel'   => 'پنل دیواری',
+        ],
+        'status' => [
+            'pending'    => 'در انتظار تخصیص',
+            'planned'    => 'برنامه ریزی شده',
+            'mesh'       => 'مش بندی',
+            'concreting' => 'قالب‌بندی/بتن ریزی',
+            'assembly'   => 'فیس کوت',
+            'completed'  => 'تکمیل شده',
+            'shipped'    => 'ارسال شده'
+        ]
+    ];
+
+    if (isset($translations[$key][$english_value])) {
+        return $translations[$key][$english_value];
+    }
+    // Fallback to English if no translation, ensuring it's safe for HTML
+    return function_exists('escapeHtml') ? escapeHtml($english_value) : htmlspecialchars($english_value, ENT_QUOTES, 'UTF-8');
+}
+
+
 // --- Capacities & Helpers (Unchanged) ---
-$formworkDailyCapacity = ['F-H-1' => 1, 'F-H-2' => 3, 'F-H-3' => 2, 'F-H-4' => 1, 'F-H-5' => 2, 'F-H-6' => 2, 'F-H-7' => 2, 'F-H-8' => 1, 'F-H-9' => 2, 'F-H-10' => 1, 'F-H-11' => 1, 'F-H-12' => 1, 'F-H-13' => 1, 'F-H-14' => 1, 'F-H-15' => 1, 'F-H-16' => 1];
+$formworkDailyCapacity = [
+    'M-E-1' => 5,
+    'M-W-1' => 5,
+    'M-S-1' => 2,
+    'M-N-1' => 3,
+    'M-W-3' => 1,
+    'M-S-2' => 1,
+    'M-S-3' => 1,
+    'M-E-2' => 1,
+    'M-E-3' => 1,
+    'M-W-2' => 1,
+    'CORNER' => 2
+];
 function getBaseFormworkType($type)
 {
+    global $formworkDailyCapacity; // Access global array
+
     if (!$type) return null;
-    $trimmedType = trim((string)$type);
-    $parts = explode('-', $trimmedType);
-    if (count($parts) >= 3 && strtoupper($parts[0]) === 'F' && strtoupper($parts[1]) === 'H' && is_numeric($parts[2])) {
-        return $parts[0] . '-' . $parts[1] . '-' . $parts[2];
+
+    $trimmedType = strtoupper(trim((string)$type));
+
+    // Direct match
+    if (isset($formworkDailyCapacity[$trimmedType])) {
+        return $trimmedType;
     }
+
+    // Optionally check partial match if needed (e.g. ignoring suffixes)
+    foreach (array_keys($formworkDailyCapacity) as $baseType) {
+        if (stripos($trimmedType, $baseType) === 0) {
+            return $baseType;
+        }
+    }
+
     return null;
 }
 
@@ -138,7 +211,7 @@ class PanelScheduler
             "SELECT id, full_address_identifier, formwork_type, Proritization
              FROM hpc_panels
              WHERE plan_checked = 1 AND assigned_date IS NULL AND status != 'completed' /* Or other relevant statuses */
-             ORDER BY Proritization ASC, id ASC" // Higher priority (P1) first
+             ORDER BY CAST(SUBSTRING(Proritization, 2) AS UNSIGNED) ASC, id ASC" // Correctly sort priorities like P1, P2, P10
         );
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -633,8 +706,8 @@ class PanelScheduler
                     $stmtUpdatePanel = $this->pdo->prepare(
                         "UPDATE hpc_panels
                          SET assigned_date = :assigned_date,
-                            planned_finish_date = :planned_finish_date_val,
-                            planned_finish_user_id = :userId
+                             planned_finish_date = :planned_finish_date_val,
+                             planned_finish_user_id = :userId
                          WHERE id = :panel_id"
                     );
 
@@ -734,7 +807,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             $offset = ($page - 1) * $panelsPerPage;
 
-            $baseQuerySelect = "SELECT hp.id, hp.full_address_identifier, hp.status, hp.assigned_date, hp.type, hp.area, hp.width, hp.length, hp.Proritization, hp.formwork_type ";
+            // UPDATED: Added hp.floor to the SELECT statement
+            $baseQuerySelect = "SELECT hp.id, hp.full_address_identifier, hp.status, hp.assigned_date, hp.type, hp.floor, hp.area, hp.width, hp.length, hp.Proritization, hp.formwork_type ";
             $baseQueryFromWhere = "FROM hpc_panels hp WHERE hp.plan_checked = 1";
 
             $whereClauses = [];
@@ -745,8 +819,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $queryParams[':searchText'] = '%' . $searchText . '%';
             }
             if (!empty($selectedType)) {
-                $whereClauses[] = "hp.type = :selectedType";
-                $queryParams[':selectedType'] = $selectedType;
+                // UPDATED: Filter by floor instead of type
+                $whereClauses[] = "hp.floor = :selectedFloor";
+                $queryParams[':selectedFloor'] = $selectedType; // The variable name is still selectedType from the form
             }
             if ($selectedPriority !== '') {
                 if ($selectedPriority === 'IS_NULL_PRIORITY_PLACEHOLDER') { // Special value for NULL/empty priority
@@ -776,7 +851,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
 
             $countQuery = "SELECT COUNT(*) " . $baseQueryFromWhere . $queryFilterString;
-            $dataQuery = $baseQuerySelect . $baseQueryFromWhere . $queryFilterString . " ORDER BY hp.Proritization ASC, hp.id DESC LIMIT :limit OFFSET :offset";
+            // UPDATED: Corrected priority sorting to be numeric
+            $dataQuery = $baseQuerySelect . $baseQueryFromWhere . $queryFilterString . " ORDER BY CAST(SUBSTRING(hp.Proritization, 2) AS UNSIGNED) ASC, hp.id DESC LIMIT :limit OFFSET :offset";
 
             try {
                 $stmtTotal = $pdo->prepare($countQuery);
@@ -1143,8 +1219,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         // --- ACTION: getAssignedPanels (Unchanged - Title is already just full_address_identifier) ---
         elseif ($action === 'getAssignedPanels') {
             try {
-                // Added planned_finish_date, status and type for potential future use in extendedProps
-                $stmt = $pdo->prepare("SELECT hp.id, hp.full_address_identifier, hp.assigned_date, hp.planned_finish_date, hp.formwork_type, hp.status, hp.type,hp.Proritization, hp.width
+                // UPDATED: Corrected hp.widt to hp.width and added hp.floor
+                $stmt = $pdo->prepare("SELECT hp.id, hp.full_address_identifier, hp.assigned_date, hp.planned_finish_date, hp.formwork_type, hp.status, hp.type, hp.Proritization, hp.width, hp.floor
                                        FROM hpc_panels hp
                                        WHERE hp.assigned_date IS NOT NULL");
                 $stmt->execute();
@@ -1153,6 +1229,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 foreach ($dbPanels as $panel) {
                     $baseFormworkType = getBaseFormworkType($panel['formwork_type']);
+
+                    // UPDATED: Transform priority from 'P1' to 'zone 1' for JS
+                    $priorityForJs = $panel['Proritization'] ? 'zone ' . preg_replace('/[^0-9]/', '', $panel['Proritization']) : null;
 
                     // --- MODIFICATION HERE: Title is ONLY full_address_identifier ---
                     $events[] = [
@@ -1167,7 +1246,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             'fullFormworkType' => $panel['formwork_type'], // Store full type
                             'panelType' => $panel['type'], // Store the panel's own type
                             'status' => $panel['status'], // Store panel status
-                            'priority' => $panel['Proritization']
+                            'priority' => $priorityForJs, // UPDATED: Use transformed priority
+                            'floor' => $panel['floor'] // ADDED: Add floor data
                         ],
                         // Example: Color based on formwork type? Or status?
                         // 'backgroundColor' => '#somecolor',
@@ -1233,11 +1313,12 @@ try {
 
     // Fetch first page of panels (no filters applied on initial load, shows highest priority)
     $offset = ($currentPage - 1) * $panelsPerPage;
-    $stmt = $pdo->prepare("SELECT hp.id, hp.full_address_identifier, hp.status, hp.assigned_date, hp.type, hp.area, hp.width, hp.length, hp.Proritization, hp.formwork_type
-                         FROM hpc_panels hp
-                         WHERE hp.plan_checked = 1
-                         ORDER BY hp.Proritization ASC, hp.id DESC
-                         LIMIT :limit OFFSET :offset");
+    // UPDATED: Added hp.floor to SELECT and corrected priority sorting
+    $stmt = $pdo->prepare("SELECT hp.id, hp.full_address_identifier, hp.status, hp.assigned_date, hp.type, hp.floor, hp.area, hp.width, hp.length, hp.Proritization, hp.formwork_type
+                           FROM hpc_panels hp
+                           WHERE hp.plan_checked = 1
+                           ORDER BY CAST(SUBSTRING(hp.Proritization, 2) AS UNSIGNED) ASC, hp.id DESC
+                           LIMIT :limit OFFSET :offset");
     $stmt->bindValue(':limit', $panelsPerPage, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
@@ -1245,10 +1326,12 @@ try {
 
     // For filter dropdowns, get all unique values from the entire dataset.
     // This might be slow on very large datasets; consider optimizing if needed.
-    $stmtAllForFilters = $pdo->query("SELECT DISTINCT type, Proritization, formwork_type FROM hpc_panels WHERE plan_checked = 1");
+    // UPDATED: Changed `type` to `floor` in the query
+    $stmtAllForFilters = $pdo->query("SELECT DISTINCT floor, Proritization, formwork_type FROM hpc_panels WHERE plan_checked = 1");
     $filterData = $stmtAllForFilters->fetchAll(PDO::FETCH_ASSOC);
 
-    $typesForFilter = array_values(array_unique(array_filter(array_column($filterData, 'type')))); // Filter out empty/null types
+    // The user's code already correctly used 'floor' here, now the query matches.
+    $typesForFilter = array_values(array_unique(array_filter(array_column($filterData, 'floor'))));
     sort($typesForFilter);
 
     $prioritiesForFilter = array_values(array_unique(array_column($filterData, 'Proritization')));
@@ -1256,7 +1339,10 @@ try {
     usort($prioritiesForFilter, function ($a, $b) {
         if ($a === null || $a === '') return -1; // Empty/null comes first or last
         if ($b === null || $b === '') return 1;
-        return $a <=> $b;
+        // Correct numeric sort for priorities like P1, P2, P10
+        $numA = (int)substr($a, 1);
+        $numB = (int)substr($b, 1);
+        return $numA <=> $numB;
     });
 
     $formworkTypesForFilter = array_values(array_unique(array_map('getBaseFormworkType', array_column($filterData, 'formwork_type'))));
@@ -1410,6 +1496,7 @@ require_once 'header.php';
                             <div class="<?php echo $panelClasses; ?>"
                                 data-panel-id="<?php echo $panel['id']; ?>"
                                 data-panel-type="<?php echo htmlspecialchars($panel['type'] ?? ''); ?>"
+                                data-panel-floor="<?php echo htmlspecialchars($panel['floor'] ?? ''); ?>"
                                 data-panel-assigned="<?php echo $assigned; ?>"
                                 data-panel-width="<?php echo htmlspecialchars($panel['width'] ?? ''); ?>"
                                 data-panel-length="<?php echo htmlspecialchars($panel['length'] ?? ''); ?>"
@@ -1418,9 +1505,10 @@ require_once 'header.php';
                                 <div class="font-semibold text-sm break-words"> <?php echo htmlspecialchars($panel['full_address_identifier']); ?> </div>
                                 <div class="text-xs mt-1 text-gray-600">
                                     قالب: <span class="font-medium"><?php echo htmlspecialchars($baseFormworkType ?? 'N/A'); ?></span> |
-                                    اولویت: <span class="font-medium"><?php echo ($panel['Proritization'] === null || $panel['Proritization'] === '') ? 'N/A' : htmlspecialchars($panel['Proritization']); ?></span>
+                                    اولویت: <span class="font-medium"><?php echo ($panel['Proritization'] === null || $panel['Proritization'] === '') ? 'N/A' : htmlspecialchars(translate_panel_data_to_persian1('zone', $panel['Proritization'])); ?></span>
                                 </div>
-                                <div class="text-xs text-gray-500"> <?php echo htmlspecialchars($panel['type'] ?: 'N/A'); ?> | <?php echo $panel['area']; ?>m² | W:<?php echo $panel['width']; ?> L:<?php echo $panel['length']; ?> </div>
+                                <!-- UPDATED: Changed type to floor -->
+                                <div class="text-xs text-gray-500"> طبقه: <?php echo htmlspecialchars($panel['floor'] ?: 'N/A'); ?> | <?php echo $panel['area']; ?>m² | W:<?php echo $panel['width']; ?> L:<?php echo $panel['length']; ?> </div>
                             </div>
                     <?php endforeach;
                     endif; ?>
@@ -1446,7 +1534,8 @@ require_once 'header.php';
                         </select>
                     </div>
                     <div><label for="searchInput" class="block text-sm font-medium text-gray-600 mb-1">آدرس</label><input type="text" id="searchInput" class="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm" placeholder="..."></div>
-                    <div><label for="typeFilter" class="block text-sm font-medium text-gray-600 mb-1">نوع</label><select id="typeFilter" class="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                    <!-- UPDATED: Changed label from "نوع" to "طبقه" -->
+                    <div><label for="typeFilter" class="block text-sm font-medium text-gray-600 mb-1">طبقه</label><select id="typeFilter" class="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 shadow-sm">
                             <option value="">همه</option>
                             <?php foreach ($typesForFilter as $type): ?>
                                 <option value="<?php echo htmlspecialchars($type); ?>"><?php echo htmlspecialchars($type); ?></option>
@@ -1457,10 +1546,16 @@ require_once 'header.php';
                             <option value="IS_NULL_PRIORITY_PLACEHOLDER">بدون اولویت</option> <!-- For NULL/Empty priorities -->
                             <?php foreach ($prioritiesForFilter as $priority):
                                 if ($priority !== null && $priority !== ''): // Avoid duplicating "بدون اولویت"
+
+                                    $translated_priority = translate_panel_data_to_persian1('zone', $priority);
                             ?>
-                                    <option value="<?php echo htmlspecialchars($priority); ?>"><?php echo htmlspecialchars($priority); ?></option>
-                            <?php endif;
-                            endforeach; ?>
+                                    <option value="<?php echo htmlspecialchars($priority); ?>">
+                                        <?php echo htmlspecialchars($translated_priority); ?>
+                                    </option>
+                            <?php
+                                endif;
+                            endforeach;
+                            ?>
                         </select></div>
 
 
@@ -1567,7 +1662,7 @@ require_once 'header.php';
 <script src="/assets/js/persian-date.min.js"></script>
 <script src="/assets/js/persian-datepicker.min.js"></script>
 <script src="/assets/js/mobile-detect.min.js"></script>
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+<script src="assets/fullcalendar-6.1.17/package/index.global.min.js"></script>
 <link rel="stylesheet" href="/assets/css/persian-datepicker-dark.min.css">
 <!-- Loading CSS (Unchanged) -->
 <style>
@@ -1895,6 +1990,7 @@ require_once 'header.php';
         const togglePriorityColorBtn = document.getElementById('togglePriorityColorBtn');
         const priorityLegend = document.getElementById('priorityLegend'); // Get legend container
         const priorityLegendList = document.getElementById('priorityLegendList'); // Get legend list ul
+
         // --- State variable for coloring ---
         let priorityColoringEnabled = true;
         const defaultEventColor = '#3b82f6'; // Default blue
@@ -1906,7 +2002,59 @@ require_once 'header.php';
         const shiftDaysEl = document.getElementById('shiftDays');
         const executeShiftBtn = document.getElementById('executeShiftBtn');
         const shiftResultEl = document.getElementById('shiftResult');
-
+        const translationsJS = {
+            zone: {
+                'zone 1': 'زون ۱',
+                'zone 2': 'زون ۲',
+                'zone 3': 'زون ۳',
+                'zone 4': 'زون ۴',
+                'zone 5': 'زون ۵',
+                'zone 6': 'زون ۶',
+                'zone 7': 'زون ۷',
+                'zone 8': 'زون ۸',
+                'zone 9': 'زون ۹',
+                'zone 10': 'زون ۱۰',
+                'zone 11': 'زون ۱۱',
+                'zone 12': 'زون ۱۲',
+                'zone 13': 'زون ۱۳',
+                'zone 14': 'زون ۱۴',
+                'zone 15': 'زون ۱۵',
+                'zone 16': 'زون ۱۶',
+                'zone 17': 'زون ۱۷',
+                'zone 18': 'زون ۱۸',
+                'zone 19': 'زون ۱۹',
+                'zone 20': 'زون ۲۰',
+                'zone 21': 'زون ۲۱',
+                'zone 22': 'زون ۲۲',
+                'zone 23': 'زون ۲۳',
+                'zone 24': 'زون ۲۴',
+                'zone 25': 'زون ۲۵',
+                'zone 26': 'زون ۲۶',
+                'zone 27': 'زون ۲۷',
+                'zone 28': 'زون ۲۸',
+                'zone 29': 'زون ۲۹',
+                'zone 30': 'زون ۳۰',
+            },
+            panel_position: { // Key should match what you use in displayResults for panel.type
+                'terrace edge': 'لبه تراس',
+                'wall panel': 'پنل دیواری',
+            },
+            status: { // Your existing status map can serve this purpose
+                'pending': 'در انتظار تخصیص',
+                'planned': 'برنامه ریزی شده',
+                'mesh': 'مش بندی',
+                'concreting': 'قالب‌بندی/بتن ریزی',
+                'assembly': 'فیس کوت',
+                'completed': 'تکمیل شده',
+                'shipped': 'ارسال شده'
+            },
+            // NEW: Add translation for plan_checked status
+            plan_checked: {
+                '1': 'تایید شده',
+                '0': 'تایید نشده',
+                'null': '-'
+            }
+        };
         if (executeShiftBtn && shiftFromDateEl && shiftDaysEl && shiftResultEl) {
             // Initialize persianDatepicker for the new input if not already covered
             if (typeof $.fn.persianDatepicker === 'function' && $(shiftFromDateEl).data('datepicker') === undefined) {
@@ -2019,6 +2167,16 @@ require_once 'header.php';
             });
         }
 
+        function translateJs(key, englishValue) {
+            if (englishValue === null || englishValue === undefined || englishValue === '') return '-';
+            // Use String() to handle numeric keys like 0 and 1
+            const valueStr = String(englishValue);
+            if (translationsJS[key] && translationsJS[key][valueStr.toLowerCase()]) { // Convert to lowercase for robust matching
+                return translationsJS[key][valueStr.toLowerCase()];
+            }
+            return valueStr; // Fallback
+        }
+
         function updateGlobalSelectionVisualState() {
             if (selectedCalendarEventIds.size > 0) {
                 document.body.classList.add(BODY_MULTI_SELECTING_CLASS);
@@ -2070,25 +2228,23 @@ require_once 'header.php';
 
 
         // --- Helper Function to Get Color Based on Priority ---
-        // (Generates colors from Red to Violet using HSL)
+        // UPDATED: To handle "zone X" and up to 30 zones
         function getPriorityColor(priorityString) {
-            if (!priorityString || typeof priorityString !== 'string' || !priorityString.toUpperCase().startsWith('P')) {
+            if (!priorityString || typeof priorityString !== 'string' || !priorityString.toUpperCase().startsWith('ZONE ')) {
                 return '#888888'; // Gray for invalid/missing priority
             }
-            // Extract number, default to a high number if parsing fails
-            const priorityNum = parseInt(priorityString.substring(1), 10);
+            // Extract number from "zone X"
+            const priorityNum = parseInt(priorityString.replace(/[^0-9]/g, ''), 10);
             if (isNaN(priorityNum) || priorityNum < 1) {
                 return '#888888'; // Gray for invalid number
             }
 
-            // Map P1-P16 to Hue (0=Red, 280=Violet approx)
-            // We distribute 16 priorities over roughly 280 degrees of hue
+            // Map zone 1-30 to Hue (0=Red, 280=Violet approx)
             const hueRange = 280;
-            const maxPriority = 16; // Adjust if you have more priorities
-            // Map higher priority (P1) to Red (0 hue), lower (P16) towards Violet
+            const maxPriority = 30; // UPDATED
+            // Map higher priority (zone 1) to Red (0 hue), lower (zone 30) towards Violet
             const hue = Math.max(0, Math.min(hueRange, (priorityNum - 1) * (hueRange / (maxPriority - 1))));
 
-            // Keep Saturation and Lightness somewhat constant for visibility
             const saturation = 75; // %
             const lightness = 55; // %
 
@@ -2117,7 +2273,7 @@ require_once 'header.php';
         // --- Handler for clicking a legend item ---
         function handleLegendItemClick(event) {
             const li = event.currentTarget; // Get the clicked <li> element
-            const priority = li.dataset.priority; // Get the priority string ('P1', 'P2', etc.)
+            const priority = li.dataset.priority; // Get the priority string ('zone 1', 'zone 2', etc.)
 
             if (!priority) return; // Ignore clicks on non-priority items (like the invalid one)
 
@@ -2177,10 +2333,11 @@ require_once 'header.php';
             priorityLegendList.innerHTML = ''; // Clear existing items
             selectedLegendPriorities.clear(); // Clear selection when repopulating
 
-            // Assuming priorities P1 to P16 are possible
-            const maxPrio = 16;
+            // UPDATED: Loop up to 30 zones
+            const maxPrio = 30;
             for (let i = 1; i <= maxPrio; i++) {
-                const priorityStr = `P${i}`;
+                const priorityStr = `zone ${i}`;
+                const priorityStrpr = `زون ${i}`;
                 const color = getPriorityColor(priorityStr);
 
                 const li = document.createElement('li');
@@ -2194,7 +2351,7 @@ require_once 'header.php';
                 colorSwatch.style.backgroundColor = color;
 
                 const label = document.createElement('span');
-                label.textContent = priorityStr;
+                label.textContent = priorityStrpr;
                 label.className = 'text-gray-600';
 
                 li.appendChild(colorSwatch);
@@ -2315,6 +2472,7 @@ require_once 'header.php';
             div.className = panelClasses;
             div.dataset.panelId = panel.id;
             div.dataset.panelType = panel.type || '';
+            div.dataset.panelFloor = panel.floor || '';
             div.dataset.panelAssigned = assigned;
             div.dataset.panelWidth = panel.width || '';
             div.dataset.panelLength = panel.length || '';
@@ -2323,7 +2481,7 @@ require_once 'header.php';
 
             const priorityDisplay = (panel.Proritization === null || panel.Proritization === '') ? 'N/A' : panel.Proritization;
             const addressDisplay = panel.full_address_identifier || 'N/A';
-            const typeDisplay = panel.type || 'N/A';
+            const floorDisplay = panel.floor || 'N/A'; // UPDATED: use floor
             const areaDisplay = panel.area || 'N/A';
             const widthDisplay = panel.width || 'N/A';
             const lengthDisplay = panel.length || 'N/A';
@@ -2333,9 +2491,9 @@ require_once 'header.php';
             <div class="font-semibold text-sm break-words">${addressDisplay}</div>
             <div class="text-xs mt-1 text-gray-600">
                 قالب: <span class="font-medium">${baseFormworkType || 'N/A'}</span> |
-                اولویت: <span class="font-medium">${priorityDisplay}</span>
+                اولویت: <span class="font-medium">${translateJs('zone', priorityDisplay)}</span>
             </div>
-            <div class="text-xs text-gray-500">${typeDisplay} | ${areaDisplay}m² | W:${widthDisplay} L:${lengthDisplay}</div>
+            <div class="text-xs text-gray-500">طبقه: ${floorDisplay} | ${areaDisplay}m² | W:${widthDisplay} L:${lengthDisplay}</div>
         `;
             return div;
         }
@@ -2608,7 +2766,7 @@ require_once 'header.php';
                 // eventClassNames should handle the selected class.
                 // Use eventDidMount for things like tooltips or other specific DOM manipulations on info.el
                 // if (info.el) { // Always check if info.el is present
-                //    info.el.title = `...`; // Example: if you want tooltips
+                //     info.el.title = `...`; // Example: if you want tooltips
                 // }
                 // console.log("eventDidMount:", info.event.id, "el:", info.el);
             },
@@ -2779,7 +2937,8 @@ require_once 'header.php';
                             if (eventData.currentEventObject !== droppedEvent) {
                                 // Calculate the date difference if the original drag was across multiple days
                                 const dateDelta = moment(droppedEvent.start).diff(moment(info.oldEvent.start), 'days');
-                                const originalStartDate = moment(originalEventPositions.get(eventData.id.toString())?.start);
+                                //const originalStartDate = moment(originalEventPositions.get(eventData.id.toString())?.start);
+                                const originalStartDateMoment = moment(originalEventPositions.get(eventData.id.toString())?.start);
                                 if (originalStartDateMoment.isValid()) {
                                     const newCalculatedStartDate = originalStartDateMoment.clone().add(dateDelta, 'days');
                                     eventData.currentEventObject.setStart(newCalculatedStartDate.toDate(), {
@@ -3081,7 +3240,7 @@ require_once 'header.php';
                         }
                     } catch (error) {
                         resultsSummary.push({
-                            address: panelAddress,
+                            address: full_address_identifier,
                             success: false,
                             reason: 'خطای کلاینت: ' + error.message
                         });
@@ -3169,7 +3328,10 @@ require_once 'header.php';
             eventContent: function(arg) {
                 const props = arg.event.extendedProps;
                 const priority = props.priority;
+
+                const panelZoneDisplay = translateJs('zone', priority);
                 const formworkType = props.formworkType || 'N/A';
+                const floor = props.floor || 'N/A'; // ADDED
                 const width = props.width ? 'W: ' + parseInt(props.width) + ' mm' : 'N/A';
                 const full_address_identifier = arg.event.title;
                 let bgColor = defaultEventColor;
@@ -3193,11 +3355,17 @@ require_once 'header.php';
                 flex-direction:column;
                 ${USER_CAN_EDIT ? 'cursor:pointer;' : 'cursor:default;'}
             `;
-                divEl.title = `آدرس: ${full_address_identifier}\nاولویت: ${priority}\nقالب: ${formworkType}\nعرض پنل: ${width}`;
+                // UPDATED: Added floor to tooltip
+                divEl.title = `آدرس: ${full_address_identifier}\nطبقه: ${floor}\nاولویت: ${panelZoneDisplay}\nقالب: ${formworkType}\nعرض پنل: ${width}`;
 
                 const full_address_identifierDiv = document.createElement('div');
                 full_address_identifierDiv.className = 'fc-event-title font-semibold mb-1';
                 full_address_identifierDiv.textContent = full_address_identifier;
+
+                // ADDED: Floor element
+                const floorDiv = document.createElement('div');
+                floorDiv.className = 'fc-event-detail mb-1';
+                floorDiv.textContent = `طبقه: ${floor}`;
 
                 const formworkDiv = document.createElement('div');
                 formworkDiv.className = 'fc-event-detail mb-1';
@@ -3208,6 +3376,7 @@ require_once 'header.php';
                 widthDiv.textContent = width;
 
                 divEl.appendChild(full_address_identifierDiv);
+                divEl.appendChild(floorDiv); // ADDED
                 divEl.appendChild(formworkDiv);
                 divEl.appendChild(widthDiv);
 
@@ -3383,7 +3552,7 @@ require_once 'header.php';
                 return;
             }
 
-            if (!confirm(`زمان‌بندی ${panelsToSchedulePayload.length} پنل نمایش داده شده؟\n(برای هر پنل موفق، سفارشات 'شرق' و 'غرب' ایجاد خواهد شد)`)) {
+            if (!confirm(`زمان‌بندی ${panelsToSchedulePayload.length} پنل نمایش داده شده؟\n(برای هر پنل موفق، سفارشات 'شرق' و 'غرب' ایجاد/تایید خواهد شد)`)) {
                 hideButtonLoading(this);
                 return;
             }
@@ -3526,7 +3695,7 @@ require_once 'header.php';
                     // as it only affects @media print. But good practice if you might
                     // reuse the class name elsewhere or want a clean state.
                     // setTimeout(() => {
-                    //    document.body.classList.remove('print-with-colors');
+                    //     document.body.classList.remove('print-with-colors');
                     // }, 500); // Needs a delay
                 };
 

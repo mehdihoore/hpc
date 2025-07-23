@@ -74,14 +74,96 @@ $completedPanels = $stmt->fetchColumn();
 $stmt = $pdo->query("SELECT SUM(area) FROM hpc_panels WHERE status = 'completed'");
 $completedPanelsarea = $stmt->fetchColumn();
 
-
-
-// Fetch shipped panels
 $stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE packing_status = 'shipped'");
 $shippedPanels = $stmt->fetchColumn();
 $stmt = $pdo->query("SELECT SUM(area) FROM hpc_panels WHERE packing_status = 'shipped'");
 $areashippedPanels = $stmt->fetchColumn();
 $existPanels = $concretepanels - $shippedPanels;
+
+// All queries below are filtered for type = 'Curve -Type A'
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Curve -Type A'");
+$totalPanelsCurve = $stmt->fetchColumn();
+
+// Fetch panels in progress (not completed and not shipped)
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Curve -Type A' AND status != 'completed' AND status != 'pending' AND packing_status !='shipped'");
+$inProgressPanelsCurve = $stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Curve -Type A' AND status != 'pending' AND concrete_end_time IS NOT NULL");
+$concretepanelsCurve = $stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT SUM(area) FROM hpc_panels WHERE type = 'Curve -Type A' AND status != 'pending' AND concrete_end_time IS NOT NULL");
+$concretepanelsareaCurve = $stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Curve -Type A' AND status != 'pending' AND assembly_end_time IS NOT NULL");
+$facecoutpanelsCurve = $stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT SUM(area) FROM hpc_panels WHERE type = 'Curve -Type A' AND status != 'pending' AND assembly_end_time IS NOT NULL");
+$facecoutpanelsareaCurve = $stmt->fetchColumn();
+
+// Fetch panels in progress (not completed and not shipped)
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Curve -Type A' AND status = 'pending' AND packing_status !='shipped'");
+$pendingPanelsCurve = $stmt->fetchColumn();
+
+// Fetch panels in assigned date 
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Curve -Type A' AND status = 'pending' AND assigned_date IS NOT NULL");
+$assignedpanelsCurve = $stmt->fetchColumn();
+
+// Fetch completed panels
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Curve -Type A' AND status = 'completed'");
+$completedPanelsCurve = $stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT SUM(area) FROM hpc_panels WHERE type = 'Curve -Type A' AND status = 'completed'");
+$completedPanelsareaCurve = $stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE packing_status = 'shipped' AND type = 'Curve -Type A'");
+$shippedPanelsCurve = $stmt->fetchColumn();
+$stmt = $pdo->query("SELECT SUM(area) FROM hpc_panels WHERE packing_status = 'shipped' AND type = 'Curve -Type A'");
+$areashippedPanelsCurve = $stmt->fetchColumn();
+$existPanelsCurve = $concretepanelsCurve - $shippedPanelsCurve;
+// Fetch shipped panels
+
+
+// All queries below are filtered for type = 'Curve -Type A'
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Flat -Type A'");
+$totalPanelsFlat = $stmt->fetchColumn();
+
+// Fetch panels in progress (not completed and not shipped)
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Flat -Type A' AND status != 'completed' AND status != 'pending' AND packing_status !='shipped'");
+$inProgressPanelsFlat = $stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Flat -Type A' AND status != 'pending' AND concrete_end_time IS NOT NULL");
+$concretepanelsFlat = $stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT SUM(area) FROM hpc_panels WHERE type = 'Flat -Type A' AND status != 'pending' AND concrete_end_time IS NOT NULL");
+$concretepanelsareaFlat = $stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Flat -Type A' AND status != 'pending' AND assembly_end_time IS NOT NULL");
+$facecoutpanelsFlat = $stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT SUM(area) FROM hpc_panels WHERE type = 'Flat -Type A' AND status != 'pending' AND assembly_end_time IS NOT NULL");
+$facecoutpanelsareaFlat = $stmt->fetchColumn();
+
+// Fetch panels in progress (not completed and not shipped)
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Flat -Type A' AND status = 'pending' AND packing_status !='shipped'");
+$pendingPanelsFlat = $stmt->fetchColumn();
+
+// Fetch panels in assigned date 
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Flat -Type A' AND status = 'pending' AND assigned_date IS NOT NULL");
+$assignedpanelsFlat = $stmt->fetchColumn();
+
+// Fetch completed panels
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE type = 'Flat -Type A' AND status = 'completed'");
+$completedPanelsFlat = $stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT SUM(area) FROM hpc_panels WHERE type = 'Flat -Type A' AND status = 'completed'");
+$completedPanelsareaFlat = $stmt->fetchColumn();
+
+$stmt = $pdo->query("SELECT COUNT(*) FROM hpc_panels WHERE packing_status = 'shipped' AND type = 'Flat -Type A'");
+$shippedPanelsFlat = $stmt->fetchColumn();
+$stmt = $pdo->query("SELECT SUM(area) FROM hpc_panels WHERE packing_status = 'shipped' AND type = 'Flat -Type A'");
+$areashippedPanelsFlat = $stmt->fetchColumn();
+$existPanelsFlat = $concretepanelsFlat - $shippedPanelsFlat;
+
 $statusCaseSql = "
     CASE
         WHEN packing_status = 'shipped' THEN 'shipped'
@@ -1774,6 +1856,97 @@ include('header.php');
 
         </div>
     </div>
+
+
+
+
+    <div class="stats-grid">
+        <div class="stat-card" style="background-color: #e3f2fd;">
+            <h3>کل پنل‌های کرو </h3>
+            <div class="stat-value"><?php echo number_format($totalPanelsCurve); ?> عدد</div>
+        </div>
+        <div class="stat-card" style="background-color: #e3f2fd;">
+            <h3>در حال پردازش کرو </h3>
+            <div class="stat-value"><?php echo number_format($inProgressPanelsCurve); ?> عدد</div>
+        </div>
+        <div class="stat-card" style="background-color: #e3f2fd;">
+            <h3>پنل‌های بتن ریزی شده کرو </h3>
+            <div class="stat-value"><?php echo number_format((float)$concretepanelsCurve); ?> عدد</div>
+            <div class="stat-value"><?php echo number_format((float)$concretepanelsareaCurve, 2); ?> متر مربع</div>
+        </div>
+        <div class="stat-card" style="background-color: #e3f2fd;">
+            <h3>پنل‌های فیس کوت خورده کرو </h3>
+            <div class="stat-value"><?php echo number_format((float)$facecoutpanelsCurve); ?> عدد</div>
+            <div class="stat-value"><?php echo number_format((float)$facecoutpanelsareaCurve, 2); ?> متر مربع</div>
+        </div>
+        <div class="stat-card" style="background-color: #e3f2fd;">
+            <h3>تکمیل شده کرو </h3>
+            <div class="stat-value"><?php echo number_format($completedPanelsCurve); ?> عدد</div>
+            <div class="stat-value"><?php echo number_format((float)$completedPanelsareaCurve, 2); ?> متر مربع</div>
+        </div>
+        <div class="stat-card" style="background-color: #e3f2fd;">
+            <h3>ارسال شده کرو </h3>
+            <div class="stat-value"><?php echo number_format($shippedPanelsCurve); ?> عدد</div>
+            <div class="stat-value"><?php echo number_format((float)$areashippedPanelsCurve, 2); ?> متر مربع</div>
+        </div>
+        <div class="stat-card" style="background-color: #e3f2fd;">
+            <h3>پنل‌های موجود در کارگاه کرو </h3>
+            <div class="stat-value"><?php echo number_format($existPanelsCurve); ?> عدد</div>
+        </div>
+        <div class="stat-card" style="background-color: #e3f2fd;">
+            <h3>پنل‌ها برنامه‌ریزی شده کرو </h3>
+            <div class="stat-value"><?php echo number_format($assignedpanelsCurve); ?> عدد</div>
+        </div>
+        <div class="stat-card" style="background-color: #e3f2fd;">
+            <h3>پنل‌های در انتظار کرو </h3>
+            <div class="stat-value"><?php echo number_format($pendingPanelsCurve); ?> عدد</div>
+        </div>
+    </div>
+
+
+    <div class="stats-grid">
+        <div class="stat-card" style="background-color: #e8f5e9;">
+            <h3>کل پنل‌های فلت </h3>
+            <div class="stat-value"><?php echo number_format($totalPanelsFlat); ?> عدد</div>
+        </div>
+        <div class="stat-card" style="background-color: #e8f5e9;">
+            <h3>در حال پردازش فلت </h3>
+            <div class="stat-value"><?php echo number_format($inProgressPanelsFlat); ?> عدد</div>
+        </div>
+        <div class="stat-card" style="background-color: #e8f5e9;">
+            <h3>پنل‌های بتن ریزی شده فلت </h3>
+            <div class="stat-value"><?php echo number_format((float)$concretepanelsFlat); ?> عدد</div>
+            <div class="stat-value"><?php echo number_format((float)$concretepanelsareaFlat, 2); ?> متر مربع</div>
+        </div>
+        <div class="stat-card" style="background-color: #e8f5e9;">
+            <h3>پنل‌های فیس کوت خورده فلت </h3>
+            <div class="stat-value"><?php echo number_format((float)$facecoutpanelsFlat); ?> عدد</div>
+            <div class="stat-value"><?php echo number_format((float)$facecoutpanelsareaFlat, 2); ?> متر مربع</div>
+        </div>
+        <div class="stat-card" style="background-color: #e8f5e9;">
+            <h3>تکمیل شده فلت </h3>
+            <div class="stat-value"><?php echo number_format($completedPanelsFlat); ?> عدد</div>
+            <div class="stat-value"><?php echo number_format((float)$completedPanelsareaFlat, 2); ?> متر مربع</div>
+        </div>
+        <div class="stat-card" style="background-color: #e8f5e9;">
+            <h3>ارسال شده فلت </h3>
+            <div class="stat-value"><?php echo number_format($shippedPanelsFlat); ?> عدد</div>
+            <div class="stat-value"><?php echo number_format((float)$areashippedPanelsFlat, 2); ?> متر مربع</div>
+        </div>
+        <div class="stat-card" style="background-color: #e8f5e9;">
+            <h3>پنل‌های موجود در کارگاه فلت </h3>
+            <div class="stat-value"><?php echo number_format($existPanelsFlat); ?> عدد</div>
+        </div>
+        <div class="stat-card" style="background-color: #e8f5e9;">
+            <h3>پنل‌ها برنامه‌ریزی شده فلت </h3>
+            <div class="stat-value"><?php echo number_format($assignedpanelsFlat); ?> عدد</div>
+        </div>
+        <div class="stat-card" style="background-color: #e8f5e9;">
+            <h3>پنل‌های در انتظار فلت </h3>
+            <div class="stat-value"><?php echo number_format($pendingPanelsFlat); ?> عدد</div>
+        </div>
+    </div>
+
 
     <div class="chart-grid">
         <div class="chart-container">

@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>نمونه سامانه اطلاعات ساختمان</title>
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      @font-face {
+        font-family: "Vazirmatn"; /* Using Vazirmatn for better variable font support */
+        src: url("https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Regular.woff2")
+          format("woff2");
+        font-weight: normal;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "Vazirmatn";
+        src: url("https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Bold.woff2")
+          format("woff2");
+        font-weight: bold;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      body {
+        font-family: "Vazirmatn", sans-serif;
+        margin: 0;
+        padding-top: 70px; /* Account for fixed navbar */
+        background-color: #f8f9fa;
+      }
+
+      .navbar {
+        background-color: #343a40 !important; /* Dark navbar */
+      }
+      .navbar-brand,
+      .nav-link {
+        color: #f8f9fa !important;
+      }
+      .navbar-brand:hover,
+      .nav-link:hover {
+        color: #adb5bd !important;
+      }
+      .dropdown-menu {
+        text-align: right; /* For RTL dropdowns */
+      }
+
+      .main-container {
+        padding: 20px;
+      }
+
+      .controls-section {
+        background-color: #ffffff;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+
+      .layer-controls .btn {
+        margin: 3px;
+      }
+
+      #svgContainer {
+        width: 100%;
+        height: 70vh; /* Adjusted height */
+        border: 1px solid #007bff;
+        background-color: #e9ecef;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: grab;
+        position: relative; /* For zoom controls positioning */
+        border-radius: 8px;
+      }
+      #svgContainer.dragging {
+        cursor: grabbing;
+      }
+      #svgContainer.loading::before {
+        content: "در حال بارگذاری SVG...";
+        font-style: italic;
+        color: #666;
+        font-size: 1.2em;
+      }
+      #svgContainer svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+        /* Allow pointer events on children for interaction */
+        pointer-events: none; /* Disable on container, enable on children */
+      }
+      #svgContainer svg * {
+        /* Enable pointer events for SVG children */
+        pointer-events: all;
+      }
+      /* Style for interactive SVG elements */
+      .interactive-svg-element {
+        cursor: pointer;
+        transition: fill 0.2s ease-in-out, stroke 0.2s ease-in-out,
+          stroke-width 0.2s ease-in-out;
+      }
+      .interactive-svg-element:hover {
+        /* Define hover style in JS or based on original fill */
+      }
+      .highlighted-svg-element {
+        /* Define highlight style in JS or based on original fill */
+      }
+
+      .zoom-controls {
+        position: absolute;
+        bottom: 15px;
+        right: 15px;
+        z-index: 1005; /* Above SVG container */
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .zoom-controls .btn {
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      }
+
+      .modal-title {
+        font-weight: bold;
+      }
+      .modal-body ul {
+        padding-right: 20px; /* Proper indentation for RTL lists */
+      }
+      .attribute-label {
+        font-weight: bold;
+        color: #007bff;
+      }
+
+      .floor-title {
+        text-align: center;
+        margin-bottom: 15px;
+        color: #343a40;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">
+          <i class="bi bi-building"></i> سامانه اطلاعات ساختمان (نمونه)
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item dropdown">
+              <a
+                class="nav-link dropdown-toggle"
+                href="#"
+                id="floorSelectorDropdown"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                <i class="bi bi-layers-fill"></i> انتخاب طبقه
+              </a>
+              <ul
+                class="dropdown-menu"
+                aria-labelledby="floorSelectorDropdown"
+                id="zoneSelectorContainer"
+              >
+                <!-- Options will be populated by JS -->
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid main-container">
+      <h2 id="currentFloorTitle" class="floor-title"></h2>
+
+      <div class="controls-section">
+        <h5><i class="bi bi-eye-fill"></i> کنترل لایه‌ها:</h5>
+        <div
+          class="layer-controls d-flex flex-wrap justify-content-center"
+          id="layerControlsContainer"
+        >
+          <!-- Layer toggle buttons will be added here by JavaScript -->
+        </div>
+      </div>
+
+      <div id="svgContainer">
+        <!-- SVG will be loaded here -->
+        <div class="zoom-controls">
+          <button
+            id="zoomInBtn"
+            class="btn btn-primary btn-sm"
+            title="بزرگنمایی"
+          >
+            <i class="bi bi-zoom-in"></i>
+          </button>
+          <button
+            id="zoomOutBtn"
+            class="btn btn-primary btn-sm"
+            title="کوچکنمایی"
+          >
+            <i class="bi bi-zoom-out"></i>
+          </button>
+          <button
+            id="zoomResetBtn"
+            class="btn btn-secondary btn-sm"
+            title="بازنشانی"
+          >
+            <i class="bi bi-aspect-ratio"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Information Modal -->
+    <div
+      class="modal fade"
+      id="infoModal"
+      tabindex="-1"
+      aria-labelledby="infoModalLabel"
+      aria-hidden="true"
+    >
+      <div
+        class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"
+      >
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title" id="infoModalLabel">اطلاعات المان</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="بستن"
+            ></button>
+          </div>
+          <div class="modal-body" id="infoModalBody">
+            <!-- Content will be populated by JS -->
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              بستن
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle (Popper.js included) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      // --- Configuration for Floor Plans ---
+      const floorPlans = [
+        { name: "طبقه همکف", file: "hamkaf.svg", default: true },
+        { name: "طبقه ۱", file: "Zone1.svg" },
+        { name: "طبقه ۲", file: "Zone2.svg" },
+        // ... add all 14 floors eventually
+      ];
+
+      // --- SVG Group (Layer) Configuration ---
+      // ID in SVG : { label (Persian), color (optional, if you want to force it), defaultVisible, isTextGroup (optional) }
+      // For this new demo, we'll mostly rely on SVG's own styling or simple highlights.
+
+      // Example based on your old config, adapt as needed for *actual* layers
+      // --- SVG Group (Layer) Configuration ---
+      const svgLayerConfig = {
+        // --- Architectural Space Layers (from your list) ---
+        intloby: {
+          label: "لابی ورودی",
+          defaultVisible: true,
+          color: "rgba(255, 105, 180, 0.35)", // HotPink, semi-transparent
+        },
+        Eleloby: {
+          label: "لابی آسانسور",
+          defaultVisible: true,
+          color: "rgba(135, 206, 250, 0.35)", // LightSkyBlue, semi-transparent
+        },
+        Dabirknaneh: {
+          label: "دبیرخانه",
+          defaultVisible: true,
+          color: "rgba(244, 164, 96, 0.35)", // SandyBrown, semi-transparent
+        },
+        rah_pelleh: {
+          label: "راه پله",
+          defaultVisible: true,
+          color: "rgba(119, 136, 153, 0.35)", // LightSlateGray, semi-transparent
+        },
+        ramp: {
+          label: "رمپ / پله شیب‌دار",
+          defaultVisible: true,
+          color: "rgba(176, 196, 222, 0.35)", // LightSteelBlue, semi-transparent
+        },
+        Banks: {
+          label: "فضاهای بانکی",
+          defaultVisible: true,
+          color: "rgba(60, 179, 113, 0.35)", // MediumSeaGreen, semi-transparent
+        },
+        amfy: {
+          // Amphitheater layer
+          label: "آمفی تئاتر",
+          defaultVisible: true,
+          color: "rgba(218, 165, 32, 0.35)", // Goldenrod, semi-transparent (This will be the base for the area)
+        },
+        Sloby: {
+          label: "لابی جنوبی",
+          defaultVisible: true,
+          color: "rgba(255, 215, 0, 0.35)", // Gold, semi-transparent
+        },
+
+        // --- General Architectural Element Layers ---
+        "A-WALL": {
+          label: "دیوارها",
+          defaultVisible: true,
+          // Walls usually don't need a fill if spaces behind them are colored,
+          // but a stroke is important. If they are solid elements, a color is fine.
+          // color: "rgba(100, 100, 100, 0.9)" // Darker Grey for solid walls if applicable
+          // If walls are just lines, color won't apply via 'fill'. Stroke styling might be needed in SVG.
+          // For this demo, we assume walls are paths/polygons that can take a fill.
+          color: "rgba(128, 128, 128, 0.7)", // Grey fill for walls
+        },
+        // Updated based on your original config "A-AREA-____-OTLN" for doors
+        "A-DOOR": {
+          // If your doors are in a group with ID A-AREA-____-OTLN, change key here
+          label: "درها",
+          defaultVisible: true,
+          color: "rgba(139, 69, 19, 0.6)", // SaddleBrown for doors (fill)
+        },
+        // Updated based on your original config "A-AREA-____-IDEN" for names
+        "A-SPACE-NAMES": {
+          // If names are in A-AREA-____-IDEN, change key here
+          label: "نام فضاها",
+          defaultVisible: true,
+          isTextGroup: true,
+          color: "#1a1a1a", // Very dark grey for text
+        },
+        FURNITURE: {
+          label: "مبلمان (یافت نشد)", // Defaulting to 'not found' as per screenshot
+          defaultVisible: false,
+          color: "rgba(169, 169, 169, 0.5)", // DarkGray for furniture
+          disabled: true, // Adding a flag to indicate it wasn't found in screenshot
+        },
+
+        // --- System Overlay Layers ---
+        "EQUIPMENT-MECH": {
+          label: "تجهیزات مکانیکی (یافت نشد)",
+          defaultVisible: true,
+          color: "rgba(255, 140, 0, 0.75)", // DarkOrange
+          disabled: true,
+        },
+        "EQUIPMENT-ELEC": {
+          label: "تجهیزات برقی (یافت نشد)",
+          defaultVisible: true,
+          color: "rgba(255, 215, 0, 0.75)", // Gold
+          disabled: true,
+        },
+        "EQUIPMENT-IT": {
+          label: "تجهیزات IT (یافت نشد)",
+          defaultVisible: true,
+          color: "rgba(30, 144, 255, 0.7)", // DodgerBlue
+          disabled: true,
+        },
+        "EQUIPMENT-SECURITY": {
+          label: "تجهیزات امنیتی (یافت نشد)",
+          defaultVisible: true,
+          color: "rgba(220, 20, 60, 0.7)", // Crimson
+          disabled: true,
+        },
+        "EQUIPMENT-FIRE": {
+          label: "تجهیزات اعلام/اطفاء حریق (یافت نشد)",
+          defaultVisible: true,
+          color: "rgba(255, 0, 0, 0.7)", // Red
+          disabled: true,
+        },
+      };
+
+      // --- Sample Data Store for Spaces/Equipment ---
+      // Keys should match the IDs of interactive elements in your SVGs
+      const spaceDataStore = {
+        // --- Clickable Spaces (using IDs of their main defining shapes in SVG) ---
+        SHAPE_INTLOBBY_GF: {
+          // Assumes the main path/polygon for intloby has id="SHAPE_INTLOBBY_GF"
+          name: "لابی ورودی اصلی (همکف)",
+          type: "فضای عمومی / ورودی اصلی",
+          floor: "همکف",
+          layerAffiliation: "intloby", // You can add custom props like this
+          area_m2: 120,
+          accessLevel: "عمومی",
+          notes:
+            "نقطه تجمع اصلی. شامل اطلاعات، نگهبانی و دسترسی به آسانسورهای عمومی.",
+          // Include systems present in this *overall* space if not broken down further
+          securitySystems: [
+            {
+              type: "دوربین مداربسته اصلی لابی",
+              id_svg: "CCTV_LOBBY_01",
+              status: "فعال",
+            },
+            {
+              type: "گیت کنترل تردد ورودی",
+              id_svg: "ACS_GATE_LOBBY",
+              status: "فعال",
+            },
+          ],
+          fireSafety: [
+            { type: "سیستم اسپرینکلر و دتکتور دود", status: "فعال" },
+          ],
+        },
+        SHAPE_DABIRKHANEH_GF: {
+          // Assumes Dabirkhaneh shape has id="SHAPE_DABIRKHANEH_GF"
+          name: "دبیرخانه (همکف)",
+          type: "اداری",
+          floor: "همکف",
+          layerAffiliation: "Dabirknaneh",
+          area_m2: 35,
+          accessLevel: "پرسنل مجاز",
+          itEquipment: [
+            { type: "کامپیوتر اداری", count: 3 },
+            { type: "پرینتر شبکه", id_svg: "PRINTER_DABIR_01" }, // This printer could also be its own entry in spaceDataStore
+          ],
+          notes: "محل امور اداری و بایگانی طبقه.",
+        },
+        SHAPE_BANK_BRANCH_A_GF: {
+          name: "شعبه بانک آلفا (همکف)",
+          type: "بانکی - شعبه تجاری",
+          floor: "همکف",
+          layerAffiliation: "Banks", // Belongs to the 'Banks' visual group
+          area_m2: 150,
+          accessLevel: "عمومی / محدود (پشت باجه)",
+          itEquipment: [
+            {
+              type: "ATM داخل شعبه",
+              count: 2,
+              id_svg_prefix: "ATM_BANK_A_IN_",
+            }, // Prefixes can help if ATM itself is clickable
+            { type: "صندوق‌های دریافت و پرداخت (POS)", count: 4 },
+          ],
+          securitySystems: [
+            {
+              type: "سیستم امنیتی کامل شعبه (دوربین، آژیر، گاوصندوق)",
+              status: "فعال",
+            },
+          ],
+          notes: "ارائه خدمات بانکی به مشتریان.",
+        },
+
+        // --- Clickable Equipment (using IDs of their symbols in SVG) ---
+        ATM_01_LOBBY_GF: {
+          // An ATM symbol with id="ATM_01_LOBBY_GF", likely in "intloby" or "Banks" layer visually
+          name: "خودپرداز بانک ملی - لابی همکف",
+          type: "تجهیزات بانکی",
+          floor: "همکف",
+          model: "Wincor Nixdorf ProCash 280",
+          status: "فعال",
+          layerAffiliation: "EQUIPMENT-IT", // Or a more specific "EQUIPMENT-BANKING"
+          powerSystems: [{ name: "تغذیه برق اضطراری UPS", status: "فعال" }],
+          securitySystems: [
+            { type: "دوربین Pin-hole", status: "فعال" },
+            { type: "سنسور ضد سرقت", status: "فعال" },
+          ],
+          notes: "نزدیک ورودی شمالی.",
+        },
+        SERVER_RACK_A1_GF: {
+          // A server rack symbol with id="SERVER_RACK_A1_GF"
+          name: "رک سرور A1 - اتاق سرور همکف",
+          type: "تجهیزات IT",
+          floor: "همکف",
+          roomContext: "اتاق سرور اصلی (ID: ROOM_SERVER_GF)", // Link to parent room if room is also clickable
+          layerAffiliation: "EQUIPMENT-IT",
+          powerSystems: [
+            { name: "PDU متصل به UPS مرکزی", status: "فعال", load: "65%" },
+          ],
+          mechanicalSystems: [
+            { name: "خنک‌کاری توسط CRAC واحد ۱", status: "دریافت هوای خنک" },
+          ],
+          itEquipment: [
+            {
+              type: "سرور Dell PowerEdge R750",
+              hostname: "WEBSRV01",
+              ip: "10.1.1.10",
+            },
+            {
+              type: "سوئیچ Cisco Catalyst 9300",
+              hostname: "SW-CORE-GF-01",
+              ip: "10.1.1.1",
+            },
+          ],
+          notes: "رک اصلی شامل سرورهای وب و دیتابیس.",
+        },
+        CHILLER_01_ROOFTOP: {
+          // Example for a different floor/area
+          name: "چیلر شماره ۱ - بام",
+          type: "تجهیزات مکانیکی",
+          floor: "بام",
+          model: "Trane RTAF 250",
+          status: "فعال - در حال کار",
+          layerAffiliation: "EQUIPMENT-MECH",
+          powerSystems: [
+            { name: "تابلوی برق چیلرها (MCC-CH-01)", status: "فعال" },
+          ],
+          mechanicalSystems: [{ name: "سیکل تبرید تراکمی", outputTemp: "7°C" }],
+          notes: "آخرین سرویس: ۱۴۰۲/۱۱/۰۵. نیازمند بررسی فیلترها.",
+        },
+      };
+
+      let currentZoom = 1;
+      const zoomStep = 0.2;
+      const minZoom = 0.2;
+      const maxZoom = 8; // Adjusted max zoom for better usability
+      let currentSvgElement = null;
+      let isPanning = false;
+      let panStartX = 0,
+        panStartY = 0;
+      let panX = 0,
+        panY = 0;
+      let lastTouchDistance = 0;
+      let infoModalInstance = null;
+      let currentSelectedElement = null; // To track the SVG element that is currently "selected"
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const svgContainer = document.getElementById("svgContainer");
+        const layerControlsContainer = document.getElementById(
+          "layerControlsContainer"
+        );
+        const zoneSelectorContainer = document.getElementById(
+          "zoneSelectorContainer"
+        );
+        const currentFloorTitle = document.getElementById("currentFloorTitle");
+
+        infoModalInstance = new bootstrap.Modal(
+          document.getElementById("infoModal")
+        );
+
+        // Populate floor selector dropdown
+        floorPlans.forEach((plan) => {
+          const listItem = document.createElement("li");
+          const link = document.createElement("a");
+          link.classList.add("dropdown-item");
+          link.href = "#";
+          link.textContent = plan.name;
+          link.dataset.file = plan.file;
+          if (plan.default) {
+            link.classList.add("active");
+          }
+          link.addEventListener("click", (e) => {
+            e.preventDefault();
+            document
+              .querySelectorAll("#zoneSelectorContainer .dropdown-item")
+              .forEach((i) => i.classList.remove("active"));
+            link.classList.add("active");
+            currentFloorTitle.textContent = plan.name;
+            loadAndDisplaySVG(plan.file);
+          });
+          listItem.appendChild(link);
+          zoneSelectorContainer.appendChild(listItem);
+        });
+
+        function applyLayerStylesAndControls(svgElement) {
+          layerControlsContainer.innerHTML = ""; // Clear old buttons
+
+          Object.entries(svgLayerConfig).forEach(([layerId, config]) => {
+            const groupElement = svgElement.getElementById(layerId);
+
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = config.label;
+            button.classList.add("btn", "btn-sm");
+
+            if (config.disabled) {
+              // Check for the new disabled flag
+              button.classList.add("btn-outline-danger"); // Style as 'not found'
+              button.disabled = true;
+            } else if (groupElement) {
+              config.elementRef = groupElement;
+              groupElement.style.display = config.defaultVisible ? "" : "none";
+              if (config.color) {
+                if (config.isTextGroup) {
+                  const textElements =
+                    groupElement.querySelectorAll("text, tspan");
+                  textElements.forEach((el) => (el.style.fill = config.color));
+                } else {
+                  const elementsToColor = groupElement.querySelectorAll(
+                    "path, rect, circle, polygon, polyline, line, ellipse"
+                  );
+                  elementsToColor.forEach((el) => {
+                    el.style.fill = config.color;
+                    // Optionally add a subtle border to space areas if they don't have one
+                    if (!el.style.stroke && !el.getAttribute("stroke")) {
+                      el.style.stroke = "rgba(0,0,0,0.2)";
+                      el.style.strokeWidth = "0.5";
+                    }
+                  });
+                }
+              }
+              if (config.color && config.isTextGroup) {
+                const textElements =
+                  groupElement.querySelectorAll("text, tspan");
+                textElements.forEach((el) => (el.style.fill = config.color));
+              }
+
+              button.classList.add(
+                config.defaultVisible ? "btn-primary" : "btn-outline-secondary"
+              );
+              button.addEventListener("click", () => {
+                const isVisible = groupElement.style.display !== "none";
+                groupElement.style.display = isVisible ? "none" : "";
+                button.classList.toggle("btn-primary", !isVisible);
+                button.classList.toggle("btn-outline-secondary", isVisible);
+              });
+            } else {
+              console.warn(`لایه با شناسه '${layerId}' در SVG یافت نشد.`);
+              button.textContent = config.label + " (یافت نشد)";
+              button.classList.add("btn-outline-danger");
+              button.disabled = true;
+            }
+            layerControlsContainer.appendChild(button);
+          });
+        }
+
+        function makeElementsInteractive(svgElement) {
+          Object.keys(spaceDataStore).forEach((elementId) => {
+            const el = svgElement.getElementById(elementId);
+            if (el) {
+              el.classList.add("interactive-svg-element");
+              const originalFill =
+                el.style.fill || el.getAttribute("fill") || "transparent"; // Store original fill
+              const originalStroke =
+                el.style.stroke || el.getAttribute("stroke");
+              const originalStrokeWidth =
+                el.style.strokeWidth || el.getAttribute("stroke-width");
+
+              el.dataset.originalFill = originalFill; // Save for later
+              el.dataset.originalStroke = originalStroke || "none";
+              el.dataset.originalStrokeWidth = originalStrokeWidth || "0";
+
+              el.addEventListener("click", (event) => {
+                event.stopPropagation(); // Prevent triggering pan/zoom
+                showElementInfo(elementId, el);
+              });
+
+              el.addEventListener("mouseenter", () => {
+                if (el !== currentSelectedElement) {
+                  // Only apply hover if not selected
+                  el.style.fill = "rgba(0, 123, 255, 0.4)"; // Hover highlight (light blue, more transparent)
+                  el.style.stroke = "darkblue";
+                  el.style.strokeWidth = (
+                    parseFloat(el.dataset.originalStrokeWidth || "0") + 2
+                  ).toString();
+                }
+              });
+              el.addEventListener("mouseleave", () => {
+                if (el !== currentSelectedElement) {
+                  // Only revert if not selected
+                  el.style.fill = el.dataset.originalFill;
+                  el.style.stroke = el.dataset.originalStroke;
+                  el.style.strokeWidth = el.dataset.originalStrokeWidth;
+                }
+              });
+            } else {
+              console.warn(
+                `المان تعاملی با شناسه '${elementId}' در SVG یافت نشد.`
+              );
+            }
+          });
+        }
+
+        function showElementInfo(elementId, svgDomElement) {
+          const data = spaceDataStore[elementId];
+          if (!data) {
+            console.error("اطلاعاتی برای شناسه:", elementId, "یافت نشد.");
+            return;
+          }
+
+          // Reset previously selected element's style
+          if (
+            currentSelectedElement &&
+            currentSelectedElement !== svgDomElement
+          ) {
+            currentSelectedElement.style.fill =
+              currentSelectedElement.dataset.originalFill;
+            currentSelectedElement.style.stroke =
+              currentSelectedElement.dataset.originalStroke;
+            currentSelectedElement.style.strokeWidth =
+              currentSelectedElement.dataset.originalStrokeWidth;
+            currentSelectedElement.classList.remove("highlighted-svg-element");
+          }
+
+          if (!svgDomElement.dataset.originalFill) {
+            svgDomElement.dataset.originalFill =
+              svgDomElement.style.fill ||
+              svgDomElement.getAttribute("fill") ||
+              "transparent";
+            svgDomElement.dataset.originalStroke =
+              svgDomElement.style.stroke ||
+              svgDomElement.getAttribute("stroke") ||
+              "none";
+            svgDomElement.dataset.originalStrokeWidth =
+              svgDomElement.style.strokeWidth ||
+              svgDomElement.getAttribute("stroke-width") ||
+              "0";
+          }
+
+          svgDomElement.style.fill = "rgba(255, 0, 0, 0.5)"; // **Selected highlight (e.g., semi-transparent Red)**
+          svgDomElement.style.stroke = "darkred";
+          svgDomElement.style.strokeWidth = (
+            parseFloat(svgDomElement.dataset.originalStrokeWidth || "0") + 2.5
+          ).toString(); // Slightly thicker for selected
+          svgDomElement.classList.add("highlighted-svg-element");
+          currentSelectedElement = svgDomElement;
+
+          document.getElementById("infoModalLabel").textContent = `اطلاعات: ${
+            data.name || elementId
+          }`;
+          const body = document.getElementById("infoModalBody");
+          body.innerHTML = ""; // Clear previous content
+
+          let content = `<p><span class="attribute-label">شناسه:</span> ${elementId}</p>`;
+          if (data.type)
+            content += `<p><span class="attribute-label">نوع:</span> ${data.type}</p>`;
+          if (data.floor)
+            content += `<p><span class="attribute-label">طبقه:</span> ${data.floor}</p>`;
+          if (data.area_m2)
+            content += `<p><span class="attribute-label">مساحت:</span> ${data.area_m2} متر مربع</p>`;
+          if (data.accessLevel)
+            content += `<p><span class="attribute-label">سطح دسترسی:</span> ${data.accessLevel}</p>`;
+          if (data.model)
+            content += `<p><span class="attribute-label">مدل:</span> ${data.model}</p>`;
+          if (data.status)
+            content += `<p><span class="attribute-label">وضعیت:</span> ${data.status}</p>`;
+          if (data.lastMaintenance)
+            content += `<p><span class="attribute-label">آخرین سرویس:</span> ${data.lastMaintenance}</p>`;
+          if (data.cashLevel)
+            content += `<p><span class="attribute-label">موجودی وجه نقد:</span> ${data.cashLevel}</p>`;
+
+          const createList = (title, items) => {
+            if (items && items.length > 0) {
+              let listHtml = `<h5>${title}:</h5><ul>`;
+              items.forEach((item) => {
+                listHtml += `<li><strong>${
+                  item.name || item.type || item.id
+                }:</strong> `;
+                const itemDetails = [];
+                if (item.model) itemDetails.push(`مدل: ${item.model}`);
+                if (item.capacity) itemDetails.push(`ظرفیت: ${item.capacity}`);
+                if (item.status) itemDetails.push(`وضعیت: ${item.status}`);
+                if (item.temp) itemDetails.push(`دما: ${item.temp}`);
+                if (item.tempSetting)
+                  itemDetails.push(`تنظیم دما: ${item.tempSetting}`);
+                if (item.ip) itemDetails.push(`IP: ${item.ip}`);
+                if (item.count) itemDetails.push(`تعداد: ${item.count}`);
+                listHtml += itemDetails.join("، ");
+                if (item.notes) listHtml += ` <i>(${item.notes})</i>`;
+                listHtml += `</li>`;
+              });
+              listHtml += "</ul>";
+              return listHtml;
+            }
+            return "";
+          };
+
+          content += createList("سیستم‌های برق", data.powerSystems);
+          content += createList("سیستم‌های مکانیکی", data.mechanicalSystems);
+          content += createList("تجهیزات IT", data.itEquipment);
+          content += createList("سیستم‌های امنیتی", data.securitySystems);
+          content += createList("ایمنی حریق", data.fireSafety);
+
+          if (data.notes)
+            content += `<h5>یادداشت‌ها:</h5><p class="text-muted" style="white-space: pre-wrap;">${data.notes}</p>`;
+
+          body.innerHTML = content;
+          infoModalInstance.show();
+        }
+
+        // Listener to clear highlight when modal is closed
+        document
+          .getElementById("infoModal")
+          .addEventListener("hidden.bs.modal", function () {
+            if (currentSelectedElement) {
+              currentSelectedElement.style.fill =
+                currentSelectedElement.dataset.originalFill;
+              currentSelectedElement.style.stroke =
+                currentSelectedElement.dataset.originalStroke;
+              currentSelectedElement.style.strokeWidth =
+                currentSelectedElement.dataset.originalStrokeWidth;
+              currentSelectedElement.classList.remove(
+                "highlighted-svg-element"
+              );
+              currentSelectedElement = null;
+            }
+          });
+
+        function loadAndDisplaySVG(svgFilename) {
+          svgContainer.innerHTML = ""; // Clear previous SVG and zoom controls
+          // Re-add zoom controls structure because it's cleared
+          const zoomControlsHtml = `
+                <div class="zoom-controls">
+                    <button id="zoomInBtn" class="btn btn-primary btn-sm" title="بزرگنمایی"><i class="bi bi-zoom-in"></i></button>
+                    <button id="zoomOutBtn" class="btn btn-primary btn-sm" title="کوچکنمایی"><i class="bi bi-zoom-out"></i></button>
+                    <button id="zoomResetBtn" class="btn btn-secondary btn-sm" title="بازنشانی"><i class="bi bi-aspect-ratio"></i></button>
+                </div>`;
+          svgContainer.insertAdjacentHTML("beforeend", zoomControlsHtml); // Add it inside
+
+          svgContainer.classList.add("loading");
+          currentSelectedElement = null; // Reset selected element on new SVG load
+
+          fetch(svgFilename)
+            .then((response) => {
+              svgContainer.classList.remove("loading");
+              if (!response.ok)
+                throw new Error(
+                  `خطا در بارگذاری ${svgFilename}: ${response.status} ${response.statusText}`
+                );
+              return response.text();
+            })
+            .then((svgData) => {
+              svgContainer.insertAdjacentHTML("afterbegin", svgData); // Insert SVG before zoom controls
+
+              currentSvgElement = svgContainer.querySelector("svg");
+              if (currentSvgElement) {
+                currentSvgElement.removeAttribute("width");
+                currentSvgElement.removeAttribute("height");
+                currentSvgElement.style.width = "100%";
+                currentSvgElement.style.height = "100%";
+
+                resetZoomAndPan(); // Apply initial transform
+                setupZoomControls();
+
+                if (!currentSvgElement.getAttribute("viewBox")) {
+                  // Attempt to set a viewBox if missing, assuming content starts at 0,0
+                  const firstChild = currentSvgElement.firstElementChild;
+                  if (firstChild && typeof firstChild.getBBox === "function") {
+                    const bbox = currentSvgElement.getBBox(); // Get bounding box of all content
+                    if (bbox.width > 0 && bbox.height > 0) {
+                      currentSvgElement.setAttribute(
+                        "viewBox",
+                        `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`
+                      );
+                      console.warn(
+                        `SVG ${svgFilename} فاقد مشخصه viewBox بود. یک viewBox بر اساس محتوا تنظیم شد.`
+                      );
+                    } else {
+                      console.warn(
+                        `SVG ${svgFilename} فاقد مشخصه viewBox است و محتوای قابل تشخیصی برای ایجاد خودکار آن یافت نشد.`
+                      );
+                    }
+                  } else {
+                    console.warn(
+                      `SVG ${svgFilename} فاقد مشخصه viewBox است و امکان ایجاد خودکار آن وجود ندارد.`
+                    );
+                  }
+                }
+                applyLayerStylesAndControls(currentSvgElement);
+                makeElementsInteractive(currentSvgElement);
+              } else {
+                throw new Error(
+                  `فایل ${svgFilename} حاوی تگ <svg> معتبر نیست.`
+                );
+              }
+            })
+            .catch((error) => {
+              svgContainer.classList.remove("loading");
+              console.error(`خطا در بارگذاری یا تجزیه ${svgFilename}:`, error);
+              svgContainer.innerHTML = `<div class="alert alert-danger m-3">خطا در بارگذاری ${svgFilename}: ${error.message}.</div> ${zoomControlsHtml}`;
+              setupZoomControls(); // Still setup zoom controls so they don't disappear on error
+            });
+        }
+
+        // Initial load
+        const defaultPlan = floorPlans.find((p) => p.default) || floorPlans[0];
+        if (defaultPlan) {
+          currentFloorTitle.textContent = defaultPlan.name;
+          loadAndDisplaySVG(defaultPlan.file);
+        } else {
+          currentFloorTitle.textContent = "لطفا یک طبقه انتخاب کنید";
+          svgContainer.innerHTML = `<div class="alert alert-info m-3">لطفا یک طبقه از منوی بالا انتخاب کنید.</div>`;
+        }
+
+        // --- Zoom and Pan Logic (largely unchanged, adapted for new setup) ---
+        function setupZoomControls() {
+          const zoomInBtn = document.getElementById("zoomInBtn");
+          const zoomOutBtn = document.getElementById("zoomOutBtn");
+          const zoomResetBtn = document.getElementById("zoomResetBtn");
+
+          if (!zoomInBtn || !zoomOutBtn || !zoomResetBtn) {
+            console.error(
+              "دکمه‌های کنترل بزرگنمایی یافت نشدند. ممکن است SVG به درستی بارگذاری نشده باشد."
+            );
+            return;
+          }
+
+          zoomInBtn.onclick = () => zoomSvg(currentZoom + zoomStep);
+          zoomOutBtn.onclick = () => zoomSvg(currentZoom - zoomStep);
+          zoomResetBtn.onclick = () => resetZoomAndPan();
+
+          svgContainer.onwheel = handleWheelZoom;
+          svgContainer.onmousedown = handleMouseDown;
+          svgContainer.onmousemove = handleMouseMove;
+          svgContainer.onmouseup = handleMouseUp;
+          svgContainer.onmouseleave = handleMouseUp; // End panning if mouse leaves container
+          svgContainer.ontouchstart = handleTouchStart;
+          svgContainer.ontouchmove = handleTouchMove;
+          svgContainer.ontouchend = handleTouchEnd;
+        }
+
+        function updateTransform() {
+          if (!currentSvgElement) return;
+          currentSvgElement.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
+          // For crisp scaling, especially of text, transform-origin might be better at 0 0
+          // if viewBox is well defined and SVG content starts near origin.
+          // However, center center is often more intuitive for user-driven pan/zoom.
+          currentSvgElement.style.transformOrigin = "center center";
+        }
+
+        function zoomSvg(newZoom) {
+          if (!currentSvgElement) return;
+
+          // Get center of the SVG container
+          const rect = svgContainer.getBoundingClientRect();
+          const svgCenterX = rect.width / 2;
+          const svgCenterY = rect.height / 2;
+
+          // Get mouse position relative to SVG container (or use center if not event-driven)
+          // For button clicks, we zoom towards the center of the view
+          const mouseX = svgCenterX;
+          const mouseY = svgCenterY;
+
+          // Calculate current scale's effect on pan
+          // Position of the cursor in the unscaled SVG coordinate system (relative to current pan)
+          const pointX = (mouseX - panX) / currentZoom;
+          const pointY = (mouseY - panY) / currentZoom;
+
+          currentZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+
+          // New pan to keep the point under cursor stationary
+          panX = mouseX - pointX * currentZoom;
+          panY = mouseY - pointY * currentZoom;
+
+          updateTransform();
+
+          const zoomInBtn = document.getElementById("zoomInBtn");
+          const zoomOutBtn = document.getElementById("zoomOutBtn");
+          if (zoomInBtn) zoomInBtn.disabled = currentZoom >= maxZoom;
+          if (zoomOutBtn) zoomOutBtn.disabled = currentZoom <= minZoom;
+        }
+
+        function handleWheelZoom(e) {
+          if (!currentSvgElement) return;
+          e.preventDefault();
+
+          const rect = svgContainer.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left;
+          const mouseY = e.clientY - rect.top;
+
+          // Calculate current scale's effect on pan
+          const pointX = (mouseX - panX) / currentZoom;
+          const pointY = (mouseY - panY) / currentZoom;
+
+          const delta = e.deltaY > 0 ? -zoomStep : zoomStep;
+          let newZoom = currentZoom + delta * currentZoom; // Make zoom step relative
+          newZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+
+          // New pan to keep the point under cursor stationary
+          panX = mouseX - pointX * newZoom;
+          panY = mouseY - pointY * newZoom;
+
+          currentZoom = newZoom;
+          updateTransform();
+
+          const zoomInBtn = document.getElementById("zoomInBtn");
+          const zoomOutBtn = document.getElementById("zoomOutBtn");
+          if (zoomInBtn) zoomInBtn.disabled = currentZoom >= maxZoom;
+          if (zoomOutBtn) zoomOutBtn.disabled = currentZoom <= minZoom;
+        }
+
+        function resetZoomAndPan() {
+          currentZoom = 1;
+          // Attempt to center the SVG if it has a viewBox
+          if (currentSvgElement && currentSvgElement.getAttribute("viewBox")) {
+            // Simple reset to 0,0. For true centering, more complex logic involving viewBox and container size is needed.
+            panX = 0;
+            panY = 0;
+          } else {
+            panX = 0;
+            panY = 0;
+          }
+          updateTransform();
+          const zoomInBtn = document.getElementById("zoomInBtn");
+          const zoomOutBtn = document.getElementById("zoomOutBtn");
+          if (zoomInBtn) zoomInBtn.disabled = currentZoom >= maxZoom;
+          if (zoomOutBtn) zoomOutBtn.disabled = currentZoom <= minZoom;
+        }
+
+        function handleMouseDown(e) {
+          // Prevent panning if target is a button or interactive element
+          if (
+            e.target.closest("button, a, .interactive-svg-element") ||
+            e.target.classList.contains("interactive-svg-element")
+          )
+            return;
+          if (!currentSvgElement) return;
+          e.preventDefault();
+          isPanning = true;
+          panStartX = e.clientX - panX;
+          panStartY = e.clientY - panY;
+          svgContainer.classList.add("dragging");
+        }
+
+        function handleMouseMove(e) {
+          if (!isPanning || !currentSvgElement) return;
+          e.preventDefault();
+          panX = e.clientX - panStartX;
+          panY = e.clientY - panStartY;
+          updateTransform();
+        }
+
+        function handleMouseUp() {
+          if (!currentSvgElement) return;
+          isPanning = false;
+          svgContainer.classList.remove("dragging");
+        }
+
+        let pinchZooming = false;
+        function handleTouchStart(e) {
+          if (!currentSvgElement) return;
+          // Prevent default behavior like page scroll only if we are handling the touch
+          if (
+            e.touches.length === 1 &&
+            !e.target.closest("button, a, .interactive-svg-element") &&
+            !e.target.classList.contains("interactive-svg-element")
+          ) {
+            e.preventDefault(); // Prevent scroll only for pan
+            isPanning = true;
+            pinchZooming = false;
+            const touch = e.touches[0];
+            panStartX = touch.clientX - panX;
+            panStartY = touch.clientY - panY;
+            svgContainer.classList.add("dragging");
+          } else if (e.touches.length === 2) {
+            e.preventDefault(); // Prevent default pinch zoom of browser page
+            isPanning = false;
+            pinchZooming = true;
+            svgContainer.classList.remove("dragging");
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            lastTouchDistance = Math.hypot(
+              touch2.clientX - touch1.clientX,
+              touch2.clientY - touch1.clientY
+            );
+          }
+        }
+
+        function handleTouchMove(e) {
+          if (!currentSvgElement) return;
+
+          if (isPanning && e.touches.length === 1) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            panX = touch.clientX - panStartX;
+            panY = touch.clientY - panStartY;
+            updateTransform();
+          } else if (pinchZooming && e.touches.length === 2) {
+            e.preventDefault();
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            const currentDistance = Math.hypot(
+              touch2.clientX - touch1.clientX,
+              touch2.clientY - touch1.clientY
+            );
+
+            if (lastTouchDistance > 0) {
+              const scaleFactor = currentDistance / lastTouchDistance;
+
+              const rect = svgContainer.getBoundingClientRect();
+              // Midpoint of touches relative to container
+              const midX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+              const midY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
+
+              // Point in SVG coords
+              const pointX = (midX - panX) / currentZoom;
+              const pointY = (midY - panY) / currentZoom;
+
+              let newZoom = currentZoom * scaleFactor;
+              newZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+
+              panX = midX - pointX * newZoom;
+              panY = midY - pointY * newZoom;
+
+              currentZoom = newZoom;
+              updateTransform();
+
+              const zoomInBtn = document.getElementById("zoomInBtn");
+              const zoomOutBtn = document.getElementById("zoomOutBtn");
+              if (zoomInBtn) zoomInBtn.disabled = currentZoom >= maxZoom;
+              if (zoomOutBtn) zoomOutBtn.disabled = currentZoom <= minZoom;
+            }
+            lastTouchDistance = currentDistance;
+          }
+        }
+
+        function handleTouchEnd(e) {
+          // Check if it was a tap on an interactive element
+          if (e.changedTouches.length === 1 && !isPanning && !pinchZooming) {
+            const targetElement = e.target;
+            if (targetElement.classList.contains("interactive-svg-element")) {
+              // This might be handled by the click listener already,
+              // but good to have specific touch end logic if needed.
+              // showElementInfo(targetElement.id, targetElement);
+            }
+          }
+
+          if (isPanning) {
+            isPanning = false;
+            svgContainer.classList.remove("dragging");
+          }
+          if (pinchZooming) {
+            pinchZooming = false;
+          }
+          if (e.touches.length < 2) {
+            // If less than 2 touches, reset pinch zoom tracking
+            lastTouchDistance = 0;
+          }
+          if (
+            e.touches.length === 1 &&
+            !e.target.closest("button, a, .interactive-svg-element")
+          ) {
+            // Re-initiate pan if one finger remains
+            isPanning = true;
+            pinchZooming = false;
+            const touch = e.touches[0];
+            panStartX = touch.clientX - panX;
+            panStartY = touch.clientY - panY;
+          }
+        }
+      }); // End DOMContentLoaded
+    </script>
+  </body>
+</html>

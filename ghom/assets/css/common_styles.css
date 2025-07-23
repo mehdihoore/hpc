@@ -1,0 +1,210 @@
+/* public_html/assets/css/common_styles.css */
+
+/* Import Vazir Font if not already handled by another global CSS or Tailwind config */
+@font-face {
+    font-family: 'Vazir';
+    src: url('../fonts/Vazir.woff2') format('woff2'),
+        /* Adjust path to your font files */
+        url('../fonts/Vazir.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+
+html,
+body {
+    height: 100%;
+    font-family: 'Vazir', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* Added fallbacks */
+    line-height: 1.6;
+    color: #333;
+    /* Default text color */
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    background-color: #f8f9fa;
+    /* Light gray background for the whole page */
+    margin: 0;
+    /* Remove default browser margin */
+}
+
+/* Main container for sticky footer using flexbox */
+.main-container-flex {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    /* At least full viewport height */
+}
+
+/* Common Navbar Styling (Bootstrap overrides or additions) */
+.common-navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.07);
+    flex-shrink: 0;
+    /* Prevent navbar from shrinking */
+    /* background-color: #ffffff; /* Light background for navbar */
+}
+
+.common-navbar .navbar-brand {
+    font-weight: bold;
+    color: #0056b3;
+    /* Example brand color */
+}
+
+.common-navbar .nav-link {
+    color: #495057;
+    /* Standard nav link color */
+}
+
+.common-navbar .nav-link:hover,
+.common-navbar .nav-link.active {
+    color: #0056b3;
+}
+
+.profile-pic-common {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-left: 8px;
+    /* For RTL, space after image */
+    border: 1px solid #ddd;
+}
+
+.admin-link {
+    /* For the 'Admin Panel' link in the navbar */
+    color: #E65100 !important;
+    /* Distinct orange/amber color */
+    font-weight: bold;
+}
+
+.admin-link:hover {
+    color: #D32F2F !important;
+    /* Darker shade on hover */
+}
+
+.admin-link .fas {
+    /* Icon color within admin link */
+    color: #E65100;
+}
+
+/* Content Area */
+.content-area-flex {
+    flex-grow: 1;
+    /* Key for sticky footer: allows content to push footer down */
+    padding-top: 1.5rem;
+    /* Equivalent to Bootstrap's py-3 or py-4 for top */
+    padding-bottom: 1.5rem;
+    /* Equivalent for bottom */
+    /* .container class from Bootstrap will handle side padding */
+}
+
+/*
+   If you are NOT using Tailwind for the footer,
+   but want a similar dark sticky footer, you'd add styles like this.
+   Your footer_common.php already has Tailwind classes, so this section is
+   for illustration or if you decide against Tailwind for the footer.
+*/
+/*
+.footer-manual {
+    background-color: #212529; / * Dark background * /
+    color: #adb5bd;           / * Light grey text * /
+    padding-top: 1.5rem;      / * py-6 equivalent (Tailwind py is 0.25rem units, so py-6 is 1.5rem) * /
+    padding-bottom: 1.5rem;
+    margin-top: auto;         / * Crucial for sticky footer * /
+    font-size: 0.9rem;
+}
+
+.footer-manual p {
+    margin-bottom: 0;
+    color: #ced4da; / * Slightly lighter than text-gray-300 * /
+}
+
+.footer-manual #scrollToTopBtn {
+    / * Replicate Tailwind's fixed, bottom, right, bg-blue, hover, etc. * /
+    position: fixed;
+    bottom: 20px; / * bottom-5 * /
+    right: 20px;  / * right-5 * /
+    background-color: #0d6efd; / * bg-blue-500 * /
+    color: white;
+    font-weight: bold;
+    padding: 0.5rem 1rem; / * py-2 px-4 * /
+    border-radius: 9999px; / * rounded-full * /
+    transition: background-color 0.3s ease, opacity 0.3s ease;
+    z-index: 10;
+    border: none;
+    cursor: pointer;
+    opacity: 1; / * Start visible, JS will hide/show * /
+}
+.footer-manual #scrollToTopBtn.hidden-by-js { / * Class added by JS * /
+    opacity: 0;
+    visibility: hidden;
+}
+
+.footer-manual #scrollToTopBtn:hover {
+    background-color: #0b5ed7; / * hover:bg-blue-700 * /
+}
+
+.footer-manual #scrollToTopBtn svg {
+    width: 1.5rem;  / * h-6 w-6 * /
+    height: 1.5rem;
+    stroke: currentColor;
+    stroke-width: 2;
+}
+*/
+
+/* General utility for Bootstrap validation messages if needed globally */
+.invalid-feedback {
+    font-size: 0.875em;
+}
+
+.was-validated .form-control:invalid,
+.form-control.is-invalid {
+    border-color: #dc3545;
+}
+
+.was-validated .form-control:valid,
+.form-control.is-valid {
+    border-color: #198754;
+}
+
+/* Styles for specific common pages if needed */
+/* Example for profile.php page */
+.profile-container {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.profile-container .avatar-preview {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 1rem;
+    border: 3px solid #e9ecef;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.profile-container .avatar-upload {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Styles for admin.php page (if different from profile container) */
+.admin-container {
+    /* You already have styles for admin.php, ensure they don't conflict
+       or that common_styles.css provides base styles that admin.php can override. */
+}
+
+/* Specific styling for the SVG inside the scroll-to-top button if NOT using Tailwind */
+/* If Tailwind is correctly linked, it should handle this.
+   If not, you need to style the SVG explicitly. */
+#scrollToTopBtn svg {
+    stroke: white;
+    /* If the button is blue, stroke should be white */
+    /* fill: none; Ensure fill is none if you only want the stroke */
+}

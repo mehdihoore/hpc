@@ -45,16 +45,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
     // --- ACTION: markPlanChecked ---
     if ($_POST['action'] === 'markPlanChecked') {
-        header('Content-Type: application/json'); // Set JSON header
+        header('Content-Type: application/json');
 
-        // Role Check: Only Planner can approve
         if ($currentUserRole !== 'planner') {
             echo json_encode(['success' => false, 'message' => 'فقط کاربر برنامه‌ریز می‌تواند نقشه را تایید کند.']);
             exit();
         }
 
         $panelIdToCheck = isset($_POST['panelId']) ? filter_var($_POST['panelId'], FILTER_VALIDATE_INT) : 0;
-        $checkerUserId = $currentUserId; // The logged-in planner doing the check
+        $checkerUserId = $currentUserId;
 
         if (!$panelIdToCheck || !$checkerUserId) {
             echo json_encode(['success' => false, 'message' => 'شناسه پنل یا کاربر نامعتبر']);
@@ -62,50 +61,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         try {
+            // Step 1: Get the full_address_identifier for the given panel ID.
+            $getIdStmt = $pdo->prepare("SELECT full_address_identifier FROM hpc_panels WHERE id = ?");
+            $getIdStmt->execute([$panelIdToCheck]);
+            $identifier = $getIdStmt->fetchColumn();
 
+            if (!$identifier) {
+                echo json_encode(['success' => false, 'message' => 'شناسه پنل نامعتبر است.']);
+                exit();
+            }
+
+            // Step 2: Update all panels with the same identifier.
             $updateStmt = $pdo->prepare("
-                    UPDATE hpc_panels
-                    SET plan_checked = 1,
-                        plan_checker_user_id = :userId
-                    WHERE id = :panelId AND plan_checked = 0 -- Only update if currently unchecked
-                ");
+                UPDATE hpc_panels
+                SET plan_checked = 1,
+                    plan_checker_user_id = :userId
+                WHERE full_address_identifier = :identifier AND plan_checked = 0
+            ");
             $updateStmt->execute([
                 ':userId' => $checkerUserId,
-                ':panelId' => $panelIdToCheck
+                ':identifier' => $identifier
             ]);
 
-            if ($updateStmt->rowCount() > 0) {
+            $updatedCount = $updateStmt->rowCount();
+
+            if ($updatedCount > 0) {
                 // Fetch checker FULL NAME to return
-                $checkerStmt = $pdo->prepare("SELECT first_name, last_name FROM hpc_common.users WHERE id = ?");
+                $checkerStmt = $pdo->prepare("SELECT first_name, last_name FROM alumglas_hpc_common.users WHERE id = ?");
                 $checkerStmt->execute([$checkerUserId]);
                 $checkerNames = $checkerStmt->fetch(PDO::FETCH_ASSOC);
-                // Combine first and last name, trim extra spaces, provide fallback
                 $checkerFullName = trim(htmlspecialchars($checkerNames['first_name'] ?? '') . ' ' . htmlspecialchars($checkerNames['last_name'] ?? '')) ?: 'کاربر نامشخص';
-
-                // Optional: Log this action
-                // logActivity($checkerUserId, 'plan_checked', $panelIdToCheck);
 
                 echo json_encode([
                     'success' => true,
-                    'message' => 'نقشه با موفقیت تایید شد.',
-                    'checkerFullName' => $checkerFullName // Send back full name
+                    'message' => "نقشه و $updatedCount پنل مشابه با موفقیت تایید شدند.",
+                    'checkerFullName' => $checkerFullName
                 ]);
             } else {
-                // Check if it was already checked or ID was wrong
-                $checkStmt = $pdo->prepare("SELECT plan_checked, plan_checker_user_id FROM hpc_panels WHERE id = ?");
-                $checkStmt->execute([$panelIdToCheck]);
+                // Check if they were already checked
+                $checkStmt = $pdo->prepare("SELECT plan_checked, plan_checker_user_id FROM hpc_panels WHERE full_address_identifier = ? LIMIT 1");
+                $checkStmt->execute([$identifier]);
                 $currentStatus = $checkStmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($currentStatus && $currentStatus['plan_checked'] == 1) {
-                    // Fetch existing checker full name
-                    $checkerStmt = $pdo->prepare("SELECT first_name, last_name FROM hpc_common.users WHERE id = ?");
+                    $checkerStmt = $pdo->prepare("SELECT first_name, last_name FROM alumglas_hpc_common.users WHERE id = ?");
                     $checkerStmt->execute([$currentStatus['plan_checker_user_id']]);
                     $checkerNames = $checkerStmt->fetch(PDO::FETCH_ASSOC);
                     $checkerFullName = trim(htmlspecialchars($checkerNames['first_name'] ?? '') . ' ' . htmlspecialchars($checkerNames['last_name'] ?? '')) ?: 'کاربر نامشخص';
 
                     echo json_encode([
-                        'success' => true, // Still success in a way, just no change made
-                        'message' => 'نقشه قبلا تایید شده بود.',
+                        'success' => true,
+                        'message' => 'این نقشه قبلا تایید شده بود.',
                         'checkerFullName' => $checkerFullName
                     ]);
                 } else {
@@ -116,16 +122,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             logError("Database error checking plan: " . $e->getMessage());
             echo json_encode(['success' => false, 'message' => 'خطای پایگاه داده رخ داد.']);
         } finally {
-            $pdo = null; // Close connection
+            $pdo = null;
         }
-        exit(); // Important: Stop script execution after AJAX response
+        exit();
     } // --- END ACTION: markPlanChecked ---
 
     // --- ACTION: markPlanPending ---
     elseif ($_POST['action'] === 'markPlanPending') {
         header('Content-Type: application/json');
 
-        // Role Check: Only Planner can revert
         if ($currentUserRole !== 'planner') {
             echo json_encode(['success' => false, 'message' => 'فقط کاربر برنامه‌ریز می‌تواند تایید را لغو کند.']);
             exit();
@@ -139,55 +144,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         try {
+            // Step 1: Get the full_address_identifier
+            $getIdStmt = $pdo->prepare("SELECT full_address_identifier FROM hpc_panels WHERE id = ?");
+            $getIdStmt->execute([$panelIdToRevert]);
+            $identifier = $getIdStmt->fetchColumn();
 
-
-            // Check assigned_date before reverting
-            // Fetches the assigned_date. Returns NULL if the column is NULL, false if the row doesn't exist.
-            $checkStmt = $pdo->prepare("SELECT assigned_date FROM hpc_panels WHERE id = ?");
-            $checkStmt->execute([$panelIdToRevert]);
-            $assignedDate = $checkStmt->fetchColumn();
-
-            // Check if the query executed successfully and returned a row
-            if ($assignedDate === false) {
-                // Panel not found
+            if (!$identifier) {
                 echo json_encode(['success' => false, 'message' => 'پنل یافت نشد.']);
                 exit();
             }
-            // Check if the assigned_date column is NOT NULL (meaning it has a date)
-            elseif ($assignedDate !== null) {
-                echo json_encode(['success' => false, 'message' => 'امکان لغو تایید وجود ندارد زیرا تاریخ شروع تولید برای پنل ثبت شده است.']);
+
+            // Step 2: Check if ANY of the matching panels have an assigned_date
+            $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM hpc_panels WHERE full_address_identifier = ? AND assigned_date IS NOT NULL");
+            $checkStmt->execute([$identifier]);
+            $assignedCount = $checkStmt->fetchColumn();
+
+            if ($assignedCount > 0) {
+                echo json_encode(['success' => false, 'message' => 'امکان لغو تایید وجود ندارد زیرا تاریخ شروع تولید برای حداقل یکی از پنل‌های مشابه ثبت شده است.']);
                 exit();
             }
 
-            // Proceed with revert only if assigned_date IS NULL
+            // Step 3: Proceed with revert for all matching panels
             $updateStmt = $pdo->prepare("
-                     UPDATE hpc_panels
-                     SET plan_checked = 0,
-                         plan_checker_user_id = NULL -- Clear the checker
-                     WHERE id = :panelId AND plan_checked = 1 -- Only revert if currently checked
-                 ");
-            $updateStmt->execute([':panelId' => $panelIdToRevert]);
+                UPDATE hpc_panels
+                SET plan_checked = 0,
+                    plan_checker_user_id = NULL
+                WHERE full_address_identifier = :identifier AND plan_checked = 1
+            ");
+            $updateStmt->execute([':identifier' => $identifier]);
 
             if ($updateStmt->rowCount() > 0) {
-                // Optional: Log this action
-                // logActivity($currentUserId, 'plan_reverted', $panelIdToRevert);
-
                 echo json_encode([
                     'success' => true,
-                    'message' => 'تایید نقشه با موفقیت لغو شد.'
+                    'message' => 'تایید نقشه و پنل‌های مشابه با موفقیت لغو شد.'
                 ]);
             } else {
-                // Maybe it was already reverted, or ID was wrong, or wasn't checked
                 echo json_encode(['success' => false, 'message' => 'خطا در لغو تایید یا نقشه قبلا تایید نشده بود.']);
             }
         } catch (PDOException $e) {
             logError("Database error reverting plan check: " . $e->getMessage());
             echo json_encode(['success' => false, 'message' => 'خطای پایگاه داده رخ داد.']);
         } finally {
-            $pdo = null; // Close connection
+            $pdo = null;
         }
-        exit(); // Stop script execution
+        exit();
     } // --- END ACTION: markPlanPending ---
+
+    // ... other actions like uploadNewSvg remain unchanged ...
     elseif ($_POST['action'] === 'uploadNewSvg' && isset($_POST['panelId']) && isset($_FILES['newSvgFile'])) {
         header('Content-Type: application/json'); // Or redirect back with message
 
@@ -288,8 +291,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
         exit();
     } // --- END ACTION: uploadNewSvg ---
-
 } // --- End AJAX Handling ---
+
+// --- The rest of your file (functions, HTML, JS) remains below ---
+// --- It is unchanged from what you provided, so I've omitted it for brevity. ---
+// --- Paste this updated PHP block at the top of your file, replacing the existing PHP logic. ---
+
 // Function to convert Gregorian to Shamsi date (ensure it's defined)
 if (!function_exists('gregorianToShamsi')) {
     function gregorianToShamsi($date)
@@ -403,7 +410,7 @@ try {
             checker.last_name as plan_checker_lname
         FROM hpc_panels hp
         LEFT JOIN available_formworks ft ON hp.formwork_type = ft.formwork_type
-        LEFT JOIN hpc_common.users checker ON hp.plan_checker_user_id = checker.id
+        LEFT JOIN alumglas_hpc_common.users checker ON hp.plan_checker_user_id = checker.id
         WHERE hp.id = ?
         ");
     $stmt->execute([$panelId]);
@@ -500,7 +507,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>جزئیات پنل <?php echo htmlspecialchars($panel['address'] . '-' . $panel['instance_number'] . ' از' . $panel['total_in_batch'] ?? 'Unknown'); ?></title>
+    <title>جزئیات پنل <?php echo htmlspecialchars($panel['full_address_identifier'] . '-' . $panel['instance_number'] . ' از' . $panel['total_in_batch'] ?? 'Unknown'); ?></title>
     <link href="/assets/css/tailwind.min.css" rel="stylesheet">
     <style>
         @font-face {
@@ -658,20 +665,19 @@ try {
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8">
         <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold">جزئیات پنل <?php echo htmlspecialchars($panel['address'] . '-' . $panel['instance_number'] . ' از' . $panel['total_in_batch'] ?? 'Unknown'); ?></h1>
+            <h1 class="text-3xl font-bold">جزئیات پنل <?php echo htmlspecialchars($panel['full_address_identifier'] . '-' . $panel['instance_number'] . ' از' . $panel['total_in_batch'] ?? 'Unknown'); ?></h1>
             <a href="admin_panel_search.php" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">بازگشت</a>
         </div>
 
         <?php if ($panel): ?>
             <div class="bg-white rounded-lg shadow-md p-6">
-                <!-- Basic Information -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <div>
                         <h2 class="text-xl font-bold mb-4">اطلاعات اصلی</h2>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <p class="font-semibold text-gray-600">آدرس:</p>
-                                <p><?php echo htmlspecialchars($panel['address'] . '-' . $panel['instance_number'] . ' از' . $panel['total_in_batch']); ?></p>
+                                <p><?php echo htmlspecialchars($panel['full_address_identifier'] . '-' . $panel['instance_number'] . ' از' . $panel['total_in_batch']); ?></p>
                             </div>
                             <div>
                                 <p class="font-semibold text-gray-600">نوع:</p>
@@ -885,7 +891,6 @@ try {
                     <?php // --- End Display Concrete Test Results --- 
                     ?>
 
-                    <!-- Formwork Details -->
                     <?php if (!empty($panel['formwork_type'])): ?>
                         <div>
                             <h2 class="text-xl font-bold mb-4">مشخصات قالب تخصیص یافته</h2>
@@ -894,16 +899,12 @@ try {
                                     <p class="font-semibold text-gray-600">نوع قالب:</p>
                                     <p><?php echo htmlspecialchars($panel['formwork_type']); ?></p>
                                 </div>
-                                <!-- Add more formwork details here if needed from $panel variable -->
                             </div>
                         </div>
                     <?php endif; ?>
                 </div>
-            </div><!-- End Basic Information Grid -->
-
-            <!-- Plan Check Section -->
-            <?php if ($currentUserRole === 'planner'): // SECTION VISIBLE ONLY FOR PLANNER 
-            ?>
+            </div><?php if ($currentUserRole === 'planner'): // SECTION VISIBLE ONLY FOR PLANNER 
+                    ?>
                 <div id="planCheckSection" data-panel-id="<?php echo $panelId; ?>" class="border-t pt-6 mt-6">
                     <h2 class="text-xl font-bold mb-4">بررسی و تایید نقشه و اطلاعات صفحه</h2>
                     <div class="flex items-center gap-4">
@@ -961,7 +962,6 @@ try {
             <?php endif; // End role checks for plan section visibility 
             ?>
 
-            <!-- SVG Display and Actions -->
             <div class="mt-8 border-t pt-6">
 
                 <?php if (!empty($panel['svg_url'])): // Check if SVG URL exists 
@@ -970,7 +970,6 @@ try {
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-xl font-bold">نقشه پنل (SVG)</h2>
                         <div>
-                            <!-- Print Button -->
                             <button id="printSvgBtn" class="btn btn-secondary bg-gray-500 hover:bg-gray-600 text-white text-sm">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -978,7 +977,6 @@ try {
                                 چاپ نقشه
                             </button>
 
-                            <!-- Upload/Change SVG Form (Conditional) -->
                             <?php if ($currentUserRole === 'planner' && empty($panel['assigned_date'])): ?>
                                 <form id="svgUploadForm" method="POST" action="panel_detail.php?id=<?php echo $panelId; ?>" enctype="multipart/form-data" class="inline-block ml-4">
                                     <input type="hidden" name="action" value="uploadNewSvg">
@@ -996,16 +994,11 @@ try {
                         </div>
                     </div>
 
-                    <!-- Success/Error Message for SVG Upload -->
                     <?php if (isset($_GET['svg_updated']) && $_GET['svg_updated'] == 1): ?>
                         <div class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm">نقشه SVG با موفقیت به‌روزرسانی شد.</div>
                     <?php endif; ?>
-                    <!-- Add specific error messages from POST handler if needed -->
-
-
                     <div class="panel-svg mb-8 relative" id="svgContainer">
                         <div class="panel-svg-container border rounded bg-white shadow-inner" id="svgWrapper">
-                            <!-- Added cache buster to src -->
                             <img src="<?php echo htmlspecialchars($panel['svg_url']); ?>?v=<?php echo time(); ?>"
                                 alt="Panel SVG"
                                 id="svgImage"
@@ -1031,7 +1024,6 @@ try {
 
                     <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
                         هنوز نقشه‌ای برای این پنل بارگذاری نشده است.
-                        <!-- Upload Form (Show here if no SVG exists, for Planner, if date is null) -->
                         <?php if ($currentUserRole === 'planner' && empty($panel['assigned_date'])): ?>
                             <form id="svgUploadFormNoSvg" method="POST" action="panel_detail.php?id=<?php echo $panelId; ?>" enctype="multipart/form-data" class="inline-block ml-4 mt-2">
                                 <input type="hidden" name="action" value="uploadNewSvg">
@@ -1050,8 +1042,7 @@ try {
                 <?php endif; // End of the SVG URL check 
                 ?>
 
-            </div> <!-- End SVG Display and Actions Section -->
-
+            </div>
     </div> <?php // Close the main panel content div 
             ?>
 <?php else: ?>
@@ -1272,7 +1263,7 @@ try {
                             // Easiest might be to just let the page reload or handle revert button visibility purely in PHP on next load.
                             // If markPendingBtn exists (was rendered by PHP), potentially show it now
                             // if (markPendingBtn) {
-                            //    markPendingBtn.style.display = 'inline-flex';
+                            //     markPendingBtn.style.display = 'inline-flex';
                             // }
 
 
@@ -1382,19 +1373,19 @@ try {
                 // Create a new window/iframe, load SVG, and print
                 // const printWindow = window.open('', '_blank');
                 // printWindow.document.write(`
-                //     <html>
-                //     <head><title>Print SVG</title>
-                //     <style>
-                //         @media print {
-                //             body { margin: 0; }
-                //             img { max-width: 100%; height: auto; display: block; }
-                //         }
-                //     </style>
-                //     </head>
-                //     <body>
-                //         <img src="${svgUrl}" onload="window.print(); setTimeout(window.close, 100);" onerror="alert('Failed to load SVG for printing.'); window.close();">
-                //     </body>
-                //     </html>
+                //      <html>
+                //      <head><title>Print SVG</title>
+                //      <style>
+                //          @media print {
+                //              body { margin: 0; }
+                //              img { max-width: 100%; height: auto; display: block; }
+                //          }
+                //      </style>
+                //      </head>
+                //      <body>
+                //          <img src="${svgUrl}" onload="window.print(); setTimeout(window.close, 100);" onerror="alert('Failed to load SVG for printing.'); window.close();">
+                //      </body>
+                //      </html>
                 // `);
                 // printWindow.document.close(); // Important for some browsers
 
@@ -1407,32 +1398,32 @@ try {
                     .then(svgContent => {
                         const printWindow = window.open('', '_blank');
                         printWindow.document.write(`
-                        <html>
-                        <head>
-                          <title>چاپ نقشه - <?php echo htmlspecialchars($panel['address'] ?? ''); ?></title>
-                          <style>
-                             @media print {
-                                @page { size: A3 landscape; margin: 10mm; } /* Example: A3 Landscape */
-                                body { margin: 0; font-family: 'Vazir', sans-serif; } /* Use your font */
-                                svg { max-width: 100%; max-height: 95vh; display: block; margin: auto; } /* Center and scale */
-                             }
-                             body { font-family: 'Vazir', sans-serif; }
-                             svg { max-width: 100%; height: auto; display: block; border: 1px solid #eee;} /* Show border for preview */
-                           </style>
-                        </head>
-                        <body>
-                           <h1>نقشه پنل: <?php echo htmlspecialchars($panel['address'] ?? ''); ?></h1>
-                           <hr>
-                           ${svgContent}
-                           <script>
-                              // Use timeout to ensure SVG renders before printing
-                              setTimeout(() => {
-                                 window.print();
-                                 setTimeout(window.close, 200); // Close after printing dialog
-                              }, 500); // Adjust delay if needed
-                           <\/script>
-                        </body>
-                        </html>`);
+                            <html>
+                            <head>
+                                <title>چاپ نقشه - <?php echo htmlspecialchars($panel['address'] ?? ''); ?></title>
+                                <style>
+                                    @media print {
+                                        @page { size: A3 landscape; margin: 10mm; } /* Example: A3 Landscape */
+                                        body { margin: 0; font-family: 'Vazir', sans-serif; } /* Use your font */
+                                        svg { max-width: 100%; max-height: 95vh; display: block; margin: auto; } /* Center and scale */
+                                    }
+                                    body { font-family: 'Vazir', sans-serif; }
+                                    svg { max-width: 100%; height: auto; display: block; border: 1px solid #eee;} /* Show border for preview */
+                                </style>
+                            </head>
+                            <body>
+                                <h1>نقشه پنل: <?php echo htmlspecialchars($panel['full_address_identifier'] ?? ''); ?></h1>
+                                <hr>
+                                ${svgContent}
+                                <script>
+                                    // Use timeout to ensure SVG renders before printing
+                                    setTimeout(() => {
+                                        window.print();
+                                        setTimeout(window.close, 200); // Close after printing dialog
+                                    }, 500); // Adjust delay if needed
+                                <\/script>
+                            </body>
+                            </html>`);
                         printWindow.document.close();
                     })
                     .catch(error => {

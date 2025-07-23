@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>مقولات محض کانت - نمای تعاملی</title>
+    <style>
+      @font-face {
+        font-family: "Vazir";
+        src: url("assets/fonts/Vazir-Regular.woff2") format("woff2");
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Vazir", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: #333;
+        overflow-x: auto;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      h1 {
+        text-align: center;
+        color: white;
+        font-size: 2.5em;
+        margin-bottom: 30px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .main-chart,
+      .detailed-kant-section,
+      .kant-image-section,
+      .mind-map, /* Added mind-map here for consistency with other sections */
+      .comparison-section {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        margin-bottom: 30px;
+      }
+
+      .categories-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 25px;
+        margin-bottom: 40px;
+      }
+
+      .category-card {
+        background: linear-gradient(145deg, #f8f9ff, #e8ecff);
+        border-radius: 15px;
+        padding: 25px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 3px solid transparent;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .category-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--category-color);
+      }
+
+      .category-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        border-color: var(--category-color);
+      }
+
+      .category-card.active {
+        transform: scale(1.02);
+        border-color: var(--category-color);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      }
+
+      .category-title {
+        font-size: 1.4em;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: var(--category-color);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .category-icon {
+        font-size: 1.5em;
+      }
+
+      .subcategory {
+        background: white;
+        margin: 10px 0;
+        padding: 15px;
+        border-radius: 10px;
+        border-right: 4px solid var(--category-color);
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+
+      .subcategory:hover {
+        background: #f0f5ff;
+        transform: translateX(-3px);
+      }
+
+      .subcategory-name {
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #2c3e50;
+      }
+
+      .subcategory-desc {
+        font-size: 0.9em;
+        color: #666;
+        line-height: 1.4;
+      }
+
+      .quantity {
+        --category-color: #e74c3c;
+      }
+      .quality {
+        --category-color: #3498db;
+      }
+      .relation {
+        --category-color: #2ecc71;
+      }
+      .modality {
+        --category-color: #f39c12;
+      }
+
+      .central-node {
+        text-align: center;
+        background: linear-gradient(145deg, #667eea, #764ba2);
+        color: white;
+        padding: 20px;
+        border-radius: 50px;
+        font-size: 1.3em;
+        font-weight: bold;
+        margin: 40px auto;
+        max-width: 300px;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+      }
+
+      .comparison-title {
+        text-align: center;
+        font-size: 1.8em;
+        color: #2c3e50;
+        margin-bottom: 25px;
+      }
+
+      .comparison-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+      }
+
+      .philosopher-section {
+        padding: 20px;
+        border-radius: 15px;
+        background: linear-gradient(145deg, #f8f9ff, #e8ecff);
+      }
+
+      .philosopher-name {
+        font-size: 1.4em;
+        font-weight: bold;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .kant-section {
+        border-right: 4px solid #3498db;
+      }
+      .aristotle-section {
+        border-right: 4px solid #e74c3c;
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        -webkit-backdrop-filter: blur(5px);
+        backdrop-filter: blur(5px);
+      }
+
+      .modal-content {
+        background: white;
+        margin: 5% auto;
+        padding: 30px;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 85vh;
+        overflow-y: auto;
+        position: relative;
+        animation: modalSlideIn 0.3s ease;
+      }
+
+      @keyframes modalSlideIn {
+        from {
+          transform: translateY(-50px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      .close {
+        color: #aaa;
+        float: left;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        position: absolute;
+        top: 15px;
+        left: 20px;
+      }
+      .close:hover {
+        color: #000;
+      }
+
+      .example-text {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 15px 0;
+        border-right: 4px solid var(--category-color);
+        line-height: 1.6;
+      }
+
+      .toggle-btn {
+        background: linear-gradient(145deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 1em;
+        margin: 10px;
+        transition: all 0.3s ease;
+      }
+      .toggle-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .controls {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .detailed-kant-section h2 {
+        color: #764ba2;
+        text-align: center;
+        margin-bottom: 25px;
+      }
+      .detailed-kant-section h3 {
+        color: #667eea;
+        margin-top: 20px;
+        margin-bottom: 10px;
+      }
+      .detailed-kant-section h4 {
+        color: #2c3e50;
+        margin-top: 15px;
+        margin-bottom: 8px;
+      }
+      .detailed-kant-section p,
+      .detailed-kant-section li {
+        margin-bottom: 10px;
+        color: #333;
+      }
+      .detailed-kant-section ul {
+        list-style-position: inside;
+        padding-right: 20px;
+      }
+      .detailed-kant-section table {
+        width: 100%;
+        margin-top: 20px;
+        border-collapse: collapse;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+      }
+      .detailed-kant-section th,
+      .detailed-kant-section td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: right;
+      }
+      .detailed-kant-section th {
+        background-color: #f2f2f2;
+        color: #333;
+        font-weight: bold;
+      }
+      .detailed-kant-section tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+
+      .kant-image-section h2 {
+        color: #764ba2;
+        text-align: center;
+        margin-bottom: 25px;
+      }
+      .kant-image-section img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        margin: 20px auto;
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      }
+
+      @media (max-width: 768px) {
+        .categories-grid,
+        .comparison-grid {
+          grid-template-columns: 1fr;
+        }
+        h1 {
+          font-size: 2em;
+        }
+        .container {
+          padding: 10px;
+        }
+        .modal-content {
+          width: 95%;
+          margin: 10% auto;
+        }
+      }
+
+      /* Removed: #mindmap-section { display: none; } */
+      /* Rely on inline style for initial hiding, controlled by JS */
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📚 جدول استعلایی مقولات محض کانت</h1>
+
+      <div class="controls">
+        <button class="toggle-btn" onclick="showSection('chart')">
+          نمای چارت
+        </button>
+        <button class="toggle-btn" onclick="showSection('mindmap')">
+          مایند مپ
+        </button>
+        <button class="toggle-btn" onclick="showSection('comparison')">
+          مقایسه
+        </button>
+        <button class="toggle-btn" onclick="showSection('kant-detailed-chart')">
+          شرح تفصیلی مقولات
+        </button>
+        <button
+          class="toggle-btn"
+          onclick="showSection('kant-interactive-tree')"
+        >
+          نمودار درختی کانت
+        </button>
+      </div>
+
+      <div id="chart-section" class="main-chart">
+        <div class="central-node">دوازده مقوله محض فاهمه کانت</div>
+        <div class="categories-grid">
+          <div class="category-card quantity" onclick="showDetails('quantity')">
+            <div class="category-title">
+              <span class="category-icon">📏</span> کمیت (Quantity)
+            </div>
+            <div class="subcategory">
+              <div class="subcategory-name">۱. وحدت (Unity)</div>
+              <div class="subcategory-desc">یکپارچه‌سازی کثرت حسی</div>
+            </div>
+            <div class="subcategory">
+              <div class="subcategory-name">۲. کثرت (Plurality)</div>
+              <div class="subcategory-desc">دیدن واحد در مجموعه</div>
+            </div>
+            <div class="subcategory">
+              <div class="subcategory-name">۳. تمامیت (Totality)</div>
+              <div class="subcategory-desc">در نظر گرفتن کل</div>
+            </div>
+          </div>
+          <div class="category-card quality" onclick="showDetails('quality')">
+            <div class="category-title">
+              <span class="category-icon">🎨</span> کیفیت (Quality)
+            </div>
+            <div class="subcategory">
+              <div class="subcategory-name">۱. ایجاب (Reality)</div>
+              <div class="subcategory-desc">تأیید وجود پدیده</div>
+            </div>
+            <div class="subcategory">
+              <div class="subcategory-name">۲. سلب (Negation)</div>
+              <div class="subcategory-desc">شناخت از طریق نبودن</div>
+            </div>
+            <div class="subcategory">
+              <div class="subcategory-name">۳. عدول (Limitation)</div>
+              <div class="subcategory-desc">تعیین محدودیت‌ها</div>
+            </div>
+          </div>
+          <div class="category-card relation" onclick="showDetails('relation')">
+            <div class="category-title">
+              <span class="category-icon">🔗</span> نسبت (Relation)
+            </div>
+            <div class="subcategory">
+              <div class="subcategory-name">۱. جوهر و عرض</div>
+              <div class="subcategory-desc">ارتباط موضوع و محمول</div>
+            </div>
+            <div class="subcategory">
+              <div class="subcategory-name">۲. علت و معلول</div>
+              <div class="subcategory-desc">رابطه علیت</div>
+            </div>
+            <div class="subcategory">
+              <div class="subcategory-name">۳. مشارکت و تبادل</div>
+              <div class="subcategory-desc">پیوند بین پدیده‌ها</div>
+            </div>
+          </div>
+          <div class="category-card modality" onclick="showDetails('modality')">
+            <div class="category-title">
+              <span class="category-icon">⚡</span> جهت (Modality)
+            </div>
+            <div class="subcategory">
+              <div class="subcategory-name">۱. امکان و عدم امکان</div>
+              <div class="subcategory-desc">ممکن بودن وقوع</div>
+            </div>
+            <div class="subcategory">
+              <div class="subcategory-name">۲. وجود و عدم</div>
+              <div class="subcategory-desc">تحقق در واقعیت</div>
+            </div>
+            <div class="subcategory">
+              <div class="subcategory-name">۳. ضرورت و امکان</div>
+              <div class="subcategory-desc">شرایط لازم</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="mindmap-section" class="mind-map" style="display: none">
+        <div class="central-node">مقولات کانت: صورت‌های محض تفکر</div>
+        <div
+          style="
+            text-align: center;
+            margin: 30px 0;
+            font-size: 1.2em;
+            color: #666;
+          "
+        >
+          ساختارهایی که ذهن انسان محسوسات را به یکدیگر ارتباط می‌دهد
+        </div>
+        <div class="categories-grid">
+          <div
+            style="
+              background: linear-gradient(145deg, #ffe6e6, #ffcccc);
+              border-radius: 15px;
+              padding: 20px;
+            "
+          >
+            <h3 style="color: #e74c3c; margin-bottom: 15px">
+              📏 کمیت - اندازه‌گیری
+            </h3>
+            <p><strong>وحدت:</strong> تشخیص یک سگ از داده‌های حسی</p>
+            <p><strong>کثرت:</strong> سگ در میان نژادهای مختلف</p>
+            <p><strong>تمامیت:</strong> روباه خاص شازده کوچولو</p>
+          </div>
+          <div
+            style="
+              background: linear-gradient(145deg, #e6f3ff, #cce7ff);
+              border-radius: 15px;
+              padding: 20px;
+            "
+          >
+            <h3 style="color: #3498db; margin-bottom: 15px">
+              🎨 کیفیت - چگونگی
+            </h3>
+            <p><strong>ایجاب:</strong> تأیید حضور گل در تصویر</p>
+            <p><strong>سلب:</strong> گل زرد است، قرمز نیست</p>
+            <p><strong>عدول:</strong> بامیه با سرما مشکل دارد</p>
+          </div>
+          <div
+            style="
+              background: linear-gradient(145deg, #e6ffe6, #ccffcc);
+              border-radius: 15px;
+              padding: 20px;
+            "
+          >
+            <h3 style="color: #2ecc71; margin-bottom: 15px">🔗 نسبت - پیوند</h3>
+            <p><strong>جوهر/عرض:</strong> درخت (جوهر) سبز (عرض) است</p>
+            <p><strong>علت/معلول:</strong> چرا طوطی تقلید صدا می‌کند؟</p>
+            <p><strong>مشارکت:</strong> نسبت طوطی با غذایش</p>
+          </div>
+          <div
+            style="
+              background: linear-gradient(145deg, #fff3e6, #ffe6cc);
+              border-radius: 15px;
+              padding: 20px;
+            "
+          >
+            <h3 style="color: #f39c12; margin-bottom: 15px">
+              ⚡ جهت - حالت وجود
+            </h3>
+            <p><strong>امکان:</strong> می‌توانم کتاب بنویسم؟</p>
+            <p><strong>وجود:</strong> کتاب نوشته و منتشر شد</p>
+            <p>
+              <strong>ضرورت:</strong> برای نوشتن به ژاپنی، یادگیری زبان لازم است
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div
+        id="comparison-section"
+        class="comparison-section"
+        style="display: none"
+      >
+        <div class="comparison-title">🤔 مقایسه مقولات کانت با ارسطو</div>
+        <div class="comparison-grid">
+          <div class="philosopher-section kant-section">
+            <div class="philosopher-name" style="color: #3498db">🧠 کانت</div>
+            <h4>ماهیت:</h4>
+            <p>• ذهنی و پیشینی</p>
+            <p>• صورت‌های محض تفکر</p>
+            <p>• شرط شناخت، نه خود شناخت</p>
+            <h4>هدف:</h4>
+            <p>• ممکن ساختن تجربه</p>
+            <p>• کلی و ضروری کردن احکام</p>
+            <h4>تعداد:</h4>
+            <p>• دوازده مقوله در چهار گروه</p>
+            <p>• مکان و زمان جداگانه</p>
+          </div>
+          <div class="philosopher-section aristotle-section">
+            <div class="philosopher-name" style="color: #e74c3c">🏺 ارسطو</div>
+            <h4>ماهیت:</h4>
+            <p>• موضوعی و مبتنی بر اشیاء</p>
+            <p>• برای تفسیر وجود</p>
+            <p>• کشف ماهیت اشیاء</p>
+            <h4>هدف:</h4>
+            <p>• تصنیف انواع حمل</p>
+            <p>• تفسیر وجود</p>
+            <h4>تعداد:</h4>
+            <p>• تعداد ثابت نداشت</p>
+            <p>• مکان و زمان جزء مقولات</p>
+          </div>
+        </div>
+        <div
+          style="
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border-right: 4px solid #9b59b6;
+          "
+        >
+          <h4 style="color: #9b59b6; margin-bottom: 15px">💡 انقلاب کانتی</h4>
+          <p style="line-height: 1.6">
+            کانت انقلابی ایجاد کرد: به جای اینکه فکر تابع نظام اشیاء باشد، اشیاء
+            حول فکر دور می‌زنند. راز موفقیت علم در این است که عقل توانسته موضوع
+            معرفت را کنترل کند و بر تجربه اثر بگذارد.
+          </p>
+        </div>
+      </div>
+
+      <div
+        id="kant-detailed-chart-section"
+        class="detailed-kant-section"
+        style="display: none"
+      >
+        <h2>کاتگوری‌ها در فلسفه کانت: مفهوم‌های ناب فهم</h2>
+        <p>
+          امانوئل کانت در اثر اصلی خود، سنجش خرد ناب، جدول کاتگوری‌ها یا
+          مفهوم‌های ناب فهم (pure concepts of the understanding) را معرفی
+          می‌کند...
+        </p>
+        <!-- متن کامل بخش شرح تفصیلی مقولات که شما ارائه دادید -->
+        <p>
+          امانوئل کانت در اثر اصلی خود، سنجش خرد ناب، جدول کاتگوری‌ها یا
+          مفهوم‌های ناب فهم (pure concepts of the understanding) را معرفی
+          می‌کند. این مفهوم‌ها بر خلاف مفهوم‌های آروینی (empirical concepts) (که
+          از تجربه به دست می‌آیند) ناب و پیشین (a priori) هستند. کانت معتقد است
+          این مفهوم‌ها برای امکان‌پذیری تجربه (experience) و شناخت (cognition)
+          عینی ضروری هستند.
+        </p>
+        <p>
+          کاتگوری‌ها در واقع صورت‌ها یا قالب‌هایی هستند که فهم (understanding)
+          ما به واسطه آن‌ها کثرت (plurality) سهش حسی (sensible intuition)
+          (داده‌های خام حس) را همنهادی (synthesis) کرده و به شناخت از برون
+          آخته‌ها (objects) تبدیل می‌کند. این کاتگوری‌ها مستقیماً به پدیده‌ها
+          (phenomena) (اشیاء آنگونه که بر ما ظاهر می‌شوند) اطلاق می‌شوند، نه به
+          چیز فی نفسه (thing in itself) یا ذات‌های معقول (noumena).
+        </p>
+        <p>
+          کانت جدول کاتگوری‌ها را از جدول صورت‌های منطقی داوری‌ها (judgments)
+          استخراج می‌کند، زیرا معتقد است همان کارکرد فهم که در داوری‌ها واحدها
+          را به هم ربط می‌دهد (کارکرد منطقی)، در کاتگوری‌ها کثرت سهش را به یک
+          برون آخته مرتبط می‌کند (کارکرد واقعی یا ترافرازنده).
+        </p>
+        <h3>جدول کاتگوری‌های فهم ناب:</h3>
+        <p>
+          کانت کاتگوری‌ها را ذیل چهار عنوان اصلی و هر عنوان شامل سه کاتگوری فرعی
+          (در مجموع دوازده کاتگوری) سازماندهی می‌کند:
+        </p>
+        <h4>۱. کمیت (Quantity): مربوط به اندازه و تعداد</h4>
+        <ul>
+          <li>یگانگی (Unity)</li>
+          <li>کثرت (Plurality)</li>
+          <li>تمامی (Totality / Completeness)</li>
+        </ul>
+        <p>
+          این کاتگوری‌ها امکان شمارش و اندازه‌گیری برون آخته‌ها را فراهم
+          می‌کنند.
+        </p>
+        <h4>۲. کیفیت (Quality): مربوط به خصوصیات وجودی یا عدمی</h4>
+        <ul>
+          <li>واقعیت (Reality / Actuality): وجود یک ویژگی مثبت.</li>
+          <li>نایش / سلب (Negation): عدم وجود یک ویژگی.</li>
+          <li>
+            کرانمند ساختن (Limitation): ترکیب واقعیت و سلب (چیزی هست تا حدی
+            خاص).
+          </li>
+        </ul>
+        <p>
+          این کاتگوری‌ها امکان اندیشیدن درباره وجود یا عدم وجود خصوصیات در برون
+          آخته‌ها را فراهم می‌کنند.
+        </p>
+        <h4>۳. نسبت (Relation): مربوط به ارتباطات بین برون آخته‌ها</h4>
+        <ul>
+          <li>
+            گوهر و عَرَض / پایندگی و عَرَضها (Substance and Accident /
+            Substantiality and Accident): تصور برون آخته به عنوان چیزی پاینده
+            (persistent) که خصوصیات آن تغییر می‌کنند.
+          </li>
+          <li>
+            علیت و وابستگی (Causality and Dependence): تصور ارتباط علت و معلولی
+            بین برون آخته‌ها.
+          </li>
+          <li>
+            همنشینی (Community / Reciprocity): تصور کنش متقابل بین برون آخته‌ها.
+          </li>
+        </ul>
+        <p>
+          این کاتگوری‌ها امکان اندیشیدن درباره روابط ساختاری بین برون آخته‌ها را
+          فراهم می‌کنند، مانند این که چیزی گوهر یک ویژگی است یا معلول چیزی دیگر.
+        </p>
+        <h4>۴. جهت (Modality): مربوط به نحوه وجود برون آخته‌ها از نظر فهم</h4>
+        <ul>
+          <li>
+            امکان / امکان ناپذیری (Possibility / Impossibility): چیزی ممکن است
+            یا نه.
+          </li>
+          <li>
+            واقعیت / واقعیت ناپذیری (Actuality / Non-actuality): چیزی در واقع
+            وجود دارد یا نه.
+          </li>
+          <li>
+            ضرورت / اتفاقی (Necessity / Contingency) (اصطلاح "ضرورت" مستقیماً در
+            واژه‌نامه برای این کاتگوری نیامده، اما مفهوم آن با "یقینی" و
+            "هستومند مطلقاً ضروری" مرتبط است): چیزی باید وجود داشته باشد یا
+            وجودش اتفاقی است.
+          </li>
+        </ul>
+        <p>
+          این کاتگوری‌ها نحوه ارتباط برون آخته با شناخت و تجربه را بیان می‌کنند،
+          نه خصوصیتی در خود برون آخته.
+        </p>
+        <h3>کارکرد و مثال‌ها:</h3>
+        <p>
+          کاتگوری‌ها ابزارهایی هستند که به فهم اجازه می‌دهند داده‌های حسی را به
+          روشی ساختارمند همنهادی کند تا داوری‌های عینی درباره برون آخته‌ها شکل
+          گیرد.
+        </p>
+        <ul>
+          <li>
+            <strong>کمیت:</strong> برای مثال، وقتی تعداد مشخصی نقطه را می‌بینیم
+            (کثرت در سهش)، با استفاده از کاتگوری‌های کمیت، می‌توانیم آن‌ها را
+            بشماریم و به عنوان یک یگانگی (مجموع پنج نقطه) درک کنیم. شماره
+            (schema) یک روش برای نمایش این کمیت تحت یک مفهوم است، مانند تصویر
+            پنج نقطه یا مفهوم کلی عدد پنج. مثال هندسه نیز به این دسته مرتبط است.
+          </li>
+          <li>
+            <strong>کیفیت:</strong> وقتی یک سیب را می‌بینیم، می‌توانیم بر اساس
+            کاتگوری‌های کیفیت، آن را قرمز بدانیم (واقعیت رنگ قرمز)، نپخته بدانیم
+            (نایش/سلب پختگی)، یا وزن مشخصی برای آن در نظر بگیریم (کرانمند ساختن
+            از نظر وزن).
+          </li>
+          <li>
+            <strong>نسبت:</strong> وقتی یک توپ در حال افتادن را می‌بینیم، از
+            کاتگوری علیت و وابستگی استفاده می‌کنیم تا سقوط آن را معلول نیروی
+            گرانش بدانیم. وقتی درباره خواص آب صحبت می‌کنیم، آب را به عنوان گوهر
+            و خصوصیاتش (مانند مایع بودن در دمای اتاق) را به عنوان عَرَض آن تصور
+            می‌کنیم.
+          </li>
+          <li>
+            <strong>جهت:</strong> کاتگوری‌های جهت بیشتر در زمینه اصول عملی
+            (practical principles) و اخلاق (moral) در سنجش خرد عملی کانت (که
+            منابع به آن اشاره دارند) روشن می‌شوند.
+            <ul>
+              <li>
+                امکان/امکان ناپذیری: مرتبط با امرهای دستوری مشروط (hypothetical
+                imperatives) که تنها در صورتی الزام‌آورند که هدفی را دنبال کنیم
+                (مثلاً، اگر می‌خواهی سالم باشی، ممکن است ورزش کنی). اینها قواعد
+                عملی (practical rules) هستند که با یک فرمان عملی ممکن (possible
+                practical precept) هماهنگ یا در تعارضند.
+              </li>
+              <li>
+                واقعیت/واقعیت ناپذیری: مرتبط با امرهای دستوری مشروط تحقیقی
+                (assertoric hypothetical imperatives)، مربوط به هدفی که در
+                واقعیت وجود دارد (مثلاً، از آنجا که همه سعادت را می‌خواهند، به
+                طور تحقیقی باید کارهایی برای رسیدن به آن انجام دهند). مرتبط با
+                قاعده‌ای که با یک قانون عملاً موجود (law actually present)
+                هماهنگ است.
+              </li>
+              <li>
+                ضرورت/اتفاقی: مرتبط با امرهای دستوری مطلق (categorical
+                imperatives). اینها اصول عملی هستند که یقینی (apodictic) و
+                بی‌قید و شرطند (صرف نظر از تمایلات)، مانند "تو باید چنین کنی".
+                اینها قواعدی هستند که با یک قانون اخلاقی واجب (law that ought to
+                be) هماهنگ یا در تعارضند. در جدول کاتگوری‌های آزادی (نه
+                کاتگوری‌های فهم)، اینها سنجش‌ناپذیر به لحاظ حسی (sensibly
+                unconditioned) و با ضرورت (necessity) ملازم‌اند.
+              </li>
+            </ul>
+          </li>
+        </ul>
+        <h3>مقایسه با کاتگوری‌های ارسطو:</h3>
+        <p>
+          کانت اذعان داشت که جدول کاتگوری‌های او تا حدی از فهرست کاتگوری‌های
+          ارسطو الهام گرفته است...
+        </p>
+        <!-- ادامه متن مقایسه -->
+        <p>
+          اما تفاوت‌های اساسی وجود دارد که در زیر به برخی از آن‌ها اشاره می‌شود:
+        </p>
+        <ul>
+          <li>
+            <strong>مبنای استخراج:</strong> کانت کاتگوری‌های خود را به طور
+            نظام‌مند از صورت‌های منطقی داوری استخراج می‌کند، در حالی که فهرست
+            ارسطو بیشتر به نظر می‌رسد فهرستی از انواع مختلف موجودیت (types of
+            being یا هستومند) باشد که از تحلیل زبان طبیعی به دست آمده است.
+          </li>
+          <li>
+            <strong>کارکرد:</strong> کاتگوری‌های کانت ترافرازنده
+            (transcendental) هستند؛ یعنی شرایط پیشین امکان تجربه عینی و شناخت از
+            پدیده‌ها را فراهم می‌کنند...
+          </li>
+          <li>
+            <strong>قلمرو اطلاق:</strong> کاتگوری‌های کانت فقط به پدیده‌ها اطلاق
+            می‌شوند، نه چیز فی نفسه. کاتگوری‌های ارسطو به موجودیت‌ها به طور کلی
+            اطلاق می‌شوند.
+          </li>
+        </ul>
+        <p>
+          به طور خلاصه، در حالی که هر دو فیلسوف فهرست‌هایی از مفاهیم بنیادی
+          ارائه می‌دهند، مبنای استخراج، کارکرد و قلمرو اطلاق این فهرست‌ها در
+          فلسفه آن‌ها کاملاً متفاوت است...
+        </p>
+        <h3>چارت کامل کاتگوری‌های فهم ناب:</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>عنوان اصلی</th>
+              <th>کاتگوری‌های فرعی</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td rowspan="3">کمیت</td>
+              <td>یگانگی</td>
+            </tr>
+            <tr>
+              <td>کثرت</td>
+            </tr>
+            <tr>
+              <td>تمامی</td>
+            </tr>
+            <tr>
+              <td rowspan="3">کیفیت</td>
+              <td>واقعیت</td>
+            </tr>
+            <tr>
+              <td>نایش / سلب</td>
+            </tr>
+            <tr>
+              <td>کرانمند ساختن</td>
+            </tr>
+            <tr>
+              <td rowspan="3">نسبت</td>
+              <td>گوهر و عَرَض / پایندگی و عَرَضها</td>
+            </tr>
+            <tr>
+              <td>علیت و وابستگی</td>
+            </tr>
+            <tr>
+              <td>همنشینی</td>
+            </tr>
+            <tr>
+              <td rowspan="3">جهت</td>
+              <td>امکان / امکان ناپذیری</td>
+            </tr>
+            <tr>
+              <td>واقعیت / واقعیت ناپذیری</td>
+            </tr>
+            <tr>
+              <td>ضرورت / اتفاقی</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div
+        id="kant-interactive-tree-section"
+        class="kant-image-section"
+   
+      >
+        <h2>نمودار درختی تعاملی فلسفه کانت</h2>
+        <iframe
+          src="https://sabaat.ir/kant/tree/"
+          style="
+            width: 95%;
+            height: 700px;
+            border: 1px solid #ccc;
+            margin: 0 auto;
+            display: block;
+          "
+          title="نمودار تعاملی فلسفه کانت"
+          frameborder="0"
+          allowfullscreen
+        >
+          <p>مرورگر شما از iframe پشتیبانی نمی‌کند...</p>
+        </iframe>
+        <p style="text-align: center; font-style: italic; margin-top: 15px">
+          می‌توانید با استفاده از ماوس در نمودار بالا جابجا شوید...
+        </p>
+      </div>
+    </div>
+
+    <div id="detailModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal()">×</span>
+        <div id="modalContent"></div>
+      </div>
+    </div>
+
+    <script>
+      const categoryDetails = {
+        quantity: {
+          title: "📏 کمیت (Quantity)",
+          color: "#e74c3c",
+          description: "...",
+          subcategories: [
+            {
+              name: "وحدت (Unity)",
+              desc: "ذهن به کثرت داده‌ها نوعی وحدت می‌بخشد و آن‌ها را به عنوان یک چیز تشخیص می‌دهد.",
+              example:
+                "آنچه چشم می‌بیند مجموعه‌ای از داده‌هاست، اما ذهن توانایی تشخیص وجود یک سگ در تصویر و جدا کردن آن از متن را دارد.",
+            },
+            {
+              name: "کثرت (Plurality)",
+              desc: "ذهن می‌تواند یک شیء را به عنوان بخشی از یک کل بزرگتر یا گروهی از اشیاء ببیند.",
+              example:
+                "همان سگ در تصویر، یکی از میان تمام سگ‌های جهان است. سگ‌ها را به شکل‌های مختلف طبقه‌بندی می‌کنیم (سگ‌های نگهبان، امداد، پلیس).",
+            },
+            {
+              name: "تمامیت (Totality)",
+              desc: "ذهن می‌تواند کل یک مجموعه را در نظر بگیرد.",
+              example:
+                "در داستان شازده کوچولو، روباه یک روباه در بین همه روباه‌های جهان است تا زمانی که اهلی می‌شود و به یک روباه برای شازده کوچولو تبدیل می‌شود.",
+            },
+          ],
+        },
+        quality: {
+          title: "🎨 کیفیت (Quality)",
+          color: "#3498db",
+          description: "...",
+          subcategories: [
+            {
+              name: "ایجاب (Reality)",
+              desc: "تأیید حضور و وجود یک پدیده.",
+              example:
+                "در تصویر دو گل می‌بینیم، چشم ما وجود آن‌ها را تأیید می‌کند.",
+            },
+            {
+              name: "سلب (Negation)",
+              desc: "شناخت پدیده‌ها از طریق ویژگی‌هایی که ندارند.",
+              example:
+                "گل لیمویی رنگ است و قرمز یا سبز نیست. به همان میزان که سیم مسی رساناست، عایق پلاستیکی رسانا نیست.",
+            },
+            {
+              name: "عدول (Limitation)",
+              desc: "هر پدیده‌ای یک محدوده یا محدودیت دارد.",
+              example:
+                "بامیه در هوای گرم رشد می‌کند، پس سرما برای آن یک محدودیت است؛ برعکس، نخود با سرما مشکلی ندارد.",
+            },
+          ],
+        },
+        relation: {
+          title: "🔗 نسبت (Relation)",
+          color: "#2ecc71",
+          description: "...",
+          subcategories: [
+            {
+              name: "جوهر و عرض (Substance and Accident)",
+              desc: "مفهوم چیزی که می‌تواند به عنوان موضوع وجود داشته باشد، اما هرگز نه به عنوان محمول صرف.",
+              example:
+                'در قضیه‌ی حملی "الف ب است"، الف موضوع (جوهر) و ب محمول (عرض) است.',
+            },
+            {
+              name: "علت و معلول (Cause and Effect)",
+              desc: 'در قضایای شرطی مانند "اگر ج آنگاه د"، مقوله‌ی علت و معلول ساختار این قضایا را ممکن می‌سازد.',
+              example:
+                'هر سؤالی که با "چرا" یا "چگونگی" درباره یک پدیده پرسیده شود، به مقوله‌ی علیت مربوط است. چرا طوطی می‌تواند تقلید صدا کند?',
+            },
+            {
+              name: "مشارکت یا تبادل (Community or Reciprocity)",
+              desc: "هر شکلی از نسبت و پیوند در سطح وجودی یا معنایی بین پدیده‌ها.",
+              example:
+                "نسبت طوطی با سایر پرندگان یا جانوران. نسبت پرنده با غذایش. نماد و سمبل بودن طوطی در ادبیات.",
+            },
+          ],
+        },
+        modality: {
+          title: "⚡ جهت (Modality)",
+          color: "#f39c12",
+          description: "...",
+          subcategories: [
+            {
+              name: "امکان (Possibility)",
+              desc: "آیا وقوع یک امر ممکن است؟",
+              example:
+                "آیا امکانش هست من یک کتاب بنویسم؟ بله، امکانش وجود دارد.",
+            },
+            {
+              name: "وجود (Existence)",
+              desc: "تحقق یافتن یک امر ممکن در واقعیت.",
+              example:
+                "پس از نوشتن و انتشار، کتاب وجود می‌یابد. وجود آشکارا یک محمول واقعی نیست، بلکه صرفاً رابطه‌ای در یک حکم است.",
+            },
+            {
+              name: "ضرورت (Necessity)",
+              desc: "شرایطی که باید وجود داشته باشند تا چیزی ممکن یا موجود شود.",
+              example:
+                "برای نوشتن کتابی به زبان ژاپنی، ضروری است که ابتدا زبان ژاپنی را یاد بگیرم.",
+            },
+          ],
+        },
+      };
+      // برای اختصار، محتوای کامل categoryDetails را اینجا تکرار نکرده‌ام، فرض بر این است که مانند قبل صحیح است.
+      // محتوای کامل categoryDetails از پاسخ قبلی باید اینجا باشد.
+      // شروع محتوای categoryDetails (باید کامل باشد)
+      categoryDetails.quantity.description =
+        "به سنجش اندازه و اندازه‌گیری کمی مربوط است.";
+      categoryDetails.quantity.subcategories = [
+        {
+          name: "وحدت (Unity)",
+          desc: "ذهن به کثرت داده‌ها نوعی وحدت می‌بخشد و آن‌ها را به عنوان یک چیز تشخیص می‌دهد.",
+          example:
+            "آنچه چشم می‌بیند مجموعه‌ای از داده‌هاست، اما ذهن توانایی تشخیص وجود یک سگ در تصویر و جدا کردن آن از متن را دارد.",
+        },
+        {
+          name: "کثرت (Plurality)",
+          desc: "ذهن می‌تواند یک شیء را به عنوان بخشی از یک کل بزرگتر یا گروهی از اشیاء ببیند.",
+          example:
+            "همان سگ در تصویر، یکی از میان تمام سگ‌های جهان است. سگ‌ها را به شکل‌های مختلف طبقه‌بندی می‌کنیم (سگ‌های نگهبان، امداد، پلیس).",
+        },
+        {
+          name: "تمامیت (Totality)",
+          desc: "ذهن می‌تواند کل یک مجموعه را در نظر بگیرد.",
+          example:
+            "در داستان شازده کوچولو، روباه یک روباه در بین همه روباه‌های جهان است تا زمانی که اهلی می‌شود و به یک روباه برای شازده کوچولو تبدیل می‌شود.",
+        },
+      ];
+      categoryDetails.quality.description = "به چگونگی پدیده‌ها می‌پردازد.";
+      categoryDetails.quality.subcategories = [
+        {
+          name: "ایجاب (Reality)",
+          desc: "تأیید حضور و وجود یک پدیده.",
+          example:
+            "در تصویر دو گل می‌بینیم، چشم ما وجود آن‌ها را تأیید می‌کند.",
+        },
+        {
+          name: "سلب (Negation)",
+          desc: "شناخت پدیده‌ها از طریق ویژگی‌هایی که ندارند.",
+          example:
+            "گل لیمویی رنگ است و قرمز یا سبز نیست. به همان میزان که سیم مسی رساناست، عایق پلاستیکی رسانا نیست.",
+        },
+        {
+          name: "عدول (Limitation)",
+          desc: "هر پدیده‌ای یک محدوده یا محدودیت دارد.",
+          example:
+            "بامیه در هوای گرم رشد می‌کند، پس سرما برای آن یک محدودیت است؛ برعکس، نخود با سرما مشکلی ندارد.",
+        },
+      ];
+      categoryDetails.relation.description = "پیوند بین چیزها را نشان می‌دهد.";
+      categoryDetails.relation.subcategories = [
+        {
+          name: "جوهر و عرض (Substance and Accident)",
+          desc: "مفهوم چیزی که می‌تواند به عنوان موضوع وجود داشته باشد، اما هرگز نه به عنوان محمول صرف.",
+          example:
+            'در قضیه‌ی حملی "الف ب است"، الف موضوع (جوهر) و ب محمول (عرض) است.',
+        },
+        {
+          name: "علت و معلول (Cause and Effect)",
+          desc: 'در قضایای شرطی مانند "اگر ج آنگاه د"، مقوله‌ی علت و معلول ساختار این قضایا را ممکن می‌سازد.',
+          example:
+            'هر سؤالی که با "چرا" یا "چگونگی" درباره یک پدیده پرسیده شود، به مقوله‌ی علیت مربوط است. چرا طوطی می‌تواند تقلید صدا کند?',
+        },
+        {
+          name: "مشارکت یا تبادل (Community or Reciprocity)",
+          desc: "هر شکلی از نسبت و پیوند در سطح وجودی یا معنایی بین پدیده‌ها.",
+          example:
+            "نسبت طوطی با سایر پرندگان یا جانوران. نسبت پرنده با غذایش. نماد و سمبل بودن طوطی در ادبیات.",
+        },
+      ];
+      categoryDetails.modality.description =
+        "می‌تواند امکانی، وجودی یا ضروری باشد.";
+      categoryDetails.modality.subcategories = [
+        {
+          name: "امکان (Possibility)",
+          desc: "آیا وقوع یک امر ممکن است؟",
+          example: "آیا امکانش هست من یک کتاب بنویسم؟ بله، امکانش وجود دارد.",
+        },
+        {
+          name: "وجود (Existence)",
+          desc: "تحقق یافتن یک امر ممکن در واقعیت.",
+          example:
+            "پس از نوشتن و انتشار، کتاب وجود می‌یابد. وجود آشکارا یک محمول واقعی نیست، بلکه صرفاً رابطه‌ای در یک حکم است.",
+        },
+        {
+          name: "ضرورت (Necessity)",
+          desc: "شرایطی که باید وجود داشته باشند تا چیزی ممکن یا موجود شود.",
+          example:
+            "برای نوشتن کتابی به زبان ژاپنی، ضروری است که ابتدا زبان ژاپنی را یاد بگیرم.",
+        },
+      ];
+      // پایان محتوای categoryDetails
+
+      function showDetails(category) {
+        const details = categoryDetails[category];
+        const modal = document.getElementById("detailModal");
+        const content = document.getElementById("modalContent");
+        let html = `<h2 style="color: ${details.color}; margin-bottom: 20px;">${details.title}</h2><p style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; line-height: 1.6;">${details.description}</p>`;
+        details.subcategories.forEach((sub, index) => {
+          html += `<div style="margin: 20px 0; padding: 20px; background: linear-gradient(145deg, #f8f9ff, #e8ecff); border-radius: 15px; border-right: 4px solid ${
+            details.color
+          };"><h4 style="color: ${details.color}; margin-bottom: 10px;">${
+            index + 1
+          }. ${
+            sub.name
+          }</h4><p style="margin-bottom: 15px; line-height: 1.5;">${
+            sub.desc
+          }</p><div class="example-text" style="--category-color: ${
+            details.color
+          };"><strong>مثال:</strong> ${sub.example}</div></div>`;
+        });
+        content.innerHTML = html;
+        modal.style.display = "block";
+      }
+
+      function closeModal() {
+        document.getElementById("detailModal").style.display = "none";
+      }
+
+      function showSection(sectionPrefix) {
+        console.log(
+          `--- [DEBUG] showSection called with prefix: '${sectionPrefix}' ---`
+        );
+        const allSectionFullIds = [
+          "chart-section",
+          "mindmap-section", // اگر این بخش مایند مپ استاتیک جداگانه‌ای است
+          "comparison-section",
+          "kant-detailed-chart-section",
+          "kant-interactive-tree-section", // <--- ID جدید اینجا استفاده شود
+        ];
+
+        allSectionFullIds.forEach((id) => {
+          const element = document.getElementById(id);
+          if (element) {
+            element.style.display = "none";
+          } else {
+            console.warn(
+              `--- [DEBUG_WARN] Element with ID '${id}' NOT FOUND in allSectionFullIds loop (cannot hide). ---`
+            );
+          }
+        });
+
+        // پیشوند باید با قسمت اول ID جدید مطابقت داشته باشد
+        const targetIdToShow = sectionPrefix + "-section";
+        console.log(
+          `--- [DEBUG] Attempting to show element with ID: '${targetIdToShow}' ---`
+        );
+
+        const elementToShow = document.getElementById(targetIdToShow);
+
+        if (elementToShow) {
+          elementToShow.style.display = "block";
+          console.log(
+            `--- [DEBUG] Successfully displayed element: '${targetIdToShow}' ---`
+          );
+        } else {
+          console.error(
+            `--- [DEBUG_ERROR] Element with ID '${targetIdToShow}' NOT FOUND (cannot show). Prefix was '${sectionPrefix}'. ---`
+          );
+          // دیگر alert نمایش ندهیم، چون ممکن است مزاحم باشد. لاگ کنسول کافی است.
+          // alert(
+          //   `خطای توسعه‌دهنده: عنصر با شناسه '${targetIdToShow}' برای نمایش پیدا نشد...`
+          // );
+        }
+      }
+
+      window.onclick = function (event) {
+        const modal = document.getElementById("detailModal");
+        if (event.target == modal) {
+          modal.style.display = "none";
+        }
+      };
+
+      document.addEventListener("DOMContentLoaded", function () {
+        console.log("--- [DEBUG] DOMContentLoaded event fired. ---");
+        const cards = document.querySelectorAll(".category-card");
+        cards.forEach((card) => {
+          card.addEventListener("mouseenter", function () {
+            this.style.transform = "translateY(-8px) scale(1.02)";
+          });
+          card.addEventListener("mouseleave", function () {
+            this.style.transform = "translateY(0) scale(1)";
+          });
+        });
+        showSection("chart"); // Show 'chart' section by default
+      });
+    </script>
+  </body>
+</html>

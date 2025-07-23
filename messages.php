@@ -84,7 +84,6 @@ try {
             if ($stmt_check->fetchColumn() > 0) {
                 $allowChat = true;
             }
-            
         } else {
             // Non-guests can chat with anyone (except potentially other guests?)
             $allowChat = true; // Add more rules if needed
@@ -146,7 +145,7 @@ try {
                 // Optionally display a message in the chat area?
                 // e.g., echo "<p class='text-center text-danger'>شما اجازه گفتگو با این کاربر را ندارید.</p>";
             }
-//$selectedUserId = null; // Invalid user selected
+            //$selectedUserId = null; // Invalid user selected
         }
     }
 } catch (PDOException $e) {
@@ -208,7 +207,7 @@ function isImageFile($filename)
 }
 
 // Maximum upload size in MB
-$maxUploadSize = 100;
+$maxUploadSize = 1024;
 require_once 'header_common.php'; // Includes DB connection, auth check, activity update
 
 ?>
@@ -1625,8 +1624,8 @@ $lastTimestampValue = ($lastMsg && is_array($lastMsg) && isset($lastMsg['timesta
         function handleFileSelection(files) {
             if (!selectedFilesPreview || !files) return;
 
-            const maxFiles = 5;
-            const maxSize = 20 * 1024 * 1024; // 20MB in bytes
+            const maxFiles = 10;
+            const maxSize = 1024 * 1024 * 1024; // 20MB in bytes
 
             // Check if adding these files would exceed the limit
             if (selectedFiles.length + files.length > maxFiles) {
@@ -1647,7 +1646,7 @@ $lastTimestampValue = ($lastMsg && is_array($lastMsg) && isset($lastMsg['timesta
                 // Check file size
                 if (file.size > maxSize) {
                     if (messageStatus) {
-                        messageStatus.textContent = `فایل ${file.name} بزرگتر از حد مجاز (20MB) است.`;
+                        messageStatus.textContent = `فایل ${file.name} بزرگتر از حد مجاز (1GB) است.`;
                         messageStatus.style.color = 'red';
                         setTimeout(() => {
                             messageStatus.textContent = '';

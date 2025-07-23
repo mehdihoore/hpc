@@ -115,12 +115,12 @@ class PanelScheduler
         return $inventory;
     }
 
-    private function isFriday(DateTime $date): bool
+    private function isFriday(\DateTimeInterface $date): bool // Use DateTimeInterface
     {
         return $date->format('N') == 5; // 5 = Friday
     }
 
-    private function isThursday(DateTime $date): bool
+    private function isThursday(\DateTimeInterface $date): bool // Use DateTimeInterface
     {
         return $date->format('N') == 4; // 4 = Thursday
     }
@@ -138,7 +138,7 @@ class PanelScheduler
     }
 
     // Gets count of panels already scheduled on a specific date
-    private function getScheduledPanelCountForDate(string $dateStr): int
+    public function getScheduledPanelCountForDate(string $dateStr): int
     {
         $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM hpc_panels WHERE assigned_date = :date");
         $stmt->execute([':date' => $dateStr]);
@@ -146,7 +146,7 @@ class PanelScheduler
     }
 
     // Gets count of formwork types used on a specific date
-    private function getFormworkUsageOnDate(string $dateStr): array
+    public function getFormworkUsageOnDate(string $dateStr): array
     {
         $usage = [];
         $stmt = $this->pdo->prepare(
@@ -251,6 +251,7 @@ class PanelScheduler
     }
 
 
+
     public function shiftScheduledPanels(string $fromDateStr, int $shiftDays, ?int $currentUserId): array
     {
         if ($shiftDays == 0) {
@@ -259,39 +260,32 @@ class PanelScheduler
 
         $shiftedPanels = [];
         $failedPanels = [];
-        $todayStr = (new DateTime())->format('Y-m-d'); // Get current date
+        $todayStr = (new DateTimeImmutable())->format('Y-m-d'); // Use Immutable for safety if $todayStr is used later in loops with DateTime modify
 
         try {
-            $pdoWhereClauses = ["assigned_date >= :fromDate", "(status IS NULL OR status NOT IN ('completed', 'cancelled'))"];
-            $pdoParams = [':fromDate' => $fromDateStr];
-
-            // If shifting backwards, only consider panels currently scheduled in the future
-            if ($shiftDays < 0) {
-                $pdoWhereClauses[] = "assigned_date > :today_for_negative_shift_filter"; // Strictly greater than today
-                $pdoParams[':today_for_negative_shift_filter'] = $todayStr;
-            }
-
-            $whereSql = implode(" AND ", $pdoWhereClauses);
-
+            // Fetch all panels on or after the fromDateStr that are not completed/cancelled
+            // Ensure we get their formwork_type for capacity checks.
             $stmtFetch = $this->pdo->prepare(
-                "SELECT id, address, assigned_date
+                "SELECT id, address, assigned_date, formwork_type
                  FROM hpc_panels
-                 WHERE $whereSql
-                 ORDER BY assigned_date ASC, id ASC"
+                 WHERE assigned_date >= :fromDate 
+                   AND (status IS NULL OR status NOT IN ('completed', 'cancelled'))
+                 ORDER BY assigned_date ASC, id ASC" // Process earlier dates first
             );
-            $stmtFetch->execute($pdoParams);
+            $stmtFetch->execute([':fromDate' => $fromDateStr]);
             $panelsToShiftCandidate = $stmtFetch->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($panelsToShiftCandidate)) {
-                $message = 'No panels found to shift on or after the specified date';
-                if ($shiftDays < 0) {
-                    $message .= ' that are also scheduled for a future date.';
-                }
-                return ['success' => true, 'message' => $message, 'shifted' => [], 'failed' => []];
+                return ['success' => true, 'message' => 'No panels found on or after the specified date to shift.', 'shifted' => [], 'failed' => []];
             }
 
-            $panelIdsToCheck = array_column($panelsToShiftCandidate, 'id');
-            $progressStatuses = $this->checkPanelsProgress($panelIdsToCheck);
+            $panelIdsToCheckProgress = array_column($panelsToShiftCandidate, 'id');
+            $progressStatuses = $this->checkPanelsProgress($panelIdsToCheckProgress);
+
+            $physicalFormworkInventory = $this->getPhysicalFormworkInventory();
+            // This tracks usage for panels shifted *within this current operation*
+            // to avoid multiple DB queries for capacity on the same target date during the loop.
+            $tempUsageOnNewDates = []; // Format: ['YYYY-MM-DD' => ['total_panels' => count, 'formwork_types' => ['F-H-1' => count, ...]]]
 
             $this->pdo->beginTransaction();
 
@@ -305,49 +299,86 @@ class PanelScheduler
 
             foreach ($panelsToShiftCandidate as $panel) {
                 $panelId = $panel['id'];
+                $panelAddress = $panel['address'];
+                $originalAssignedDateStr = $panel['assigned_date'];
+                $panelFormworkType = $panel['formwork_type'];
 
+                // 1. Progress Check (Same as before)
                 if (isset($progressStatuses[$panelId]) && $progressStatuses[$panelId] === true) {
-                    $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'Panel has progress, not shifted.'];
+                    $failedPanels[] = ['panel_id' => $panelId, 'address' => $panelAddress, 'reason' => 'Panel has progress, not shifted.'];
                     continue;
                 }
 
                 try {
-                    $originalAssignedDateObj = new DateTime($panel['assigned_date']);
-                    $newPotentialAssignedDateObj = (clone $originalAssignedDateObj)->modify(($shiftDays >= 0 ? '+' : '') . $shiftDays . ' days');
-                    $maxAttempts = 7; // Try for a week to find a non-Friday
-                    $attempt = 0;
-                    while ($this->isFriday($newPotentialAssignedDateObj) && $attempt < $maxAttempts) {
-                        $adjustment = ($shiftDays >= 0) ? '+1 day' : '-1 day'; // Keep original shift intent for adjustment
-                        $newPotentialAssignedDateObj->modify($adjustment);
-                        $attempt++;
+                    // 2. Calculate New Date (Simplified: directly add shiftDays)
+                    $originalAssignedDateObj = new DateTimeImmutable($originalAssignedDateStr); // Use Immutable
+                    $newPotentialAssignedDateObj = $originalAssignedDateObj->modify(($shiftDays >= 0 ? '+' : '') . $shiftDays . ' days');
+                    $newAssignedDateStr = $newPotentialAssignedDateObj->format('Y-m-d');
+
+                    // OPTIONAL: Prevent shifting to a date before today if shiftDays is negative.
+                    // If you want to allow shifting to any past date, remove this block.
+                    if ($shiftDays < 0 && $newAssignedDateStr < $todayStr) {
+                        $failedPanels[] = [
+                            'panel_id' => $panelId,
+                            'address' => $panelAddress,
+                            'reason' => "Shift results in a past date ({$newAssignedDateStr}), not allowed. Original: {$originalAssignedDateStr}"
+                        ];
+                        continue;
                     }
+                    // END OPTIONAL Past Date Check
 
-                    // Rule: Avoid Fridays
-                    if ($this->isFriday($newPotentialAssignedDateObj)) {
-                        $adjustmentDirection = ($shiftDays >= 0) ? '+1 day' : '-1 day'; // Keep original shift intent
-                        $newPotentialAssignedDateObj->modify($adjustmentDirection);
+                    // 3. Capacity Checks for the newAssignedDateStr
 
-                        // After adjustment, re-check if it's still Friday OR if it became a past date (for negative shifts)
-                        if ($this->isFriday($newPotentialAssignedDateObj)) {
-                            $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'Friday avoidance resulted in another Friday.'];
-                            continue;
-                        }
-                        if ($shiftDays < 0 && $newPotentialAssignedDateObj->format('Y-m-d') < $todayStr) {
-                            $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'Friday avoidance resulted in a past date, not allowed.'];
-                            continue;
-                        }
-                    }
-
-                    // Rule: New assigned date cannot be in the past (less than today)
-                    if ($shiftDays < 0 && $newPotentialAssignedDateObj->format('Y-m-d') < $todayStr) {
-                        $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'Shift results in a past date (' . $newPotentialAssignedDateObj->format('Y-m-d') . '), not allowed. Original: ' . $panel['assigned_date']];
+                    $basePanelFormworkType = $this->getBaseFormworkTypeExternal($panelFormworkType);
+                    if (!$basePanelFormworkType) {
+                        $failedPanels[] = ['panel_id' => $panelId, 'address' => $panelAddress, 'reason' => "Invalid formwork type ('{$panelFormworkType}') for capacity check."];
                         continue;
                     }
 
+                    // 3a. Overall Daily Limit Check for newAssignedDateStr
+                    $dailyOverallPanelLimit = $this->isThursday($newPotentialAssignedDateObj) ? self::MAX_PANELS_THURSDAY : self::MAX_PANELS_OTHER_WEEKDAY;
 
+                    // Count from DB + count from current batch for this new date
+                    $dbScheduledCountOnNewDate = $this->getScheduledPanelCountForDate($newAssignedDateStr);
+                    $tempScheduledCountOnNewDate = $tempUsageOnNewDates[$newAssignedDateStr]['total_panels'] ?? 0;
+                    $effectiveTotalPanelsOnNewDate = $dbScheduledCountOnNewDate + $tempScheduledCountOnNewDate;
 
-                    $newAssignedDateStr = $newPotentialAssignedDateObj->format('Y-m-d');
-                    $newPlannedFinishDateStr = (clone $newPotentialAssignedDateObj)->modify('+1 day')->format('Y-m-d');
+                    if ($effectiveTotalPanelsOnNewDate >= $dailyOverallPanelLimit) {
+                        $failedPanels[] = [
+                            'panel_id' => $panelId,
+                            'address' => $panelAddress,
+                            'reason' => "Overall daily panel limit ({$dailyOverallPanelLimit}) for new date {$newAssignedDateStr} would be exceeded (DB:{$dbScheduledCountOnNewDate} + Temp:{$tempScheduledCountOnNewDate})."
+                        ];
+                        continue;
+                    }
+
+                    // 3b. Formwork-Specific Limit Check for newAssignedDateStr
+                    $instancesAvailableForThisType = $physicalFormworkInventory[$basePanelFormworkType] ?? 0;
+                    if ($instancesAvailableForThisType <= 0) {
+                        $failedPanels[] = [
+                            'panel_id' => $panelId,
+                            'address' => $panelAddress,
+                            'reason' => "No physical inventory defined/available for formwork '{$basePanelFormworkType}'."
+                        ];
+                        continue;
+                    }
+
+                    $dbFormworkUsageOnNewDateArray = $this->getFormworkUsageOnDate($newAssignedDateStr); // Gets all types usage from DB for that day
+                    $dbUsageOfThisTypeOnNewDate = $dbFormworkUsageOnNewDateArray[$basePanelFormworkType] ?? 0;
+                    $tempUsageOfThisTypeOnNewDate = $tempUsageOnNewDates[$newAssignedDateStr]['formwork_types'][$basePanelFormworkType] ?? 0;
+                    $effectiveUsageOfThisTypeOnNewDate = $dbUsageOfThisTypeOnNewDate + $tempUsageOfThisTypeOnNewDate;
+
+                    if ($effectiveUsageOfThisTypeOnNewDate >= $instancesAvailableForThisType) {
+                        $failedPanels[] = [
+                            'panel_id' => $panelId,
+                            'address' => $panelAddress,
+                            'reason' => "Capacity for formwork '{$basePanelFormworkType}' ({$instancesAvailableForThisType} available) on new date {$newAssignedDateStr} would be exceeded (DB:{$dbUsageOfThisTypeOnNewDate} + Temp:{$tempUsageOfThisTypeOnNewDate})."
+                        ];
+                        continue;
+                    }
+
+                    // 4. If all checks pass, proceed with DB update for this panel
+                    $newPlannedFinishDateStr = $newPotentialAssignedDateObj->modify('+1 day')->format('Y-m-d');
 
                     if ($stmtUpdate->execute([
                         ':new_assigned_date' => $newAssignedDateStr,
@@ -356,43 +387,63 @@ class PanelScheduler
                         ':panel_id' => $panelId
                     ])) {
                         if ($stmtUpdate->rowCount() > 0) {
-                            $shiftedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'old_date' => $panel['assigned_date'], 'new_date' => $newAssignedDateStr];
+                            $shiftedPanels[] = ['panel_id' => $panelId, 'address' => $panelAddress, 'old_date' => $originalAssignedDateStr, 'new_date' => $newAssignedDateStr];
+
+                            // Update in-memory tracking for THIS BATCH to ensure subsequent panels in the same batch
+                            // respect the capacity taken by already processed panels in this batch.
+                            if (!isset($tempUsageOnNewDates[$newAssignedDateStr])) {
+                                $tempUsageOnNewDates[$newAssignedDateStr] = ['total_panels' => 0, 'formwork_types' => []];
+                            }
+                            $tempUsageOnNewDates[$newAssignedDateStr]['total_panels']++;
+
+                            if (!isset($tempUsageOnNewDates[$newAssignedDateStr]['formwork_types'][$basePanelFormworkType])) {
+                                $tempUsageOnNewDates[$newAssignedDateStr]['formwork_types'][$basePanelFormworkType] = 0;
+                            }
+                            $tempUsageOnNewDates[$newAssignedDateStr]['formwork_types'][$basePanelFormworkType]++;
                         } else {
-                            $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'Panel not updated (no change/not found).'];
+                            // This case (rowCount == 0) might happen if the new date is the same as old, though shiftDays != 0 should prevent this.
+                            // Or if the panel was somehow deleted between fetch and update.
+                            $failedPanels[] = ['panel_id' => $panelId, 'address' => $panelAddress, 'reason' => 'Panel not updated (no change or panel not found during update).'];
                         }
                     } else {
-                        $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'DB update failed. Error: ' . implode(' ', $stmtUpdate->errorInfo())];
+                        $failedPanels[] = ['panel_id' => $panelId, 'address' => $panelAddress, 'reason' => 'DB update failed. Error: ' . implode(' ', $stmtUpdate->errorInfo())];
                     }
-                } catch (Exception $e) {
+                } catch (Exception $e) { // Catch errors during individual panel processing (e.g., DateTime issues)
                     error_log("Error processing panel ID {$panelId} during shift: " . $e->getMessage());
-                    $failedPanels[] = ['panel_id' => $panelId, 'address' => $panel['address'], 'reason' => 'Processing error: ' . $e->getMessage()];
+                    $failedPanels[] = ['panel_id' => $panelId, 'address' => $panelAddress, 'reason' => 'Processing error: ' . $e->getMessage()];
                 }
-            }
+            } // End foreach panel
 
             $this->pdo->commit();
             return [
                 'success' => true,
-                'message' => 'Shift operation completed.',
+                'message' => 'Shift operation completed. Check results below.',
                 'shifted' => $shiftedPanels,
                 'failed' => $failedPanels
             ];
-        } catch (PDOException | Exception $e) {
+        } catch (PDOException | Exception $e) { // Catch errors for the overall operation
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
-            error_log("Error in shiftScheduledPanels: " . $e->getMessage());
+            error_log("Error in shiftScheduledPanels: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             // Consolidate failed panels if an exception occurred mid-processing
-            if (isset($panelsToShiftCandidate) && is_array($panelsToShiftCandidate)) {
-                foreach ($panelsToShiftCandidate as $p) {
-                    $isAccounted = false;
-                    foreach ($shiftedPanels as $s) if ($s['panel_id'] == $p['id']) $isAccounted = true;
-                    foreach ($failedPanels as $f) if ($f['panel_id'] == $p['id']) $isAccounted = true;
-                    if (!$isAccounted) {
-                        $failedPanels[] = ['panel_id' => $p['id'], 'address' => $p['address'], 'reason' => 'Not processed due to overall operation error.'];
+            $allPanelIdsProcessedOrAttempted = array_column($panelsToShiftCandidate ?? [], 'id');
+            foreach ($allPanelIdsProcessedOrAttempted as $pid) {
+                $isAccounted = false;
+                foreach ($shiftedPanels as $s) if ($s['panel_id'] == $pid) $isAccounted = true;
+                foreach ($failedPanels as $f) if ($f['panel_id'] == $pid) $isAccounted = true;
+                if (!$isAccounted) {
+                    $originalPanelDetails = null; // Find original address if possible
+                    foreach ($panelsToShiftCandidate as $origP) {
+                        if ($origP['id'] == $pid) {
+                            $originalPanelDetails = $origP;
+                            break;
+                        }
                     }
+                    $failedPanels[] = ['panel_id' => $pid, 'address' => $originalPanelDetails['address'] ?? "ID: {$pid}", 'reason' => 'Not processed due to an overall operation error.'];
                 }
             }
-            return ['success' => false, 'error' => 'An error occurred: ' . $e->getMessage(), 'shifted' => [], 'failed' => $failedPanels];
+            return ['success' => false, 'error' => 'An error occurred during the shift operation: ' . $e->getMessage(), 'shifted' => $shiftedPanels, 'failed' => $failedPanels];
         }
     }
 
@@ -1233,30 +1284,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
         } elseif ($action === 'shiftScheduledPanels') {
             if (!$canEdit) {
-                $httpStatusCode = 403;
-                $response = ['success' => false, 'error' => 'Permission denied.'];
+                $httpStatusCode = 403; // Forbidden
+                $response = ['success' => false, 'error' => 'Permission denied. You do not have rights to shift panels.'];
                 goto send_response;
             }
 
-            $fromDate = $_POST['fromDate'] ?? null; // Expects 'YYYY-MM-DD'
-            $shiftDays = filter_input(INPUT_POST, 'shiftDays', FILTER_VALIDATE_INT);
+            $fromDate = $_POST['fromDate'] ?? null; // Expects 'YYYY-MM-DD' from JavaScript (after conversion from Jalali)
+            $shiftDaysInput = $_POST['shiftDays'] ?? null; // Get as string first for better validation
 
-            if (!$fromDate || DateTime::createFromFormat('Y-m-d', $fromDate) === false) {
-                $httpStatusCode = 400;
-                $response = ['success' => false, 'error' => 'Invalid "from date" provided.'];
-            } elseif ($shiftDays === null || $shiftDays === false) { // filter_input returns false on failure, null if not set
-                $httpStatusCode = 400;
-                $response = ['success' => false, 'error' => 'Invalid number of days to shift. Must be an integer.'];
-            } elseif ($shiftDays == 0) {
-                $httpStatusCode = 200; // Or 400 if you consider 0 an invalid input for a shift
+            // Validate fromDate
+            if (!$fromDate || !DateTime::createFromFormat('Y-m-d', $fromDate)) {
+                $httpStatusCode = 400; // Bad Request
+                $response = ['success' => false, 'error' => 'Invalid "from date" provided. Please ensure it is in YYYY-MM-DD format.'];
+                goto send_response;
+            }
+
+            // Validate shiftDays
+            if ($shiftDaysInput === null || !is_numeric($shiftDaysInput)) {
+                $httpStatusCode = 400; // Bad Request
+                $response = ['success' => false, 'error' => 'Invalid number of days to shift. Must be a numeric value.'];
+                goto send_response;
+            }
+
+            $shiftDays = (int)$shiftDaysInput; // Cast to integer
+
+            // The PanelScheduler->shiftScheduledPanels method now handles shiftDays == 0 gracefully,
+            // so this specific check can be removed here to avoid redundant logic, 
+            // or kept if you want to give a specific HTTP 200 response directly from AJAX.
+            // For consistency, letting PanelScheduler handle it is fine.
+            /*
+            if ($shiftDays == 0) {
+                $httpStatusCode = 200;
                 $response = ['success' => true, 'message' => 'No shift requested (0 days).', 'shifted' => [], 'failed' => []];
-            } else {
+                goto send_response;
+            }
+            */
+
+            try {
                 $scheduler = new PanelScheduler($pdo, (int)$current_user_id, $progressColumns);
-                $result = $scheduler->shiftScheduledPanels($fromDate, (int)$shiftDays, (int)$current_user_id);
-                $httpStatusCode = $result['success'] ? 200 : 500; // Or 400 for specific validation errors from method
+                $result = $scheduler->shiftScheduledPanels($fromDate, $shiftDays, (int)$current_user_id); // Pass $shiftDays as int
+
+                // Determine HTTP status code based on the nature of the result
+                if ($result['success']) {
+                    $httpStatusCode = 200; // OK
+                } else {
+                    // If the error message indicates a client-side type issue or a "not found" scenario,
+                    // a 4xx code might be more appropriate than a blanket 500.
+                    // However, `shiftScheduledPanels` is designed to return `success: true` even if no panels were shifted (e.g. "No panels found...").
+                    // `success: false` from `shiftScheduledPanels` usually implies an internal processing error or exception.
+                    if (isset($result['error']) && (strpos($result['error'], 'Invalid') === 0 || strpos($result['error'], 'Missing') === 0)) {
+                        $httpStatusCode = 400; // Bad Request for input-like errors
+                    } else {
+                        $httpStatusCode = 500; // Internal Server Error for other failures
+                    }
+                }
                 $response = $result;
+            } catch (Exception $e) { // Catch any unexpected exceptions during scheduler execution
+                error_log("Critical error during shiftScheduledPanels call: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+                $httpStatusCode = 500;
+                $response = ['success' => false, 'error' => 'A critical server error occurred while trying to shift panels. Please contact support.'];
             }
         }
+
 
 
         // --- ACTION: getAssignedPanels (Unchanged - Title is already just address) ---
@@ -1689,7 +1778,7 @@ require_once 'header.php';
 <script src="/assets/js/persian-date.min.js"></script>
 <script src="/assets/js/persian-datepicker.min.js"></script>
 <script src="/assets/js/mobile-detect.min.js"></script>
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+<script src="assets/fullcalendar-6.1.17/package/index.global.min.js"></script>
 <!-- Loading CSS (Unchanged) -->
 <style>
     body.loading::before {
@@ -2079,13 +2168,13 @@ require_once 'header.php';
 
                 const direction = shiftDays > 0 ? "به جلو" : "به عقب";
                 const absShiftDays = Math.abs(shiftDays);
-                let confirmMessage = `آیا مطمئن هستید که می‌خواهید تمام پنل‌های زمان‌بندی شده (بدون پیشرفت) از تاریخ ${fromDateJalali} به بعد را ${absShiftDays} روز ${direction} ببرید؟\n(پنل‌ها به روز جمعه منتقل نخواهند شد.`;
+                let confirmMessage = `آیا مطمئن هستید که می‌خواهید تمام پنل‌های زمان‌بندی شده (بدون پیشرفت) از تاریخ ${fromDateJalali} به بعد را ${absShiftDays} روز ${direction} ببرید؟\n`;
                 if (shiftDays < 0) {
                     confirmMessage += `\nفقط پنل‌های آینده جابجا شده و هیچ پنلی به تاریخی قبل از امروز منتقل نخواهد شد.)`;
                 } else {
                     confirmMessage += `)`;
                 }
-                if (!confirm(`آیا مطمئن هستید که می‌خواهید تمام پنل‌های زمان‌بندی شده (بدون پیشرفت ثبت شده) از تاریخ ${fromDateJalali} به بعد را ${absShiftDays} روز ${direction} ببرید؟\n(پنل‌ها به روز جمعه منتقل نخواهند شد)`)) {
+                if (!confirm(`آیا مطمئن هستید که می‌خواهید تمام پنل‌های زمان‌بندی شده (بدون پیشرفت ثبت شده) از تاریخ ${fromDateJalali} به بعد را ${absShiftDays} روز ${direction} ببرید؟\n`)) {
                     return;
                 }
 
@@ -2098,42 +2187,63 @@ require_once 'header.php';
                     const result = await makeAjaxCall({
                         action: 'shiftScheduledPanels',
                         fromDate: fromDateGregorian,
-                        shiftDays: shiftDays
+                        shiftDays: shiftDays // send the integer value
                     });
 
-                    let msg = `<h3>نتایج جابجایی پنل‌ها:</h3>`;
+                    let msgHtml = `<h3 class="font-semibold mb-2">نتایج جابجایی پنل‌ها:</h3>`;
                     if (result.success) {
-                        msg += `<p class="text-green-600">${result.message || 'عملیات با موفقیت انجام شد.'}</p>`;
+                        // Main message from server (e.g., "Shift operation completed", "No shift requested", "No panels found")
+                        msgHtml += `<p class="text-green-600">${result.message || 'عملیات انجام شد.'}</p>`;
+
                         if (result.shifted && result.shifted.length > 0) {
-                            msg += `<strong>با موفقیت جابجا شد (${result.shifted.length}):</strong><ul>`;
+                            msgHtml += `<strong class="block mt-2">با موفقیت جابجا شد (${result.shifted.length}):</strong><ul class="list-disc list-inside text-xs">`;
                             result.shifted.forEach(p => {
-                                msg += `<li>${p.address || 'ID: '+p.panel_id} (از ${moment(p.old_date).format('jYYYY/jMM/jDD')} به ${moment(p.new_date).format('jYYYY/jMM/jDD')})</li>`;
+                                const oldJalali = p.old_date ? moment(p.old_date).format('jYYYY/jMM/DD') : 'N/A';
+                                const newJalali = p.new_date ? moment(p.new_date).format('jYYYY/jMM/jDD') : 'N/A';
+                                msgHtml += `<li>${p.address || 'ID: '+p.panel_id} (از ${oldJalali} به ${newJalali})</li>`;
                             });
-                            msg += `</ul>`;
-                        } else if (!result.failed || result.failed.length === 0) {
-                            msg += `<p>هیچ پنلی برای جابجایی در محدوده تاریخ مشخص شده یافت نشد یا نیازی به جابجایی نداشت.</p>`;
+                            msgHtml += `</ul>`;
+                        } else if ((!result.failed || result.failed.length === 0) && result.message && !result.message.toLowerCase().includes("no panels found") && !result.message.toLowerCase().includes("no shift requested")) {
+                            // If no panels were shifted AND no failures, but the message isn't about "no panels found", then add a generic "no panels needed shifting"
+                            // This case might be rare if the PHP message is comprehensive.
+                            // msgHtml += `<p class="mt-1">هیچ پنلی برای جابجایی واجد شرایط نبود یا نیازی به جابجایی نداشت.</p>`;
                         }
 
                         if (result.failed && result.failed.length > 0) {
-                            msg += `<strong class="text-red-600">ناموفق در جابجایی / جابجا نشده (${result.failed.length}):</strong><ul>`; // Clarify title
-                            result.failed.forEach(p => msg += `<li>${p.address || 'ID: '+p.panel_id}: ${p.reason}</li>`);
-                            msg += `</ul>`;
+                            msgHtml += `<strong class="block mt-2 text-red-600">ناموفق در جابجایی / جابجا نشده (${result.failed.length}):</strong><ul class="list-disc list-inside text-xs">`;
+                            result.failed.forEach(p => {
+                                msgHtml += `<li>${p.address || 'ID: '+p.panel_id}: ${p.reason}</li>`;
+                            });
+                            msgHtml += `</ul>`;
                         }
-                    } else {
-                        msg += `<p class="text-red-600">خطا در عملیات جابجایی: ${result.error || 'خطای ناشناخته از سرور.'}</p>`;
+                        shiftResultEl.className = `mt-2 text-sm p-3 rounded border ${ (result.failed && result.failed.length > 0 && (!result.shifted || result.shifted.length === 0)) ? 'border-red-400 bg-red-50' : ((result.failed && result.failed.length > 0) ? 'border-yellow-400 bg-yellow-50' : 'border-green-400 bg-green-50') } min-h-[3em]`;
+                    } else { // result.success is false
+                        msgHtml += `<p class="text-red-600">خطا در عملیات جابجایی: ${result.error || 'خطای ناشناخته از سرور.'}</p>`;
+                        // If there are still failed panels listed even on overall failure, display them
+                        if (result.failed && result.failed.length > 0) {
+                            msgHtml += `<strong class="block mt-2 text-red-700">پنل‌های پردازش نشده یا ناموفق (${result.failed.length}):</strong><ul class="list-disc list-inside text-xs">`;
+                            result.failed.forEach(p => {
+                                msgHtml += `<li>${p.address || 'ID: '+p.panel_id}: ${p.reason}</li>`;
+                            });
+                            msgHtml += `</ul>`;
+                        }
+                        shiftResultEl.className = 'mt-2 text-sm p-3 rounded border border-red-400 bg-red-50 min-h-[3em]';
                     }
-                    shiftResultEl.innerHTML = msg;
-                    shiftResultEl.className = `mt-2 text-sm p-3 rounded border ${ (result.failed && result.failed.length > 0 && result.shifted && result.shifted.length === 0) ? 'border-red-400 bg-red-50' : ((result.failed && result.failed.length > 0) ? 'border-yellow-400 bg-yellow-50' : 'border-green-400 bg-green-50') } min-h-[3em]`;
+                    shiftResultEl.innerHTML = msgHtml;
+                    if (result.success && ((result.shifted && result.shifted.length > 0) || (result.failed && result.failed.length > 0))) {
+                        calendar.refetchEvents();
+                        fetchAndRenderPanels(1, false); // Refresh sidebar panel list
+                    } else if (!result.success) {
+                        // Even on failure, if some client-side changes might have been optimistically made (though unlikely for shift),
+                        // a refetch can ensure consistency. Or, if the error was severe, a page reload might be considered by the user.
+                        calendar.refetchEvents(); // Good to refetch to ensure calendar is in sync with DB state.
+                    }
 
-
-                    calendar.refetchEvents(); // Refresh calendar to show new dates
-                    fetchAndRenderPanels(1, false); // Refresh sidebar panel list as assignments might have changed
-
-                } catch (error) {
+                } catch (error) { // Catch errors from makeAjaxCall itself (network, parsing, etc.)
                     console.error("Error in shiftScheduledPanels AJAX call:", error);
-                    shiftResultEl.innerHTML = `<p class="text-red-600">خطای ارتباط با سرور هنگام جابجایی.</p>`;
+                    shiftResultEl.innerHTML = `<p class="text-red-600">خطای ارتباط با سرور هنگام جابجایی: ${error.message}</p>`;
                     shiftResultEl.className = 'mt-2 text-sm p-3 rounded border border-red-400 bg-red-50 min-h-[3em]';
-                    alert("خطا در اجرای جابجایی.");
+                    // alert("خطا در اجرای جابجایی: " + error.message); // makeAjaxCall might have already alerted
                 } finally {
                     hideButtonLoading(this);
                 }

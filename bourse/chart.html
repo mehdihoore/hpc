@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>چارت تعاملی فلسفه کانت</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+        margin: 20px;
+        background-color: #f4f4f4;
+        color: #333;
+      }
+      h1 {
+        text-align: center;
+        color: #2c3e50;
+      }
+      #kant-chart {
+        list-style-type: none;
+        padding-right: 0; /* For RTL */
+      }
+      #kant-chart ul {
+        list-style-type: none;
+        padding-right: 20px; /* Indentation for nested lists */
+        display: none; /* Hidden by default */
+      }
+      #kant-chart li {
+        margin: 5px 0;
+        position: relative;
+      }
+      #kant-chart li .toggle {
+        cursor: pointer;
+        margin-left: 8px; /* For RTL, toggle is on the left of text */
+        font-size: 0.9em;
+        display: inline-block;
+        width: 15px; /* Ensure consistent width */
+        -webkit-user-select: none; /* Safari support */
+        user-select: none; /* Prevent text selection on toggle */
+      }
+      /* #kant-chart li .toggle.open {
+        transform: rotate(90deg);  Can be used with specific arrow characters 
+      } */
+      #kant-chart li.no-children {
+        padding-right: 15px; /* Align items without children with those that have toggles */
+      }
+    </style>
+  </head>
+  <body>
+    <h1>مقولات کانت و نظام فلسفی او</h1>
+
+    <ul id="kant-chart">
+      <li>
+        <span class="toggle">►</span>مقوله (کانت)
+        <ul>
+          <li>مفهوم خالص فاهمه</li>
+          <li>مشخصه ظهور هر شیء بطور کلی</li>
+          <li>مفاهیم شیء بطور کلی</li>
+          <li>شرط امکان اشیاء بطور کلی</li>
+          <li>دوازده مقوله متمایز اما مرتبط</li>
+        </ul>
+      </li>
+      <li>
+        <span class="toggle">►</span>مفهوم مقوله
+        <ul>
+          <li>Verstand</li>
+          <li>پیشاتجربه (a priori)</li>
+          <li>تعیین شهود با تابع منطقی احکام</li>
+        </ul>
+      </li>
+      <li>
+        <span class="toggle">►</span>ارتباط با ارسطو
+        <ul>
+          <li>استفاده از اصطلاح 'مقوله'</li>
+          <li>تفاوت در معنا و کاربرد</li>
+          <li>تأثیر سنت ارسطویی کونیگسبرگ</li>
+        </ul>
+      </li>
+      <li>
+        <span class="toggle">►</span>نظام فلسفی کانت
+        <ul>
+          <li>
+            <span class="toggle">►</span>ایده‌آلیسم استعلایی
+            <ul>
+              <li>نولولوژی</li>
+              <li>گنوستولوژی</li>
+              <li>اثر پاول رابه</li>
+              <li>جهان پدیداری در زمان و مکان</li>
+              <li>اشیاء فی‌نفسه (غیرزمانی و مکانی)</li>
+            </ul>
+          </li>
+          <li>
+            <span class="toggle">►</span>نقد عقل محض
+            <ul>
+              <li>
+                <span class="toggle">►</span>زیبایی‌شناسی استعلایی
+                <ul>
+                  <li>زمان</li>
+                  <li>مکان</li>
+                  <li>صور احساسیت</li>
+                </ul>
+              </li>
+              <li>
+                <span class="toggle">►</span>منطق استعلایی
+                <ul>
+                  <li>
+                    <span class="toggle">►</span>تحلیل استعلایی
+                    <ul>
+                      <li>جدول احکام</li>
+                      <li>استنتاج متافیزیکی مقولات</li>
+                      <li>استنتاج استعلایی مقولات</li>
+                      <li>تمثیلات تجربه</li>
+                    </ul>
+                  </li>
+                  <li>دیالکتیک استعلایی</li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <span class="toggle">►</span>جدول احکام
+            <ul>
+              <li>منشأ مقولات</li>
+              <li>احکام ترکیبی</li>
+              <li>احکام تحلیلی</li>
+            </ul>
+          </li>
+          <li>
+            <span class="toggle">►</span>شماتیسم
+            <ul>
+              <li>پل بین مقولات و شهود حسی</li>
+              <li>اثر پاول رابه</li>
+            </ul>
+          </li>
+          <li>
+            <span class="toggle">►</span>اخلاق
+            <ul>
+              <li>قانون اخلاقی جهانی</li>
+              <li>اختیار</li>
+              <li>خودآیینی (autonomy)</li>
+            </ul>
+          </li>
+          <li>
+            <span class="toggle">►</span>نظریه سیاسی
+            <ul>
+              <li>آزادی</li>
+              <li>برابری</li>
+              <li>جامعه عادلانه</li>
+              <li>صلح پایدار</li>
+            </ul>
+          </li>
+          <li>
+            <span class="toggle">►</span>زیبایی‌شناسی (نقد قوه حکم)
+            <ul>
+              <li>
+                <span class="toggle">►</span>داوری‌های ذوق (زیبایی)
+                <ul>
+                  <li>غیرعلاقه‌مندانه</li>
+                  <li>جهانشمولیت</li>
+                  <li>صورت غایت‌مندی</li>
+                  <li>ضرورت</li>
+                  <li>بازی آزاد فاهمه و تخیل</li>
+                </ul>
+              </li>
+              <li>
+                <span class="toggle">►</span>نظریه هنر
+                <ul>
+                  <li>تقلید زیبایی طبیعت</li>
+                  <li>نقش نبوغ</li>
+                  <li>ایده زیبایی‌شناختی</li>
+                </ul>
+              </li>
+              <li>
+                <span class="toggle">►</span>رابطه با نظریه اخلاق
+                <ul>
+                  <li>زیبایی نماد اخلاق</li>
+                </ul>
+              </li>
+              <li>نظام در مقابل گردایه</li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+      <li>
+        <span class="toggle">►</span>روش شناسی
+        <ul>
+          <li>تحلیل و ترکیب</li>
+          <li>معماری</li>
+          <li>کاربرد در مابعدالطبیعه</li>
+          <li>روش ζητητικός (زتتیک)</li>
+        </ul>
+      </li>
+    </ul>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const listItems = document.querySelectorAll("#kant-chart li");
+
+        listItems.forEach(function (li) {
+          const firstChild = li.children[0];
+          // Check if the first child is a toggle span
+          if (
+            firstChild &&
+            firstChild.classList &&
+            firstChild.classList.contains("toggle")
+          ) {
+            const sublist = li.querySelector("ul");
+            if (sublist) {
+              // Only add click listener if there's a sublist
+              firstChild.addEventListener("click", function (event) {
+                event.stopPropagation(); // Prevent event bubbling
+                sublist.style.display =
+                  sublist.style.display === "none" ? "block" : "none";
+                this.textContent = sublist.style.display === "none" ? "►" : "▼";
+                this.classList.toggle("open");
+              });
+            } else {
+              // If there's a toggle span but no sublist, hide the toggle or style it as inactive
+              firstChild.style.visibility = "hidden"; // Or remove it: firstChild.remove();
+            }
+          } else if (li.querySelector("ul")) {
+            // This case should ideally not happen if HTML is structured with toggles for all parent LIs.
+            // This is a fallback if a parent LI is missing its toggle span.
+            console.warn("Parent LI is missing a toggle span:", li);
+          } else {
+            // This LI has no sublist and correctly no toggle.
+            // Add a class for consistent alignment if needed, handled by .no-children CSS.
+            // Here, we make sure it does not get a toggle.
+            if (
+              firstChild &&
+              firstChild.classList &&
+              firstChild.classList.contains("toggle")
+            ) {
+              firstChild.style.visibility = "hidden";
+            }
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

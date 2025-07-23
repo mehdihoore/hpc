@@ -30,24 +30,37 @@ function set_project_session_vars($project_data)
 /**
  * Determines the redirect path based on user role and project base path.
  */
-function get_role_based_redirect_url($role, $project_base_path)
+function get_role_based_redirect_url($role, $project_base_path, $project_code)
 {
     $target_page = 'dashboard.php'; // Default page if no specific role match
 
     switch ($role) {
         case 'guest':
-            $target_page = 'messages.php'; // Assuming messages.php is in project root
+            $target_page = 'messages.php';
             break;
         case 'admin':
         case 'superuser':
         case 'supervisor':
-        case 'user': // Assuming 'user' also goes to admin_panel_search for now
+        case 'user':
         case 'cnc_operator':
         case 'planner':
-            $target_page = 'admin_panel_search.php';
+            if ($project_code === 'GHM') {
+                $target_page = 'index.php';
+            } else {
+                $target_page = 'admin_panel_search.php';
+            }
             break;
-            // Add other roles if they have different landing pages
+        case 'cat': // پیمانکار آتیه نما
+        case 'car': // پیمانکار آرانسج
+        case 'coa': // پیمانکار عمران آذرستان
+        case 'crs': // پیمانکار شرکت ساختمانی رس
+            $target_page = 'contractor_batch_update.php'; // Adjust to your contractor page
+            break;
+        default:
+            $target_page = 'index.php'; // Fallback page
+            break;
     }
+
     return rtrim($project_base_path, '/') . '/' . ltrim($target_page, '/');
 }
 
@@ -108,10 +121,9 @@ try {
             }
 
             log_activity($_SESSION['user_id'], $_SESSION['username'], 'select_project', "Selected Project: {$project_to_set['project_name']}", $project_to_set['project_id']);
-            $redirect_url = get_role_based_redirect_url($_SESSION['role'], $project_to_set['base_path']);
+            $redirect_url = get_role_based_redirect_url($_SESSION['role'], $project_to_set['base_path'], $project_to_set['project_code']);
             header("Location: " . $redirect_url);
             exit();
-        } else {
             $error = "پروژه انتخاب شده نامعتبر است.";
         }
     }
@@ -130,10 +142,9 @@ try {
         if ($default_is_accessible) {
             set_project_session_vars($user_default_project_data); // This contains all necessary fields from the JOIN
             log_activity($_SESSION['user_id'], $_SESSION['username'], 'auto_select_project', "Default Project: {$user_default_project_data['project_name']}", $user_default_project_data['project_id']);
-            $redirect_url = get_role_based_redirect_url($_SESSION['role'], $user_default_project_data['base_path']);
+            $redirect_url = get_role_based_redirect_url($_SESSION['role'], $user_default_project_data['base_path'], $user_default_project_data['project_code']);
             header("Location: " . $redirect_url);
             exit();
-        } else {
             // User's default project is no longer accessible or inactive, clear it
             if ($user_default_project_data['default_project_id'] !== null) {
                 $clear_default_stmt = $pdo_common->prepare("UPDATE users SET default_project_id = NULL WHERE id = ?");

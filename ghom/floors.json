@@ -1,0 +1,13 @@
+floor_level =>[
+
+    '5th FLOOR'='طبقه پنجم'
+'2nd FLOOR'='طبقه دوم'
+'1nd FLOOR'='طبقه اول'
+'GROUND FLOOR'='طبقه همکف'
+'4th FLOOR'='طبقه چهارم'
+'3rd FLOOR'='طبقه سوم'
+'1ST FLOOR'='طبقه اول'
+'ROOF FLOOR'='طبقه بام'
+'-1 FLOOR'='طبقه منفی 1'
+]
+

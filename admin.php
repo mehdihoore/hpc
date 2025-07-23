@@ -64,6 +64,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['use
                 case 'make_guest':
                 case 'make_planner':
                 case 'make_cnc_operator':
+                case 'make_car':
+                case 'make_cat':
+                case 'make_coa':
+                case 'make_crs':
                     // These actions are handled similarly
                     $field_to_update = '';
                     $value_to_set = null;
@@ -102,8 +106,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['use
                         'make_user' => 'کاربر به کاربر عادی تبدیل شد.',
                         'make_guest' => 'کاربر به مهمان تبدیل شد.',
                         'make_planner' => 'کاربر به طراح تبدیل شد.',
-                        'make_cnc_operator' => 'کاربر به اپراتور CNC تبدیل شد.'
+                        'make_cnc_operator' => 'کاربر به اپراتور CNC تبدیل شد.',
+                        'make_cat' => 'کاربر به پیمانکار آتیه نما تبدیل شد.',
+                        'make_car' => 'کاربر به پیمانکار آرانسج تبدیل شد.',
+                        'make_coa' => 'کاربر به پیمانکار عمران آذرستان تبدیل شد.',
+                        'make_crs' => 'کاربر به پیمانکار شرکت ساختمانی رس تبدیل شد.',
+                        'make_superuser' => 'کاربر به سوپریوزر تبدیل شد.'
                     ];
+
                     $message = $message_map[$success_message_key] ?? 'عملیات انجام شد.';
                     break;
 
@@ -371,6 +381,10 @@ if (!function_exists('translate_role')) {
             'cnc_operator' => 'اپراتور CNC',
             'superuser' => 'سوپریوزر',
             'guest' => 'مهمان',
+            'cat' => 'پیمانکار آتیه نما',
+            'car' => 'پیمانکار آرانسج',
+            'coa' => 'پیمانکار عمران آذرستان',
+            'crs' => 'پیمانکار شرکت ساختمانی رس'
         ];
         return $roles[$role] ?? $role;
     }
@@ -914,9 +928,9 @@ if (!function_exists('format_jalali_date')) {
                                         <select name="default_project" class="form-select form-select-sm default-project-select mb-2">
                                             <option value="">-- بدون پیش‌فرض --</option>
                                             <?php
-                                           
+
                                             foreach ($all_projects_map as $project_id_map => $project_name_map):
-                                               
+
                                                 $is_currently_assigned = in_array($project_id_map, $assigned_project_ids_for_user);
                                             ?>
                                                 <option value="<?= $project_id_map ?>"
@@ -946,7 +960,19 @@ if (!function_exists('format_jalali_date')) {
                                             <select name="action" class="form-select form-select-sm role-select d-inline-block w-auto" onchange="this.form.submit()" title="تغییر نقش کاربر">
                                                 <option value="">نقش: <?= escapeHtml(translate_role($user_item['role'])) ?></option>
                                                 <?php
-                                                $roles_available = ['guest' => 'مهمان', 'user' => 'کاربر', 'planner' => 'طراح', 'cnc_operator' => 'اپراتور CNC', 'supervisor' => 'سرپرست', 'admin' => 'مدیر'];
+                                                $roles_available = [
+                                                    'admin' => 'مدیر',
+                                                    'supervisor' => 'سرپرست',
+                                                    'user' => 'کاربر',
+                                                    'planner' => 'طراح',
+                                                    'cnc_operator' => 'اپراتور CNC',
+                                                    'superuser' => 'سوپریوزر',
+                                                    'guest' => 'مهمان',
+                                                    'cat' => 'پیمانکار آتیه نما',
+                                                    'car' => 'پیمانکار آرانسج',
+                                                    'coa' => 'پیمانکار عمران آذرستان',
+                                                    'crs' => 'پیمانکار شرکت ساختمانی رس'
+                                                ];
                                                 if ($_SESSION['role'] === 'superuser') $roles_available['superuser'] = 'سوپریوزر'; // Only superuser can make superuser
                                                 foreach ($roles_available as $role_key => $role_name):
                                                     if ($role_key === $user_item['role']) continue; // Skip current role
@@ -995,7 +1021,6 @@ if (!function_exists('format_jalali_date')) {
                 $uid = $user_item['id'];
                 $user_role_translated = escapeHtml(translate_role($user_item['role'])); // Pre-calculate for reuse
                 $assigned_project_ids_for_user = $user_project_assignments[$uid] ?? [];
-
                 // Determine role class for styling (same as desktop)
                 $roleClassMobile = 'role-user';
                 switch ($user_item['role']) {
@@ -1016,6 +1041,24 @@ if (!function_exists('format_jalali_date')) {
                         break;
                     case 'guest':
                         $roleClassMobile = 'role-guest';
+                        break;
+                    case 'user':
+                        $roleClassMobile = 'role-user';
+                        break;
+                    case 'cat':
+                        $roleClassMobile = 'role-cat'; // پیمانکار آتیه نما
+                        break;
+                    case 'car':
+                        $roleClassMobile = 'role-car'; // پیمانکار آرانسج
+                        break;
+                    case 'coa':
+                        $roleClassMobile = 'role-coa'; // پیمانکار عمران آذرستان
+                        break;
+                    case 'crs':
+                        $roleClassMobile = 'role-crs'; // پیمانکار شرکت ساختمانی رس
+                        break;
+                    default:
+                        $roleClassMobile = 'role-unknown';
                         break;
                 }
             ?>
@@ -1102,7 +1145,19 @@ if (!function_exists('format_jalali_date')) {
                             <select name="action" class="form-select form-select-sm role-select w-100" onchange="this.form.submit()" title="تغییر نقش کاربر">
                                 <option value="">نقش فعلی: <?= $user_role_translated ?></option>
                                 <?php
-                                $roles_available_mobile = ['guest' => 'مهمان', 'user' => 'کاربر', 'planner' => 'طراح', 'cnc_operator' => 'اپراتور CNC', 'supervisor' => 'سرپرست', 'admin' => 'مدیر'];
+                                $roles_available_mobile = [
+                                    'admin' => 'مدیر',
+                                    'supervisor' => 'سرپرست',
+                                    'user' => 'کاربر',
+                                    'planner' => 'طراح',
+                                    'cnc_operator' => 'اپراتور CNC',
+                                    'superuser' => 'سوپریوزر',
+                                    'guest' => 'مهمان',
+                                    'cat' => 'پیمانکار آتیه نما',
+                                    'car' => 'پیمانکار آرانسج',
+                                    'coa' => 'پیمانکار عمران آذرستان',
+                                    'crs' => 'پیمانکار شرکت ساختمانی رس'
+                                ];
                                 if ($_SESSION['role'] === 'superuser') $roles_available_mobile['superuser'] = 'سوپریوزر';
                                 foreach ($roles_available_mobile as $role_key => $role_name):
                                     if ($role_key === $user_item['role']) continue;

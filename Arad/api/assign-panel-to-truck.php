@@ -91,7 +91,7 @@ try {
     if ($stmt->rowCount() > 0) {
         // Log the activity
         $stmt = $pdo->prepare("
-            INSERT INTO activity_log 
+            INSERT INTO alumglas_hpc_common.activity_log 
             (user_id, username, activity_type, panel_id, step, action, details, timestamp) 
             VALUES (?, ?, 'panel_management', ?, 'assign', 'assign_to_truck', ?, NOW())
         ");

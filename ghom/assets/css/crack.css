@@ -1,0 +1,353 @@
+.crack-drawer-modal {
+    display: none;
+    position: fixed;
+    z-index: 1002;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90vw;
+    height: 90vh;
+    background: #fdfdfd;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    flex-direction: column;
+}
+
+/* --- Header --- */
+.drawer-header {
+    padding: 10px 20px;
+    border-bottom: 1px solid #ccc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f8f9fa;
+    flex-shrink: 0;
+}
+
+.drawer-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.2em;
+}
+
+.drawer-close-btn {
+    font-size: 2em;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 10px;
+    line-height: 1;
+    color: #666;
+    transition: color 0.2s;
+}
+
+.drawer-close-btn:hover {
+    color: #333;
+}
+
+/* --- Body Layout --- */
+.drawer-body {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden;
+    min-height: 0;
+    /* Important for flex child with overflow */
+}
+
+/* --- Tools Panel --- */
+.drawer-tools {
+    width: 220px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-right: 1px solid #ddd;
+    flex-shrink: 0;
+    overflow-y: auto;
+    direction: rtl;
+    /* For Persian/Arabic text */
+}
+
+.drawer-tools h4 {
+    margin: 0 0 15px 0;
+    text-align: center;
+    color: #333;
+    font-size: 1.1em;
+}
+
+.drawer-tools .tool-item {
+    margin-bottom: 20px;
+    direction: rtl;
+}
+
+.drawer-tools label {
+    font-weight: bold;
+    font-size: 12px;
+    display: block;
+    margin-bottom: 8px;
+    color: #555;
+    text-align: right;
+}
+
+.drawer-tools .tool-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    direction: ltr;
+    /* Controls flow left to right */
+}
+
+.drawer-tools .tool-thickness {
+    width: 50px;
+    text-align: center;
+    padding: 6px 4px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 12px;
+    background: white;
+}
+
+.drawer-tools .tool-btn {
+    flex-grow: 1;
+    padding: 8px 12px;
+    cursor: pointer;
+    border: 2px solid #ddd;
+    background-color: #fff;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: all 0.2s;
+    color: #333;
+}
+
+.drawer-tools .tool-btn:hover {
+    border-color: #007bff;
+    background-color: #f8f9ff;
+}
+
+.drawer-tools .tool-btn.active {
+    border-color: #007bff;
+    background-color: #007bff;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.drawer-tools .tool-color {
+    width: 35px;
+    height: 30px;
+    padding: 2px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    background: white;
+}
+
+.drawer-tools hr {
+    margin: 20px 0;
+    border: none;
+    border-top: 1px solid #ddd;
+}
+
+#drawer-undo-btn {
+    width: 100%;
+    padding: 10px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+#drawer-undo-btn:hover {
+    background-color: #5a6268;
+}
+
+/* --- Canvas and Rulers --- */
+.drawer-canvas-container {
+    flex-grow: 1;
+    position: relative;
+    padding: 40px 0 0 40px;
+    /* Space for rulers */
+    overflow: hidden;
+    background: linear-gradient(45deg, #f5f5f5 25%, transparent 25%),
+        linear-gradient(-45deg, #f5f5f5 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #f5f5f5 75%),
+        linear-gradient(-45deg, transparent 75%, #f5f5f5 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+.canvas-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ruler {
+    position: absolute;
+    background: linear-gradient(to bottom, #fafafa 0%, #f0f0f0 100%);
+    overflow: hidden;
+    pointer-events: none;
+    font-family: 'Courier New', monospace;
+    z-index: 10;
+}
+
+.ruler.horizontal {
+    top: 0;
+    left: 40px;
+    right: 0;
+    height: 40px;
+    border-bottom: 2px solid #ccc;
+    border-left: 1px solid #ddd;
+}
+
+.ruler.vertical {
+    top: 40px;
+    left: 0;
+    bottom: 0;
+    width: 40px;
+    border-right: 2px solid #ccc;
+    border-top: 1px solid #ddd;
+}
+
+.ruler .tick {
+    position: absolute;
+    background: #666;
+    z-index: 11;
+}
+
+.ruler.horizontal .tick {
+    top: 25px;
+    width: 1px;
+    height: 15px;
+}
+
+.ruler.vertical .tick {
+    left: 25px;
+    width: 15px;
+    height: 1px;
+}
+
+.ruler .label {
+    position: absolute;
+    font-size: 10px;
+    color: #444;
+    font-weight: bold;
+    z-index: 12;
+}
+
+.ruler.horizontal .label {
+    top: 5px;
+    transform: translateX(-50%);
+}
+
+.ruler.vertical .label {
+    left: 2px;
+    transform: translateY(-50%);
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+}
+
+/* --- Footer --- */
+.drawer-footer {
+    padding: 15px 20px;
+    text-align: right;
+    /* For RTL layout */
+    border-top: 1px solid #ccc;
+    background-color: #f8f9fa;
+    flex-shrink: 0;
+}
+
+#drawer-save-btn {
+    padding: 10px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+#drawer-save-btn:hover {
+    background-color: #218838;
+}
+
+/* --- Button for launching the drawer --- */
+.draw-crack-btn {
+    margin-right: 10px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    background-color: #6c757d;
+    color: white;
+    border: 1px solid #5a6268;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.draw-crack-btn:hover {
+    background-color: #5a6268;
+}
+
+/* --- Responsive adjustments --- */
+@media (max-width: 1200px) {
+    .crack-drawer-modal {
+        width: 95vw;
+        height: 95vh;
+    }
+
+    .drawer-tools {
+        width: 180px;
+    }
+}
+
+@media (max-width: 768px) {
+    .drawer-body {
+        flex-direction: column;
+    }
+
+    .drawer-tools {
+        width: 100%;
+        max-height: 200px;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .drawer-tools .tool-item {
+        display: inline-block;
+        margin: 5px;
+        vertical-align: top;
+    }
+}
+
+/* --- Canvas styling --- */
+#crack-canvas {
+    display: block;
+    cursor: crosshair;
+}
+
+/* Custom scrollbar for canvas wrapper */
+.canvas-wrapper::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.canvas-wrapper::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+.canvas-wrapper::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 6px;
+}
+
+.canvas-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}

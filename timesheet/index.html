@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>اپلیکیشن تایم شیت و حقوق و دستمزد</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#3b82f6" />
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png" />
+    <link rel="icon" type="image/x-icon" href="./favicon.ico" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.css"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      body {
+        font-family: "Vazirmatn", sans-serif;
+        background-color: #f3f4f6;
+        -webkit-overflow-scrolling: touch;
+      }
+      .fc {
+        direction: rtl;
+        background-color: white;
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1),
+          0 2px 4px -2px rgb(0 0 0 / 0.1);
+        font-size: 0.875rem;
+      }
+      @media (min-width: 768px) {
+        .fc {
+          padding: 1.5rem;
+          font-size: 1rem;
+        }
+      }
+      .fc .fc-toolbar-title {
+        font-size: 1.2em;
+        font-weight: 700;
+      }
+      @media (min-width: 768px) {
+        .fc .fc-toolbar-title {
+          font-size: 1.5em;
+        }
+      }
+      .fc .fc-button {
+        background-color: #3b82f6;
+        border: none;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+      }
+      @media (min-width: 768px) {
+        .fc .fc-button {
+          padding: 0.5rem 0.75rem;
+          font-size: 0.875rem;
+        }
+      }
+      .fc-daygrid-day {
+        min-height: 2.5rem !important;
+      }
+      @media (min-width: 768px) {
+        .fc-daygrid-day {
+          min-height: 4rem !important;
+        }
+      }
+      .fc-event {
+        font-size: 0.7rem;
+        padding: 1px 2px;
+      }
+      @media (min-width: 768px) {
+        .fc-event {
+          font-size: 0.8rem;
+          padding: 2px 4px;
+        }
+      }
+      .fc-non-business {
+        background: #f9fafb;
+      }
+      .fc-day-fri {
+        background-color: #fef2f2;
+      }
+      .fc-day[data-date].holiday-bg {
+        background-color: #fee2e2;
+      }
+      .fc-event.holiday-event {
+        font-size: 0.6rem;
+        color: #b91c1c;
+        border: none !important;
+        background: none !important;
+        white-space: normal !important;
+        text-align: right;
+        padding: 1px 2px;
+      }
+      @media (min-width: 768px) {
+        .fc-event.holiday-event {
+          font-size: 0.8rem;
+        }
+      }
+      .fc-event.entry-event {
+        background-color: #2563eb;
+        border-color: #1d4ed8;
+        color: white;
+      }
+      .modal-content {
+        max-height: 90vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      input[type="time"],
+      input[type="text"] {
+        font-size: 16px;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .touch-btn {
+        min-height: 44px;
+        min-width: 44px;
+        touch-action: manipulation;
+      }
+      .task-row-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        background: #f9fafb;
+      }
+      .task-row-mobile .time-inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      @media (min-width: 768px) {
+        .task-row-mobile {
+          flex-direction: row;
+          align-items: center;
+        }
+        .task-row-mobile .time-inputs {
+          display: contents;
+        }
+      }
+      .jdp-container {
+        z-index: 10000 !important;
+      }
+      .jdp-icon-btn {
+        left: 0.5rem;
+        right: auto;
+      }
+      .report-holiday-row {
+        background-color: #fef2f2;
+      }
+      .sticky-header {
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 10;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .mobile-tabs {
+        display: flex;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-bottom: 1px solid #e5e7eb;
+        background: white;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
+      .mobile-tab {
+        flex: 0 0 auto;
+        padding: 0.75rem 1rem;
+        white-space: nowrap;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .mobile-tab.active {
+        border-bottom-color: #3b82f6;
+        color: #3b82f6;
+        background: #eff6ff;
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        #print-section,
+        #print-section * {
+          visibility: visible;
+        }
+        #print-section {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+        }
+        .no-print {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 text-gray-800">
+    <div class="mobile-tabs no-print md:hidden">
+      <div class="mobile-tab active" data-tab="calendar">تقویم</div>
+      <div class="mobile-tab" data-tab="reports">گزارشات</div>
+      <div class="mobile-tab" data-tab="settings">تنظیمات</div>
+    </div>
+
+    <div class="container mx-auto p-2 md:p-6 lg:p-8">
+      <header class="text-center mb-4 md:mb-8 no-print">
+        <div
+          class="flex flex-col md:flex-row justify-between items-center gap-4"
+        >
+          <div class="flex gap-2 order-2 md:order-1">
+            <a
+              href="./settings.html"
+              class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-3 md:px-4 rounded-lg text-sm md:text-base touch-btn hidden md:inline-block"
+              >تنظیمات</a
+            ><button
+              id="logoutButton"
+              class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 md:px-4 rounded-lg text-sm md:text-base touch-btn"
+            >
+              خروج
+            </button>
+          </div>
+          <h1
+            class="text-xl md:text-3xl lg:text-4xl font-bold text-gray-700 order-1 md:order-2"
+          >
+            سیستم تایم شیت و حقوق
+          </h1>
+          <div class="order-3 md:order-3"></div>
+        </div>
+        <div
+          id="userInfo"
+          class="mt-2 md:mt-4 text-xs md:text-sm text-gray-500"
+        >
+          خوش آمدید، <span id="username" class="font-bold">...</span>
+        </div>
+      </header>
+
+      <div class="tab-content" id="reports-content">
+        <div
+          class="bg-white p-4 md:p-6 rounded-xl shadow-md mb-4 md:mb-8 no-print"
+        >
+          <h2 class="text-lg md:text-2xl font-semibold mb-4 border-b pb-3">
+            فیلتر و گزارش گیری
+          </h2>
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 items-end mb-4 md:mb-6"
+          >
+            <div class="relative">
+              <label
+                for="filterStartDate"
+                class="block mb-2 font-medium text-sm md:text-base"
+                >از تاریخ</label
+              ><input
+                type="text"
+                id="filterStartDate"
+                data-jdp
+                class="w-full bg-gray-50 border rounded-lg p-2.5 pr-4 text-sm md:text-base"
+              />
+            </div>
+            <div class="relative">
+              <label
+                for="filterEndDate"
+                class="block mb-2 font-medium text-sm md:text-base"
+                >تا تاریخ</label
+              ><input
+                type="text"
+                id="filterEndDate"
+                data-jdp
+                class="w-full bg-gray-50 border rounded-lg p-2.5 pr-4 text-sm md:text-base"
+              />
+            </div>
+            <button
+              id="filterButton"
+              class="w-full bg-gray-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm md:text-base touch-btn"
+            >
+              نمایش گزارش
+            </button>
+            <button
+              id="resetFilterButton"
+              class="w-full bg-gray-200 text-gray-700 font-bold py-2.5 px-4 rounded-lg text-sm md:text-base touch-btn"
+            >
+              پاک کردن فیلتر
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="filtered-results"
+          class="hidden mb-4 md:mb-8 space-y-4 md:space-y-8"
+        >
+          <div
+            id="summary"
+            class="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 text-center"
+          >
+            <div class="bg-blue-50 p-3 md:p-4 rounded-lg">
+              <h3 class="font-semibold text-blue-800 text-sm md:text-base">
+                مجموع ساعات کاری
+              </h3>
+              <p
+                id="totalHours"
+                class="text-xl md:text-2xl font-bold text-blue-900"
+              >
+                00:00
+              </p>
+            </div>
+            <div class="bg-green-50 p-3 md:p-4 rounded-lg">
+              <h3 class="font-semibold text-green-800 text-sm md:text-base">
+                مجموع اضافه کاری
+              </h3>
+              <p
+                id="totalOvertime"
+                class="text-xl md:text-2xl font-bold text-green-900"
+              >
+                00:00
+              </p>
+            </div>
+            <div class="bg-red-50 p-3 md:p-4 rounded-lg">
+              <h3 class="font-semibold text-red-800 text-sm md:text-base">
+                مجموع کسر کار
+              </h3>
+              <p
+                id="totalUndertime"
+                class="text-xl md:text-2xl font-bold text-red-900"
+              >
+                00:00
+              </p>
+            </div>
+          </div>
+          <div class="bg-white p-4 md:p-6 rounded-xl shadow-md">
+            <h2 class="text-lg md:text-2xl font-semibold mb-4 border-b pb-3">
+              گزارش حقوق و دستمزد
+            </h2>
+            <div
+              id="payroll-report"
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 text-sm"
+            ></div>
+          </div>
+          <div class="bg-white p-4 md:p-6 rounded-xl shadow-md">
+            <div
+              class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 mb-4 gap-3"
+            >
+              <h2 class="text-lg md:text-2xl font-semibold">
+                گزارش تفصیلی روزها
+              </h2>
+              <button
+                id="printButton"
+                class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg no-print text-sm md:text-base touch-btn"
+              >
+                چاپ گزارش
+              </button>
+            </div>
+            <div id="print-section">
+              <div
+                id="filtered-list-container"
+                class="space-y-3 md:space-y-4"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content active" id="calendar-content">
+        <div id="calendar" class="no-print">
+          <div
+            id="loading"
+            class="text-center p-6 md:p-10 bg-white rounded-xl shadow-md"
+          >
+            <p class="text-gray-500 text-base md:text-lg">در حال بارگذاری...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="entryModal"
+      class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-2 md:p-4"
+    >
+      <div
+        class="bg-white rounded-lg shadow-xl w-full max-w-2xl text-right modal-content"
+        id="modalContent"
+      >
+        <div
+          class="p-4 md:p-6 border-b flex flex-col md:flex-row justify-between items-start md:items-center gap-3"
+        >
+          <h3
+            id="modalTitle"
+            class="text-lg md:text-2xl font-bold text-gray-800"
+          ></h3>
+          <input type="hidden" id="entryDate" data-gregorian-date="" /><button
+            type="button"
+            id="deleteEntryButton"
+            class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 md:px-4 rounded-lg hidden text-sm md:text-base touch-btn"
+          >
+            حذف کل روز
+          </button>
+        </div>
+        <div class="p-4 md:p-6 max-h-[70vh] overflow-y-auto">
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6 border-b pb-4 md:pb-6"
+          >
+            <div>
+              <label
+                for="overallStartTime"
+                class="block mb-2 font-medium text-gray-700 text-sm md:text-base"
+                >ساعت ورود کلی</label
+              ><input
+                type="time"
+                id="overallStartTime"
+                class="w-full bg-gray-50 p-2.5 border rounded-lg text-sm md:text-base"
+              />
+            </div>
+            <div>
+              <label
+                for="overallEndTime"
+                class="block mb-2 font-medium text-gray-700 text-sm md:text-base"
+                >ساعت خروج کلی</label
+              ><input
+                type="time"
+                id="overallEndTime"
+                class="w-full bg-gray-50 p-2.5 border rounded-lg text-sm md:text-base"
+              />
+            </div>
+          </div>
+          <h4 class="text-base md:text-lg font-semibold mb-3">وظایف ثبت شده</h4>
+          <div id="tasks-container" class="space-y-3"></div>
+          <button
+            type="button"
+            id="addTaskButton"
+            class="mt-4 w-full text-center py-3 px-4 border-2 border-dashed rounded-lg text-blue-600 border-blue-400 hover:bg-blue-50 text-sm md:text-base touch-btn"
+          >
+            + افزودن وظیفه جدید
+          </button>
+        </div>
+        <div
+          class="px-4 md:px-6 py-4 bg-gray-50 rounded-b-lg flex flex-col md:flex-row justify-end items-stretch md:items-center gap-2 md:gap-0"
+        >
+          <button
+            type="button"
+            id="closeModalButton"
+            class="bg-gray-200 hover:bg-gray-300 font-bold py-2.5 px-4 rounded-lg md:ml-2 text-sm md:text-base touch-btn order-2 md:order-1"
+          >
+            انصراف</button
+          ><button
+            type="button"
+            id="saveEntryButton"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg text-sm md:text-base touch-btn order-1 md:order-2"
+          >
+            ذخیره تغییرات
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="task-template" class="hidden">
+      <div class="task-row-mobile">
+        <div class="time-inputs">
+          <input
+            type="time"
+            name="start_time"
+            placeholder="شروع"
+            class="w-full bg-gray-50 p-2.5 border rounded-lg text-sm md:text-base"
+          /><input
+            type="time"
+            name="end_time"
+            placeholder="پایان"
+            class="w-full bg-gray-50 p-2.5 border rounded-lg text-sm md:text-base"
+          /><button
+            type="button"
+            class="remove-task-btn text-red-500 hover:text-red-700 font-semibold text-xl md:text-2xl touch-btn flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full hover:bg-red-50"
+          >
+            &times;
+          </button>
+        </div>
+        <input
+          type="text"
+          name="description"
+          placeholder="توضیحات وظیفه"
+          class="w-full p-2.5 border rounded-lg text-sm md:text-base"
+        />
+      </div>
+    </div>
+
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.js"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+    <script>
+      // --- START: SCRIPT EXECUTION ---
+      const API_URL = "api.php";
+      let calendar,
+        allEntries = [],
+        userSettings = {},
+        workDayRules = {},
+        officialEvents = [];
+      const WEEKLY_REQUIRED_HOURS = 44;
+      const DOM = {
+        usernameSpan: document.getElementById("username"),
+        logoutButton: document.getElementById("logoutButton"),
+        calendarEl: document.getElementById("calendar"),
+        loadingIndicator: document.getElementById("loading"),
+        entryModal: document.getElementById("entryModal"),
+        modalTitle: document.getElementById("modalTitle"),
+        entryDateInput: document.getElementById("entryDate"),
+        overallStartTime: document.getElementById("overallStartTime"),
+        overallEndTime: document.getElementById("overallEndTime"),
+        tasksContainer: document.getElementById("tasks-container"),
+        addTaskButton: document.getElementById("addTaskButton"),
+        saveEntryButton: document.getElementById("saveEntryButton"),
+        deleteEntryButton: document.getElementById("deleteEntryButton"),
+        closeModalButton: document.getElementById("closeModalButton"),
+        filterStartDate: document.getElementById("filterStartDate"),
+        filterEndDate: document.getElementById("filterEndDate"),
+        filterButton: document.getElementById("filterButton"),
+        resetFilterButton: document.getElementById("resetFilterButton"),
+        summary: {
+          totalHours: document.getElementById("totalHours"),
+          totalOvertime: document.getElementById("totalOvertime"),
+          totalUndertime: document.getElementById("totalUndertime"),
+        },
+        filteredResults: document.getElementById("filtered-results"),
+        filteredListContainer: document.getElementById(
+          "filtered-list-container"
+        ),
+        payrollReport: document.getElementById("payroll-report"),
+        printButton: document.getElementById("printButton"),
+      };
+
+      // --- SECTION 1: UTILITY FUNCTIONS (ALL DEFINED FIRST) ---
+      const DateConverter = {
+        toGregorian: function (jy, jm, jd) {
+          let sal_a, gy, gm, gd, days;
+          jy += 1595;
+          days =
+            -355668 +
+            365 * jy +
+            ~~(jy / 33) * 8 +
+            ~~(((jy % 33) + 3) / 4) +
+            jd +
+            (jm < 7 ? (jm - 1) * 31 : (jm - 7) * 30 + 186);
+          gy = 400 * ~~(days / 146097);
+          days %= 146097;
+          if (days > 36524) {
+            gy += 100 * ~~(--days / 36524);
+            days %= 36524;
+            if (days >= 365) days++;
+          }
+          gy += 4 * ~~(days / 1461);
+          days %= 1461;
+          if (days > 365) {
+            gy += ~~((days - 1) / 365);
+            days = (days - 1) % 365;
+          }
+          gd = days + 1;
+          sal_a = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+          if ((gy % 4 === 0 && gy % 100 !== 0) || gy % 400 === 0) sal_a[2] = 29;
+          for (gm = 1; gm <= 12; gm++) {
+            if (gd <= sal_a[gm]) break;
+            gd -= sal_a[gm];
+          }
+          return [gy, gm, gd];
+        },
+        toJalaali: function (gy, gm, gd) {
+          let g_d_m, jy, jd, gy2, days;
+          g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+          gy2 = gm > 2 ? gy + 1 : gy;
+          days =
+            355666 +
+            365 * gy +
+            ~~((gy2 + 3) / 4) -
+            ~~((gy2 + 99) / 100) +
+            ~~((gy2 + 399) / 400) +
+            gd +
+            g_d_m[gm - 1];
+          jy = -1595 + 33 * ~~(days / 12053);
+          days %= 12053;
+          jy += 4 * ~~(days / 1461);
+          days %= 1461;
+          if (days > 365) {
+            jy += ~~((days - 1) / 365);
+            days = (days - 1) % 365;
+          }
+          let jm = days < 186 ? 1 + ~~(days / 31) : 7 + ~~((days - 186) / 30);
+          jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30);
+          return [jy, jm, jd];
+        },
+      };
+      function convertJalaliToGregorian(jalaliStr) {
+        if (!jalaliStr) return null;
+        const [jy, jm, jd] = jalaliStr.split("/").map(Number);
+        const [gy, gm, gd] = DateConverter.toGregorian(jy, jm, jd);
+        return `${gy}-${String(gm).padStart(2, "0")}-${String(gd).padStart(
+          2,
+          "0"
+        )}`;
+      }
+      function convertGregorianToJalali(dateString) {
+        if (!dateString) return "";
+        const [gy, gm, gd] = dateString.split("T")[0].split("-").map(Number);
+        const [jy, jm, jd] = DateConverter.toJalaali(gy, gm, gd);
+        return `${jy}/${String(jm).padStart(2, "0")}/${String(jd).padStart(
+          2,
+          "0"
+        )}`;
+      }
+      function formatDuration(minutes) {
+        if (isNaN(minutes) || minutes === null) return "00:00";
+        const sign = minutes < 0 ? "-" : "";
+        const absMinutes = Math.round(Math.abs(minutes));
+        return `${sign}${String(Math.floor(absMinutes / 60)).padStart(
+          2,
+          "0"
+        )}:${String(absMinutes % 60).padStart(2, "0")}`;
+      }
+      function timeToMinutes(timeStr) {
+        if (!timeStr) return 0;
+        const [h, m] = timeStr.split(":").map(Number);
+        return h * 60 + m;
+      }
+      function getDayName(gregorianDate) {
+        const dayNames = [
+          "یکشنبه",
+          "دوشنبه",
+          "سه‌شنبه",
+          "چهارشنبه",
+          "پنجشنبه",
+          "جمعه",
+          "شنبه",
+        ];
+        const date = new Date(gregorianDate + "T12:00:00Z");
+        return dayNames[date.getUTCDay()];
+      }
+      function getDailyWorkHours(gregorianDate) {
+        if (workDayRules[gregorianDate])
+          return parseFloat(workDayRules[gregorianDate].required_hours);
+        const date = new Date(gregorianDate + "T12:00:00Z");
+        const dayOfWeek = date.getUTCDay();
+        if (
+          officialEvents.some((e) => e.start === gregorianDate && e.isHoliday)
+        )
+          return 0;
+        if (dayOfWeek === 5) return 0;
+        if (dayOfWeek === 4)
+          return parseFloat(userSettings.thursday_work_hours || 4);
+        return parseFloat(userSettings.default_work_hours || 7.33);
+      }
+      function getWorkingDaysInMonth(year, month) {
+        const daysInMonth = new Date(year, month, 0).getDate();
+        let workingDays = 0;
+        for (let day = 1; day <= daysInMonth; day++) {
+          const isoDate = `${year}-${String(month).padStart(2, "0")}-${String(
+            day
+          ).padStart(2, "0")}`;
+          if (getDailyWorkHours(isoDate) > 0) {
+            workingDays++;
+          }
+        }
+        return workingDays;
+      }
+      function calculateDayTotals(entry) {
+        if (!entry.overall_start_time || !entry.overall_end_time) {
+          return { totalWorkDuration: 0 };
+        }
+        const overallStart = timeToMinutes(entry.overall_start_time);
+        const overallEnd = timeToMinutes(entry.overall_end_time);
+        let totalPresenceDuration = overallEnd - overallStart;
+        const lunchStart = timeToMinutes(userSettings.lunch_break_start);
+        const lunchEnd = timeToMinutes(userSettings.lunch_break_end);
+        if (
+          lunchStart < lunchEnd &&
+          overallStart < lunchEnd &&
+          overallEnd > lunchStart
+        ) {
+          const breakStartsAfterEntry = Math.max(overallStart, lunchStart);
+          const breakEndsBeforeEntry = Math.min(overallEnd, lunchEnd);
+          const overlap = breakEndsBeforeEntry - breakStartsAfterEntry;
+          if (overlap > 0) {
+            totalPresenceDuration -= overlap;
+          }
+        }
+        return { totalWorkDuration: Math.max(0, totalPresenceDuration) };
+      }
+
+      // --- SECTION 2: CORE APP LOGIC ---
+      document.addEventListener("DOMContentLoaded", checkSession);
+
+      async function checkSession() {
+        jalaliDatepicker.startWatch({
+          persianDigits: true,
+          time: false,
+          selector: "input[data-jdp]",
+        });
+        try {
+          const response = await fetch(`${API_URL}?action=get_session`);
+          const session = await response.json();
+          if (session.success && session.userId) {
+            DOM.usernameSpan.textContent = session.username;
+            initializeApp();
+          } else {
+            window.location.href = "./login.html";
+          }
+        } catch {
+          window.location.href = "./login.html";
+        }
+      }
+
+      async function initializeApp() {
+        await Promise.all([loadSettings(), loadRules(), loadOfficialEvents()]);
+        initializeCalendar();
+        await fetchAndRenderEntries();
+        setupEventListeners();
+      }
+
+      async function loadSettings() {
+        try {
+          const res = await fetch(`${API_URL}?action=get_settings`);
+          const result = await res.json();
+          if (result.success) userSettings = result.data;
+        } catch (err) {
+          console.error("Error loading settings:", err);
+        }
+      }
+      async function loadRules() {
+        try {
+          const res = await fetch(`${API_URL}?action=get_rules`);
+          const result = await res.json();
+          if (result.success) {
+            workDayRules = result.data.reduce((acc, rule) => {
+              acc[rule.rule_date] = rule;
+              return acc;
+            }, {});
+          }
+        } catch (err) {
+          console.error("Error loading rules:", err);
+        }
+      }
+      async function loadOfficialEvents() {
+        try {
+          const [holidaysRes, eventsRes] = await Promise.all([
+            fetch("./holidays.json"),
+            fetch("./all_events.json"),
+          ]);
+          const holidays = await holidaysRes.json();
+          const all_events = await eventsRes.json();
+          const eventMap = new Map();
+          [...all_events, ...holidays].forEach((event) => {
+            const key = event.gregorian_date_str;
+            const eventTitle = event.event_description
+              .replace(/\n/g, " ")
+              .trim();
+            if (!eventMap.has(key)) {
+              eventMap.set(key, {
+                titles: [eventTitle],
+                isHoliday: event.is_holiday,
+              });
+            } else {
+              eventMap.get(key).titles.push(eventTitle);
+              if (event.is_holiday) eventMap.get(key).isHoliday = true;
+            }
+          });
+          officialEvents = Array.from(eventMap.entries()).map(
+            ([date, data]) => ({
+              title: data.titles.join(" / "),
+              start: date,
+              allDay: true,
+              display: "list-item",
+              className: "holiday-event",
+              isHoliday: data.isHoliday,
+            })
+          );
+        } catch (error) {
+          console.error("Could not load calendar event files:", error);
+        }
+      }
+
+      function setupEventListeners() {
+        DOM.addTaskButton.addEventListener("click", () => addTaskRow());
+        DOM.saveEntryButton.addEventListener("click", handleSave);
+        DOM.deleteEntryButton.addEventListener("click", handleDelete);
+        DOM.closeModalButton.addEventListener("click", closeModal);
+        DOM.logoutButton.addEventListener("click", handleLogout);
+        DOM.filterButton.addEventListener("click", handleFilter);
+        DOM.resetFilterButton.addEventListener("click", handleResetFilter);
+        DOM.printButton.addEventListener("click", () => window.print());
+      }
+
+      // --- SECTION 3: CALENDAR ---
+      function initializeCalendar() {
+        DOM.loadingIndicator.style.display = "none";
+        calendar = new FullCalendar.Calendar(DOM.calendarEl, {
+          locale: "fa",
+          direction: "rtl",
+          firstDay: 6,
+          headerToolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,listWeek",
+          },
+          buttonText: {
+            today: "امروز",
+            month: "ماه",
+            week: "هفته",
+            day: "روز",
+            list: "لیست",
+          },
+          dayMaxEvents: true,
+          events: (fetchInfo, successCallback) => {
+            const userEvents = allEntries.map((entry) => {
+              const { totalWorkDuration } = calculateDayTotals(entry);
+              return {
+                id: entry.id,
+                title: `کارکرد: ${formatDuration(totalWorkDuration)}`,
+                start: entry.gregorian_date,
+                extendedProps: { ...entry },
+                className: "entry-event",
+              };
+            });
+            successCallback([
+              ...officialEvents.filter((e) => e.isHoliday),
+              ...userEvents,
+            ]);
+          },
+          dayCellDidMount: (arg) => {
+            const dateStr = arg.date.toISOString().split("T")[0];
+            const dayEvents = officialEvents.filter((e) => e.start === dateStr);
+            if (dayEvents.length > 0) {
+              arg.el.setAttribute(
+                "title",
+                dayEvents.map((e) => e.title).join("\n")
+              );
+              if (dayEvents.some((e) => e.isHoliday))
+                arg.el.classList.add("holiday-bg");
+            }
+          },
+          dateClick: (arg) => openModal(arg.dateStr),
+          eventClick: (arg) => {
+            if (arg.event.extendedProps.gregorian_date)
+              openModal(arg.event.extendedProps.gregorian_date, arg.event.id);
+          },
+          windowResize: (arg) => {
+            if (window.innerWidth < 768) {
+              calendar.changeView("listWeek");
+            } else {
+              calendar.changeView("dayGridMonth");
+            }
+          },
+        });
+        calendar.render();
+      }
+
+      // --- SECTION 4: DATA & API HANDLERS ---
+      async function fetchAndRenderEntries() {
+        try {
+          const response = await fetch(`${API_URL}?action=get_entries`);
+          if (response.status === 401)
+            return (window.location.href = "./login.html");
+          allEntries = await response.json();
+          calendar.refetchEvents();
+          calculateAndDisplaySummary(allEntries);
+        } catch (error) {
+          console.error("Error fetching entries:", error);
+        }
+      }
+      function openModal(dateStr, entryId = null) {
+        DOM.tasksContainer.innerHTML = "";
+        const gregorianDate = dateStr.split("T")[0];
+        DOM.entryDateInput.dataset.gregorianDate = gregorianDate;
+        DOM.modalTitle.textContent = `ثبت فعالیت‌های روز ${convertGregorianToJalali(
+          gregorianDate
+        )}`;
+        const entry = allEntries.find((e) => e.id == entryId);
+        if (entry) {
+          DOM.deleteEntryButton.style.display = "block";
+          DOM.overallStartTime.value = entry.overall_start_time || "";
+          DOM.overallEndTime.value = entry.overall_end_time || "";
+          if (entry.tasks && entry.tasks.length > 0) {
+            entry.tasks.forEach((task) => addTaskRow(task));
+          } else {
+            addTaskRow();
+          }
+        } else {
+          DOM.deleteEntryButton.style.display = "none";
+          DOM.overallStartTime.value = "";
+          DOM.overallEndTime.value = "";
+          addTaskRow();
+        }
+        DOM.entryModal.style.display = "flex";
+      }
+      function closeModal() {
+        DOM.entryModal.style.display = "none";
+      }
+      function addTaskRow(task = {}) {
+        const template = document.getElementById("task-template");
+        const clone = template.firstElementChild.cloneNode(true);
+        clone.querySelector('[name="start_time"]').value =
+          task.start_time || "";
+        clone.querySelector('[name="end_time"]').value = task.end_time || "";
+        clone.querySelector('[name="description"]').value =
+          task.description || "";
+        clone
+          .querySelector(".remove-task-btn")
+          .addEventListener("click", () => clone.remove());
+        DOM.tasksContainer.appendChild(clone);
+      }
+      async function handleSave() {
+        const tasks = [];
+        document.querySelectorAll(".task-row-mobile").forEach((row) => {
+          const start = row.querySelector('[name="start_time"]').value;
+          const end = row.querySelector('[name="end_time"]').value;
+          const desc = row.querySelector('[name="description"]').value;
+          if (start && end)
+            tasks.push({ start_time: start, end_time: end, description: desc });
+        });
+        const entryData = {
+          date: convertGregorianToJalali(
+            DOM.entryDateInput.dataset.gregorianDate
+          ),
+          gregorianDate: DOM.entryDateInput.dataset.gregorianDate,
+          overall_start_time: DOM.overallStartTime.value,
+          overall_end_time: DOM.overallEndTime.value,
+          tasks: tasks,
+        };
+        DOM.saveEntryButton.disabled = true;
+        try {
+          const response = await fetch(`${API_URL}?action=save_entry`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(entryData),
+          });
+          const result = await response.json();
+          if (!result.success) throw new Error(result.message || "خطا در سرور");
+          await fetchAndRenderEntries();
+          closeModal();
+        } catch (error) {
+          alert(`خطا در ذخیره سازی: ${error.message}`);
+        } finally {
+          DOM.saveEntryButton.disabled = false;
+        }
+      }
+      async function handleDelete() {
+        const entryId = allEntries.find(
+          (e) => e.gregorian_date === DOM.entryDateInput.dataset.gregorianDate
+        )?.id;
+        if (
+          entryId &&
+          confirm("آیا از حذف تمام ورودی‌های این روز اطمینان دارید؟")
+        ) {
+          try {
+            await fetch(`${API_URL}?action=delete_entry`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: entryId }),
+            });
+            await fetchAndRenderEntries();
+            closeModal();
+          } catch (error) {
+            alert(`خطا در حذف رکورد: ${error.message}`);
+          }
+        }
+      }
+      async function handleLogout() {
+        try {
+          await fetch(`${API_URL}?action=logout`);
+        } catch (error) {
+          console.error("Logout failed:", error);
+        } finally {
+          window.location.href = "./login.html";
+        }
+      }
+
+      // --- SECTION 5: REPORTING ---
+      function handleFilter() {
+        const startDate = DOM.filterStartDate.value;
+        const endDate = DOM.filterEndDate.value;
+        if (!startDate || !endDate) {
+          alert("لطفا هر دو تاریخ شروع و پایان را برای فیلتر مشخص کنید.");
+          return;
+        }
+        const filtered = allEntries.filter(
+          (e) => e.jalali_date >= startDate && e.jalali_date <= endDate
+        );
+        renderFilteredList(filtered);
+        calculateAndDisplaySummary(filtered);
+        const startYearJalali = parseInt(startDate.split("/")[0], 10);
+        const startMonthJalali = parseInt(startDate.split("/")[1], 10);
+        const [gYear, gMonth] = DateConverter.toGregorian(
+          startYearJalali,
+          startMonthJalali,
+          1
+        );
+        calculateAndDisplayPayroll(filtered, gMonth, gYear);
+        DOM.filteredResults.style.display = "block";
+        if (window.innerWidth < 768) {
+          document.querySelector('.mobile-tab[data-tab="reports"]').click();
+        }
+      }
+      function handleResetFilter() {
+        DOM.filterStartDate.value = "";
+        DOM.filterEndDate.value = "";
+        DOM.filteredResults.style.display = "none";
+        calculateAndDisplaySummary(allEntries);
+      }
+      function calculateAndDisplaySummary(entries) {
+        let totalMinutes = 0,
+          totalOvertimeMinutes = 0,
+          totalUndertimeMinutes = 0;
+        entries.forEach((entry) => {
+          const { totalWorkDuration } = calculateDayTotals(entry);
+          const requiredHours = getDailyWorkHours(entry.gregorian_date);
+          const overtime = totalWorkDuration / 60 - requiredHours;
+          totalMinutes += totalWorkDuration;
+          if (overtime >= 0) totalOvertimeMinutes += overtime * 60;
+          else totalUndertimeMinutes += Math.abs(overtime * 60);
+        });
+        DOM.summary.totalHours.textContent = formatDuration(totalMinutes);
+        DOM.summary.totalOvertime.textContent =
+          formatDuration(totalOvertimeMinutes);
+        DOM.summary.totalUndertime.textContent = formatDuration(
+          totalUndertimeMinutes
+        );
+      }
+      function calculateAndDisplayPayroll(entries, month, year) {
+        const baseSalary = parseFloat(userSettings.base_salary) || 0;
+        const housingAllowance =
+          parseFloat(userSettings.housing_allowance) || 0;
+        const foodAllowance = parseFloat(userSettings.food_allowance) || 0;
+        const workingDaysInMonth = getWorkingDaysInMonth(year, month);
+        const monthlyRequiredHours =
+          workingDaysInMonth * (WEEKLY_REQUIRED_HOURS / 6);
+        const hourlyRate =
+          baseSalary > 0 && monthlyRequiredHours > 0
+            ? baseSalary / monthlyRequiredHours
+            : 0;
+        let totalWorkMinutes = 0;
+        entries.forEach((entry) => {
+          const { totalWorkDuration } = calculateDayTotals(entry);
+          totalWorkMinutes += totalWorkDuration;
+        });
+        const totalOvertimeMinutes = Math.max(
+          0,
+          totalWorkMinutes - monthlyRequiredHours * 60
+        );
+        const totalUndertimeMinutes = Math.max(
+          0,
+          monthlyRequiredHours * 60 - totalWorkMinutes
+        );
+        const overtimePay =
+          (totalOvertimeMinutes / 60) *
+          hourlyRate *
+          (parseFloat(userSettings.overtime_rate) || 1.4);
+        const undertimeDeduction = (totalUndertimeMinutes / 60) * hourlyRate;
+        const finalSalary =
+          baseSalary +
+          housingAllowance +
+          foodAllowance +
+          overtimePay -
+          undertimeDeduction;
+        DOM.payrollReport.innerHTML = `<div class="p-2 bg-gray-50 rounded-lg"><strong>حقوق پایه:</strong> <span class="font-mono">${baseSalary.toLocaleString(
+          "fa-IR"
+        )}</span> ریال</div><div class="p-2 bg-gray-50 rounded-lg"><strong>حق مسکن و خواربار:</strong> <span class="font-mono">${(
+          housingAllowance + foodAllowance
+        ).toLocaleString(
+          "fa-IR"
+        )}</span> ریال</div><div class="p-2 bg-gray-50 rounded-lg"><strong>ساعات موظفی ماه:</strong> <span class="font-mono">${monthlyRequiredHours.toFixed(
+          2
+        )}</span> ساعت</div><div class="p-2 bg-gray-50 rounded-lg"><strong>نرخ هر ساعت عادی:</strong> <span class="font-mono">${Math.round(
+          hourlyRate
+        ).toLocaleString(
+          "fa-IR"
+        )}</span> ریال</div><div class="p-2 bg-green-50 rounded-lg text-green-800"><strong>مبلغ اضافه کاری:</strong> <span class="font-mono">${Math.round(
+          overtimePay
+        ).toLocaleString(
+          "fa-IR"
+        )}</span> ریال</div><div class="p-2 bg-red-50 rounded-lg text-red-800"><strong>مبلغ کسر کار:</strong> <span class="font-mono">${Math.round(
+          undertimeDeduction
+        ).toLocaleString(
+          "fa-IR"
+        )}</span> ریال</div><div class="p-2 bg-blue-100 rounded-lg col-span-1 md:col-span-2 text-center text-base md:text-lg font-bold"><strong>حقوق نهایی (تقریبی):</strong> <span class="font-mono">${Math.round(
+          finalSalary
+        ).toLocaleString("fa-IR")}</span> ریال</div>`;
+      }
+      function renderFilteredList(entries) {
+        DOM.filteredListContainer.innerHTML = "";
+        entries.sort(
+          (a, b) => new Date(a.gregorian_date) - new Date(b.gregorian_date)
+        );
+        entries.forEach((entry) => {
+          const { totalWorkDuration } = calculateDayTotals(entry);
+          const requiredHours = getDailyWorkHours(entry.gregorian_date);
+          const overtime = totalWorkDuration / 60 - requiredHours;
+          const overtimeClass =
+            overtime >= 0 ? "text-green-600" : "text-red-600";
+          const dayName = getDayName(entry.gregorian_date);
+          const isHoliday = requiredHours === 0;
+          const rowClass = isHoliday ? "report-holiday-row" : "";
+          const tasksHtml = (entry.tasks || [])
+            .map(
+              (t) =>
+                `<li class="text-xs md:text-sm">${t.start_time.slice(
+                  0,
+                  5
+                )} - ${t.end_time.slice(0, 5)}: ${t.description || ""}</li>`
+            )
+            .join("");
+          const dayHtml = `<div class="border rounded-lg p-3 md:p-4 ${rowClass} text-xs md:text-sm"><div class="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-4 items-center font-bold border-b pb-2 mb-2"><div>${
+            entry.jalali_date
+          } (${dayName})</div><div>ورود: ${
+            entry.overall_start_time?.slice(0, 5) || "-"
+          } | خروج: ${
+            entry.overall_end_time?.slice(0, 5) || "-"
+          }</div><div class="md:text-center">ساعات کاری: ${formatDuration(
+            totalWorkDuration
+          )}</div><div class="${overtimeClass} md:text-center">اضافه/کسر کار: ${formatDuration(
+            overtime * 60
+          )}</div><div class="md:text-center">موظفی: ${requiredHours} ساعت</div></div><ul class="list-disc pr-4 md:pr-5 space-y-1">${
+            tasksHtml || "<li>هیچ وظیفه‌ای ثبت نشده.</li>"
+          }</ul></div>`;
+          DOM.filteredListContainer.innerHTML += dayHtml;
+        });
+      }
+    </script>
+  </body>
+</html>

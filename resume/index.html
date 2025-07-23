@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>رزومه لیلا بنی‌طباء خان‌آبادی</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <style>
+      :root {
+        --primary-color: #4a69bd; /* A slightly different blue */
+        --secondary-color: #e06c75; /* A complementary color */
+        --background-color: #f8f9fa;
+        --container-bg: #ffffff;
+        --text-color: #343a40;
+        --header-text-color: #ffffff;
+      }
+
+      body {
+        font-family: "Vazirmatn", sans-serif;
+        background-color: var(--background-color);
+        color: var(--text-color);
+        margin: 0;
+        padding: 0;
+        line-height: 1.8;
+        font-size: 16px;
+      }
+
+      .container {
+        max-width: 950px;
+        margin: 30px auto;
+        background-color: var(--container-bg);
+        padding: 40px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border-radius: 12px;
+      }
+
+      .header {
+        text-align: center;
+        padding: 30px;
+        background: linear-gradient(135deg, var(--primary-color), #6a89cc);
+        color: var(--header-text-color);
+        border-radius: 10px 10px 0 0;
+        margin: -40px -40px 30px -40px;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 2.5em;
+        font-weight: 700;
+      }
+
+      .header h2 {
+        margin: 10px 0 20px;
+        font-size: 1.2em;
+        font-weight: 400;
+        color: #e9ecef;
+      }
+
+      .contact-info {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px 30px;
+      }
+
+      .contact-info li {
+        font-size: 1em;
+        font-weight: 300;
+      }
+
+      .contact-info a,
+      .contact-info span {
+        color: var(--header-text-color);
+        text-decoration: none;
+        transition: color 0.3s;
+      }
+      .contact-info a:hover {
+        color: #f1c40f;
+      }
+
+      .contact-info i {
+        margin-left: 8px;
+      }
+
+      .section {
+        margin-bottom: 35px;
+      }
+
+      .section h3 {
+        font-size: 1.7em;
+        color: var(--primary-color);
+        border-bottom: 3px solid var(--secondary-color);
+        padding-bottom: 10px;
+        margin-bottom: 25px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+      }
+
+      .section h3 i {
+        margin-left: 15px;
+        font-size: 0.9em;
+      }
+
+      .section h4 {
+        font-size: 1.2em;
+        color: var(--text-color);
+        font-weight: 700;
+        margin-top: 25px;
+        margin-bottom: 15px;
+        padding-right: 15px;
+        border-right: 4px solid var(--primary-color);
+      }
+
+      ul {
+        padding-right: 20px;
+      }
+
+      li {
+        margin-bottom: 10px;
+      }
+      /* Added style for links within general list items if needed */
+      .section ul li a {
+        color: var(--primary-color); /* Theme color for links */
+        text-decoration: none;
+        font-weight: 500; /* Slightly bolder for emphasis */
+      }
+      .section ul li a:hover {
+        text-decoration: underline;
+        color: var(--secondary-color); /* Different color on hover */
+      }
+
+      .skills-list {
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .skills-list li {
+        background-color: #e9ecef;
+        padding: 8px 18px;
+        border-radius: 20px;
+        font-size: 0.95em;
+        color: var(--primary-color);
+        border: 1px solid #dee2e6;
+        margin-bottom: 0;
+      }
+
+      .language-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+      }
+      .language-item {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+      }
+      .language-item .title {
+        font-weight: 600;
+        font-size: 1.1em;
+        margin-bottom: 10px;
+      }
+      .language-skill {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 5px;
+      }
+      .stars {
+        color: #f1c40f;
+        direction: ltr; /* Stars should be LTR */
+      }
+      .stars .fa-star-half-alt {
+        color: #f1c40f;
+      }
+      .stars .far {
+        color: #bdc3c7;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          margin: 0;
+          padding: 20px;
+          border-radius: 0;
+          box-shadow: none;
+        }
+        .header {
+          padding: 25px;
+          margin: -20px -20px 20px -20px;
+          border-radius: 0;
+        }
+        .header h1 {
+          font-size: 2em;
+        }
+        .contact-info {
+          flex-direction: column;
+          gap: 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <h1>لیلا بنی‌طباء خان‌آبادی</h1>
+        <h2>
+          مدیر و مسئول اجرای انتشارات | مدرس، مترجم، ویراستار، اجراگر تئاتر
+        </h2>
+        <ul class="contact-info">
+          <li>
+            <a href="mailto:Banitaba.reira@gmail.com"
+              ><i class="fas fa-envelope"></i> Banitaba.reira@gmail.com</a
+            >
+          </li>
+          <li>
+            <a href="tel:09131946292"
+              ><i class="fas fa-phone"></i> 0913-194-6292</a
+            >
+          </li>
+          <li>
+            <span
+              ><i class="fab fa-whatsapp"></i> /
+              <i class="fab fa-telegram-plane"></i> واتساپ و تلگرام</span
+            >
+          </li>
+          <li>
+            <span><i class="fas fa-map-marker-alt"></i> تهران</span>
+          </li>
+        </ul>
+      </header>
+
+      <main>
+        <section class="section">
+          <h3><i class="fas fa-user-circle"></i> دربارۀ من</h3>
+          <ul>
+            <li>
+              مسئول انتشارات و سرویراستار با بیش از دوازده سال سابقه در
+              <a
+                href="https://www.iranketab.ir/publisher/1419-%D9%88%DB%8C%DA%98%D9%87-%D9%86%D8%B4%D8%B1"
+                target="_blank"
+                rel="noopener noreferrer"
+                >انتشارات ویژه‌نشر</a
+              >.
+            </li>
+            <li>
+              مسئول روابط عمومی، ادمین اینستاگرام و معاون اجرایی برگزاری
+              نمایشگا‌ه‌های بین‌المللی کتاب.
+            </li>
+            <li>
+              تولید محتوای متنی (بزرگ‌سال، کودک و نوجوان) با بیش از ده‌سال
+              سابقه.
+            </li>
+            <li>مترجم حوزۀ رمان بزرگسال، کودک‌ونوجوان و متون عمومی.</li>
+            <li>دو دوره مترجم شفاهی تیم غواصی در مالزی و تایلند.</li>
+            <li>
+              مربی و داور کاراته، مربی فیتنس و فعال در حوزه‌های محیط زیستی.
+            </li>
+          </ul>
+        </section>
+
+        <section class="section">
+          <h3><i class="fas fa-briefcase"></i> سوابق شغلی</h3>
+          <h4>سوابق مدیریتی، اجرایی و نظارت</h4>
+          <ul>
+            <li>
+              بیش از هشت سال نظارت بر مراحل انتشار کتاب، بولتن، و کاتالوگ در
+              <a
+                href="https://www.iranketab.ir/publisher/1419-%D9%88%DB%8C%DA%98%D9%87-%D9%86%D8%B4%D8%B1"
+                target="_blank"
+                rel="noopener noreferrer"
+                >انتشارات ویژه‌نشر</a
+              >.
+            </li>
+            <li>کارشناس انتخاب کتاب در حوزۀ کودک-نوجوان و رمان بزرگسال.</li>
+            <li>
+              شش دوره معاون غرفۀ نمایشگاه بین‌المللی کتاب تهران برای انتشارات
+              ویژه‌نشر (۱۳۹۶ تا ۱۴۰۳).
+            </li>
+            <li>
+              همکاری پاره‌وقت با روابط عمومی شهرداری منطقه ۱۲ تهران (تهیۀ گزارش
+              و بولتن).
+            </li>
+            <li>
+              تولید محتوا و ایده‌پرداز در جلسات حقوقی کانون وکلای اصفهان (۱۳۷۹
+              تا ۱۳۸۶).
+            </li>
+            <li>دبیر اجرایی مسابقات کشوری کاراته بانوان (سبک وادوریو).</li>
+            <li>
+              مجری و برگزارکنندۀ جلسات ادبی در فرهنگسرای اندیشۀ اصفهان
+              (۱۳۷۹-۱۳۸۲).
+            </li>
+            <li>مسئول دفتر وکالت و موسسۀ حقوقی (۱۳۷۸-۱۳۸۸).</li>
+          </ul>
+
+          <h4>سوابق تدریس، مربی‌گری و داوری</h4>
+          <ul>
+            <li>مدرس زبان انگلیسی در کمپ مادر و کودک پروین (۱۴۰۱ تا اکنون).</li>
+            <li>
+              معلم ادبیات، دستور زبان فارسی و انشا در مدارس غیرانتفاعی
+              (۱۳۸۷-۱۳۹۴).
+            </li>
+            <li>معلم زبان انگلیسی در موسسات و مدارس غیرانتفاعی (۱۳۸۷-۱۳۹۴).</li>
+            <li>مربی کاراتۀ کودک و بزرگ‌سال (۱۳۸۰-۱۳۸۶).</li>
+            <li>داور کاراته، سبک وادوریو (۱۳۸۲-۱۳۸۴).</li>
+          </ul>
+
+          <h4>سوابق نگارش، تولید محتوا و سرویراستاری</h4>
+          <ul>
+            <li>
+              ده‌ سال نظارت بر نگارش، تولید محتوا، سرویراستاری و نمونه‌خوانی
+              حرفه‌ای.
+            </li>
+            <li>
+              سرویراستار و نمونه‌خوان مجلۀ موفقیت و
+              <a
+                href="https://www.roshdmag.ir/fa/magsale/roshdmagsale"
+                target="_blank"
+                rel="noopener noreferrer"
+                >مجلات رشد</a
+              >
+              وزارت آموزش‌و‌پرورش (۱۳۹۲-۱۳۹۴).
+            </li>
+            <li>
+              ناظر و ویراستار بیش از صد عنوان کتاب ترجمه‌ای و تألیفی
+              (علوم‌تربیتی، روان‌شناسی، حقوقی، رمان و...).
+            </li>
+            <li>
+              ویراستار دورکار مجلۀ و انتشارات دانشگاه هنر اسلامی تبریز (۱۴۰۱).
+            </li>
+          </ul>
+        </section>
+
+        <section class="section">
+          <h3><i class="fas fa-book-open"></i> آثار چاپ‌شده</h3>
+          <ul>
+            <li>
+              ترجمۀ رمان
+              <a
+                href="https://ketabejam.com/product/%D9%81%D8%B1%D8%B3%D8%AA%D8%A7%D8%AF%D9%87/"
+                target="_blank"
+                rel="noopener noreferrer"
+                >«فرستاده»</a
+              >، چاپ ۱۴۰۱.
+            </li>
+            <li>
+              ترجمۀ کتاب
+              <a
+                href="https://jeihoon.net/product/%D8%A2%D8%B4%D8%AA%DB%8C-%D8%A8%D8%A7-%D8%AE%D9%88%D8%AF-(%D8%A7%D9%84%D8%AA%DB%8C%D8%A7%D9%85-%DA%A9%D9%88%D8%AF%DA%A9-%D8%AF%D8%B1%D9%88%D9%86)-283566"
+                target="_blank"
+                rel="noopener noreferrer"
+                >«آشتی با خود (التیام کودک درون)»</a
+              >، چاپ ۱۴۰۳.
+            </li>
+            <li>
+              ترجمۀ رمان
+              <a href="#" target="_blank" rel="noopener noreferrer">«باران»</a>
+              (در دست چاپ).
+            </li>
+            <li>
+              ترجمۀ کتاب
+              <a
+                href="https://www.iranketab.ir/book/159797-chimpanzee-politics"
+                target="_blank"
+                rel="noopener noreferrer"
+                >«سیاست شامپانزه‌ها»</a
+              >
+              (در دست چاپ - چاپ ۱۴۰۴ طبق نمونه دوم).
+            </li>
+            <li>
+              ترجمۀ کتاب
+              <a
+                href="https://pub.mirdashti.ir"
+                target="_blank"
+                rel="noopener noreferrer"
+                >«با موضوع صلح‌جویی میان نخستی‌ها»</a
+              >
+              (تحویل ناشر).
+            </li>
+            <li>
+              در حال ترجمۀ کتاب
+              <a href="#" target="_blank" rel="noopener noreferrer"
+                >«نظامی و ادبیات کلاسیک»</a
+              >.
+            </li>
+            <li>
+              مقالۀ چاپ‌شده در مجلۀ
+              <a
+                href="https://www.iranketab.ir/book/52204-farhang-ban"
+                target="_blank"
+                rel="noopener noreferrer"
+                >«فرهنگبان»</a
+              >
+              (مقاله «جمعیت نسوان وطن‌خواه ایران» طبق نمونه دوم) و چندین
+              <a href="#" target="_blank" rel="noopener noreferrer"
+                >داستان کوتاه</a
+              >
+              در مجلات ادبی دانشگاهی.
+            </li>
+            <li>
+              <a
+                href="https://www.adinehbook.com/author-%D9%84%DB%8C%D9%84%D8%A7-%D8%A8%D9%86%DB%8C-%D8%B7%D8%A8%D8%A7"
+                target="_blank"
+                rel="noopener noreferrer"
+                ><strong>دیگر کارهای ویراستاری و ترجمه</strong></a
+              >
+            </li>
+          </ul>
+        </section>
+
+        <section class="section">
+          <h3><i class="fas fa-graduation-cap"></i> سوابق تحصیلی</h3>
+          <ul>
+            <li>
+              <strong>کارشناسی ارشد زبان و ادبیات فارسی،</strong> دانشگاه دولتی
+              کاشان
+            </li>
+            <li>
+              <strong>کارشناسی زبان و ادبیات فارسی،</strong> دانشگاه اصفهان
+            </li>
+            <li>
+              <strong>احراز کد استادی ۱۶ رقمی،</strong> دانشگاه علمی-کاربردی
+            </li>
+          </ul>
+        </section>
+
+        <section class="section">
+          <h3><i class="fas fa-cogs"></i> مهارت‌ها</h3>
+          <ul class="skills-list">
+            <li>مدیریت (Management)</li>
+            <li>رهبری (Leadership)</li>
+            <li>فن بیان و سخنوری</li>
+            <li>تایپ سرعتی (فارسی و انگلیسی)</li>
+            <li>نگارش و گزارش‌نویسی</li>
+            <li>خلاصه‌نویسی و بازنویسی</li>
+            <li>داستان‌سرایی</li>
+            <li>ICDL</li>
+            <li>Microsoft Excel</li>
+            <li>ایندیزاین (متوسط)</li>
+            <li>وردپرس (مقدماتی)</li>
+            <li>پژوهشگری</li>
+          </ul>
+        </section>
+
+        <section class="section">
+          <h3><i class="fas fa-language"></i> زبان</h3>
+          <div class="language-grid">
+            <div class="language-item">
+              <div class="title">English</div>
+              <div class="language-skill">
+                <span>مهارت خواندن (Reading)</span>
+                <span class="stars"
+                  ><i class="fas fa-star"></i><i class="fas fa-star"></i
+                  ><i class="fas fa-star"></i><i class="fas fa-star"></i
+                  ><i class="fas fa-star"></i
+                ></span>
+              </div>
+              <div class="language-skill">
+                <span>مهارت نوشتن (Writing)</span>
+                <span class="stars"
+                  ><i class="fas fa-star"></i><i class="fas fa-star"></i
+                  ><i class="fas fa-star"></i
+                  ><i class="fas fa-star-half-alt"></i
+                  ><i class="far fa-star"></i
+                ></span>
+              </div>
+              <div class="language-skill">
+                <span>مهارت صحبت کردن (Speaking)</span>
+                <span class="stars"
+                  ><i class="fas fa-star"></i><i class="fas fa-star"></i
+                  ><i class="fas fa-star"></i><i class="fas fa-star"></i
+                  ><i class="fas fa-star-half-alt"></i
+                ></span>
+              </div>
+              <div class="language-skill">
+                <span>مهارت شنیداری (Listening)</span>
+                <span class="stars"
+                  ><i class="fas fa-star"></i><i class="fas fa-star"></i
+                  ><i class="fas fa-star"></i><i class="fas fa-star"></i
+                  ><i class="fas fa-star-half-alt"></i
+                ></span>
+              </div>
+            </div>
+            <div class="language-item">
+              <div class="title">زبان عربی</div>
+              <div class="language-skill">
+                <span>سطح آشنایی</span> <span class="stars">مبتدی</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h3><i class="fas fa-certificate"></i> دوره‌ها و گواهینامه‌ها</h3>
+          <ul>
+            <li>چهار دوره «نوشتن خلاق».</li>
+            <li>
+              مدرک ویراستاری و نمونه‌خوانی از جهاد دانشگاهی تهران (استاد علی
+              صلح‌جو).
+            </li>
+            <li>مدرک دورۀ ویراستاری از وزارت آموزش‌و‌پرورش.</li>
+            <li>
+              کارگاه ترجمۀ جهاد دانشگاهی و نشر چشمه (استاد اسدالله امرایی).
+            </li>
+            <li>دورۀ آموزشی برگزاری همایش‌ها و سمینارها با رویکرد نشر.</li>
+          </ul>
+        </section>
+
+        <section class="section">
+          <h3>
+            <i class="fas fa-lightbulb"></i> ایده‌ها و پروژه‌های داوطلبانه
+          </h3>
+          <ul>
+            <li>
+              ایده‌پرداز و مدیر پروژه «آموزش زبان انگلیسی به زنان خانه‌دار».
+            </li>
+            <li>
+              همکاری با پروژه «باسوادسازی و آموزش کودکان کار» در خانه علم
+              دروازه‌غار.
+            </li>
+            <li>
+              مسئول پروژۀ «توانمندسازی مادران نوجوان‌سالِ کودکان کار» در جمعیت
+              امام علی(ع).
+            </li>
+            <li>
+              ایده‌پرداز و اجراگر «توانمندسازی و احیای روحیۀ زنان آسیب‌دیده» در
+              کمپ ترک اعتیاد.
+            </li>
+          </ul>
+        </section>
+
+        <section class="section">
+          <h3><i class="fas fa-theater-masks"></i> سوابق هنری</h3>
+          <ul>
+            <li>
+              بازیگر تئاتر-پرفورمنس
+              <a href="#" target="_blank" rel="noopener noreferrer"
+                >«هملت و آب‌نبات چوبی»</a
+              >، تهران، ۱۳۹۲.
+            </li>
+            <li>
+              یک‌ماه اجرا در تئاتر شهر، اثر
+              <a
+                href="https://www.tiwall.com/p/aziz.shangal"
+                target="_blank"
+                rel="noopener noreferrer"
+                >«عزیز شنگال»</a
+              >، به کارگردانی قطب‌الدین صادقی، ۱۳۹۳.
+            </li>
+            <li>
+              بازیگرتئاتر
+              <a
+                href="https://www.instagram.com/p/C2EkrYfNeW9/?utm_source=ig_web_copy_link"
+                target="_blank"
+                rel="noopener noreferrer"
+                >«زلف بر باد بده»</a
+              >، تهران، ۱۳۹۴.
+            </li>
+            <li>
+              اجرای تئاتر پرفورمنس
+              <a
+                href="https://www.tiwall.com/p/lotfanbeinsibdastbezanid"
+                target="_blank"
+                rel="noopener noreferrer"
+                >«لطفاً به این سیب دست بزنید»</a
+              >، تهران ۱۳۹۵.
+            </li>
+            <li>
+              جشنواره کات‌آپ دگره، پرفورمنس
+              <a
+                href="https://www.instagram.com/p/C2EkrYfNeW9/?utm_source=ig_web_copy_link"
+                target="_blank"
+                rel="noopener noreferrer"
+                >«آناتومی فروپاشی بدن‌های شاعر»</a
+              >، ۱۴۰۲.
+            </li>
+          </ul>
+        </section>
+
+        <section class="section">
+          <h3><i class="fas fa-medal"></i> سوابق و افتخارات ورزشی</h3>
+          <ul>
+            <li>
+              <strong>رتبۀ سوم کشوری</strong> مسابقات کاراته بانوان، رشت، ۱۳۸۴.
+            </li>
+            <li>دان سه کاراته (سبک وادوریو) و مشکی تکواندو.</li>
+            <li>دارای مدرک مربی‌گری (درجه سه) و داوری کاراته (جاج C).</li>
+            <li>عضو تیم بسکتبال دانشگاه در دورۀ کارشناسی.</li>
+            <li>صعود به قلۀ دماوند و فعالیت‌های مستمر ورزشی (دوچرخه‌سواری).</li>
+          </ul>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

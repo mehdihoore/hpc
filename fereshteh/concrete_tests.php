@@ -1,6 +1,8 @@
 <?php
-// concrete_tests_manager.php (New Name)
-
+// concrete_tests.php (New Name)
+//ALTER TABLE concrete_tests ADD concrete_slump DECIMAL(5,1) NULL DEFAULT NULL AFTER production_date;
+//ALTER TABLE concrete_tests ADD panel_type VARCHAR(255) NULL DEFAULT NULL AFTER concrete_slump;
+//UPDATE concrete_tests SET panel_type = 'General' WHERE panel_type IS NULL OR panel_type = '';
 // --- Basic Setup, Dependencies, Session, Auth, DB Connection ---
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
@@ -38,6 +40,22 @@ try {
     die("خطا در اتصال به پایگاه داده پروژه.");
 }
 
+
+// --- NEW: Fetch Panel Types for the form dropdown ---
+$panel_types = [];
+try {
+    // Assuming 'hpc_panels' is the correct table name and 'type' is the column with panel names
+    $stmt_panels = $pdo->query("SELECT DISTINCT `type` FROM `hpc_panels` WHERE `type` IS NOT NULL AND `type` != '' ORDER BY `type` ASC");
+    $panel_types = $stmt_panels->fetchAll(PDO::FETCH_COLUMN);
+} catch (PDOException $e) {
+    logError("Failed to fetch panel types: " . $e->getMessage());
+    // The page can still load, but the dropdown will be empty. An error message might be useful.
+    $_SESSION['error_message'] = "خطا در بارگذاری انواع پنل.";
+}
+if (!in_array('General', $panel_types)) {
+    array_unshift($panel_types, 'General'); // Adds 'General' to the beginning of the array
+}
+
 // --- PHP Helper Functions ---
 
 function calculate_age($prod_g, $break_g)
@@ -60,7 +78,7 @@ function calculate_strength($force_kg, $dim_l, $dim_w)
     return ($force_kg * 9.80665) / ($dim_l * $dim_w);
 }
 // --- Define Upload Path ---
-define('UPLOAD_DIRT', 'uploads/concrete_tests/'); // Relative to current 
+define('UPLOAD_DIRT', 'uploads/concrete_tests/'); // Relative to current 
 
 if (!is_dir(__DIR__ . '/' . UPLOAD_DIRT)) {
     if (!mkdir(__DIR__ . '/' . UPLOAD_DIRT, 0775, true)) {
@@ -117,12 +135,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // --- Fetch form data ---
         $prod_jalali = toLatinDigitsPhp(trim($_POST['production_date'] ?? ''));
-        $record_ids = $_POST['record_id'] ?? [];     // Ensure this is receiving the array
+        // --- NEW: Get Panel Type and Slump ---
+        $panel_type = trim($_POST['panel_type'] ?? '');
+        $concrete_slump = filter_var($_POST['concrete_slump'] ?? null, FILTER_VALIDATE_FLOAT, ['options' => ['default' => null]]);
+
+        $record_ids = $_POST['record_id'] ?? [];      // Ensure this is receiving the array
         $sample_codes = $_POST['sample_code'] ?? []; // Ensure this is receiving the array
         $dims_l = $_POST['dimension_l'] ?? [];       // Ensure this is receiving the array
         $dims_w = $_POST['dimension_w'] ?? [];       // Ensure this is receiving the array
         $dims_h = $_POST['dimension_h'] ?? [];       // Ensure this is receiving the array
-        $forces_kg = $_POST['max_force_kg'] ?? [];     // Ensure this is receiving the array
+        $forces_kg = $_POST['max_force_kg'] ?? [];      // Ensure this is receiving the array
         error_log("[Save/Update Debug] POST data received: " . print_r($_POST, true));
         $errors = [];
         $prod_g = null;
@@ -156,6 +178,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors[] = "فرمت تاریخ تولید نامعتبر.";
             }
         }
+
+        // --- NEW: Validate Panel Type and Slump ---
+        if (empty($panel_type)) {
+            $errors[] = "نوع پنل الزامی است.";
+        }
+        if (isset($_POST['concrete_slump']) && $_POST['concrete_slump'] !== '' && ($concrete_slump === null || $concrete_slump < 0)) {
+            $errors[] = "مقدار اسلامپ نامعتبر است.";
+        }
+
+
         // Correct sample ages based on new requirement
         $sample_ages = [1, 1, 7, 28]; // Instant/1D (Calc), 1D (Manual), 7D (Manual), 28D (Manual)
         $num_samples = count($sample_ages);
@@ -240,10 +272,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
             try {
                 // Prepare statements (might need separate INSERT and UPDATE)
-                $sql_insert = "INSERT INTO concrete_tests (production_date, sample_code, break_date, sample_age_at_break, dimension_l, dimension_w, dimension_h, max_force_kg, compressive_strength_mpa, strength_1_day, strength_7_day, strength_28_day, user_id, is_rejected, rejection_reason, results_file_path) VALUES (:prod_date, :code, :break_date, :age, :dim_l, :dim_w, :dim_h, :force, :strength_mpa, :str1, :str7, :str28, :user_id, 0, NULL, NULL)";
+                // MODIFICATION: Added panel_type and concrete_slump to INSERT
+                $sql_insert = "INSERT INTO concrete_tests (production_date, panel_type, concrete_slump, sample_code, break_date, sample_age_at_break, dimension_l, dimension_w, dimension_h, max_force_kg, compressive_strength_mpa, strength_1_day, strength_7_day, strength_28_day, user_id, is_rejected, rejection_reason, results_file_path) VALUES (:prod_date, :panel_type, :slump, :code, :break_date, :age, :dim_l, :dim_w, :dim_h, :force, :strength_mpa, :str1, :str7, :str28, :user_id, 0, NULL, NULL)";
                 $stmt_insert = $pdo->prepare($sql_insert);
 
-                $sql_update = "UPDATE concrete_tests SET sample_code = :code, dimension_l = :dim_l, dimension_w = :dim_w, dimension_h = :dim_h, max_force_kg = :force, compressive_strength_mpa = :strength_mpa, strength_1_day = :str1, strength_7_day = :str7, strength_28_day = :str28, user_id = :user_id WHERE id = :id"; // Removed prod_date, break_date, age update
+                // MODIFICATION: Added panel_type and concrete_slump to UPDATE
+                $sql_update = "UPDATE concrete_tests SET panel_type = :panel_type, concrete_slump = :slump, sample_code = :code, dimension_l = :dim_l, dimension_w = :dim_w, dimension_h = :dim_h, max_force_kg = :force, compressive_strength_mpa = :strength_mpa, strength_1_day = :str1, strength_7_day = :str7, strength_28_day = :str28, user_id = :user_id WHERE id = :id"; // Removed prod_date, break_date, age update
                 $stmt_update = $pdo->prepare($sql_update);
 
                 $all_success = true;
@@ -271,11 +305,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $h = isset($dims_h[$i]) ? filter_var($dims_h[$i], FILTER_VALIDATE_FLOAT, ['options' => ['default' => null]]) : null;
                     $force = isset($forces_kg[$i]) ? filter_var($forces_kg[$i], FILTER_VALIDATE_FLOAT, ['options' => ['default' => null]]) : null;
 
-                    $strength_value = null;
-                    if ($l > 0 && $w > 0 && $force !== null && $force > 0) {
-                        $strength_value = calculate_strength($force, $l, $w);
-                    }
-
                     // Map strength to correct columns based on index
                     $strength_value = null;
                     if ($l > 0 && $w > 0 && $force !== null && $force > 0) {
@@ -294,7 +323,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($is_update_mode && $record_id > 0) { // <<< Use the validated $record_id
                         // --- UPDATE Existing Record ---
                         error_log("[Save/Update Debug] Updating record ID: $record_id for index $i with code: $code");
-                        $params_update = [':code' => $code, ':dim_l' => $l, ':dim_w' => $w, ':dim_h' => $h, ':force' => $force, ':strength_mpa' => $compressive_strength_for_db, ':str1' => $strength_1_val, ':str7' => $strength_7_val, ':str28' => $strength_28_val, ':user_id' => $user_id, ':id' => $record_id];
+                        // MODIFICATION: Bind new params
+                        $params_update = [':panel_type' => $panel_type, ':slump' => $concrete_slump, ':code' => $code, ':dim_l' => $l, ':dim_w' => $w, ':dim_h' => $h, ':force' => $force, ':strength_mpa' => $compressive_strength_for_db, ':str1' => $strength_1_val, ':str7' => $strength_7_val, ':str28' => $strength_28_val, ':user_id' => $user_id, ':id' => $record_id];
                         if (!$stmt_update->execute($params_update)) {
                             $all_success = false;
                             $errors[] = "Error updating {$code}.";
@@ -303,7 +333,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } elseif ((!$is_update_mode || ($is_update_mode && $record_id <= 0)) && !empty($code)) { // INSERT new record
                         // --- INSERT New Record (Only if code is provided and ID is missing/zero) ---
                         error_log("[Save/Update Debug] Inserting new record for index $i with code: $code");
-                        $params_insert = [':prod_date' => $prod_g, ':code' => $code, ':break_date' => $break_g, ':age' => $age, ':dim_l' => $l, ':dim_w' => $w, ':dim_h' => $h, ':force' => $force, ':strength_mpa' => $compressive_strength_for_db, ':str1' => $strength_1_val, ':str7' => $strength_7_val, ':str28' => $strength_28_val, ':user_id' => $user_id];
+                        // MODIFICATION: Bind new params
+                        $params_insert = [':prod_date' => $prod_g, ':panel_type' => $panel_type, ':slump' => $concrete_slump, ':code' => $code, ':break_date' => $break_g, ':age' => $age, ':dim_l' => $l, ':dim_w' => $w, ':dim_h' => $h, ':force' => $force, ':strength_mpa' => $compressive_strength_for_db, ':str1' => $strength_1_val, ':str7' => $strength_7_val, ':str28' => $strength_28_val, ':user_id' => $user_id];
                         if (!$stmt_insert->execute($params_insert)) {
                             $all_success = false;
                             $errors[] = "Error inserting {$code}.";
@@ -354,6 +385,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $break_jalali = toLatinDigitsPhp(trim($_POST['break_date'] ?? ''));
         $sample_code = trim($_POST['sample_code'] ?? ''); // Readonly
         // ... (fetch other fields: dim_l, dim_w, dim_h, force_kg, is_rejected, reason, str1, str7, str28) ...
+        // NEW: Fetch slump for single edit
+        $concrete_slump_single = filter_var($_POST['concrete_slump'] ?? null, FILTER_VALIDATE_FLOAT, ['options' => ['default' => null]]);
+
         $dim_l = filter_var($_POST['dimension_l'] ?? null, FILTER_VALIDATE_FLOAT, ['options' => ['default' => null]]);
         $dim_w = filter_var($_POST['dimension_w'] ?? null, FILTER_VALIDATE_FLOAT, ['options' => ['default' => null]]);
         $dim_h = filter_var($_POST['dimension_h'] ?? null, FILTER_VALIDATE_FLOAT, ['options' => ['default' => null]]);
@@ -379,6 +413,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // --- Validation ---
         $errors = [];
         if (empty($sample_code)) $errors[] = "کد نمونه الزامی.";
+        // NEW: Validate slump for single edit
+        if (isset($_POST['concrete_slump']) && $_POST['concrete_slump'] !== '' && ($concrete_slump_single === null || $concrete_slump_single < 0)) {
+            $errors[] = "مقدار اسلامپ نامعتبر است.";
+        }
         if ($prod_g_for_dir === null) $errors[] = "تاریخ تولید نامعتبر برای ساختار پوشه.";
         if (empty($prod_jalali) || !preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $prod_jalali)) $errors[] = "فرمت تاریخ تولید نامعتبر.";
         $prod_g = null;
@@ -517,11 +555,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // --- DB Update ---
         if (empty($errors)) {
-            $params = [':prod_date' => $prod_g, ':code' => $sample_code, ':break_date' => $break_g, ':age' => $age, ':dim_l' => $dim_l, ':dim_w' => $dim_w, ':dim_h' => $dim_h, ':force' => $force_kg, ':strength' => $strength, ':str1' => $strength_1, ':str7' => $strength_7, ':str28' => $strength_28, ':rejected' => $is_rejected, ':reason' => $reason, ':user_id' => $user_id,  ':id' => $id];
+            // MODIFICATION: Add slump to params
+            $params = [':slump' => $concrete_slump_single, ':prod_date' => $prod_g, ':code' => $sample_code, ':break_date' => $break_g, ':age' => $age, ':dim_l' => $dim_l, ':dim_w' => $dim_w, ':dim_h' => $dim_h, ':force' => $force_kg, ':strength' => $strength, ':str1' => $strength_1, ':str7' => $strength_7, ':str28' => $strength_28, ':rejected' => $is_rejected, ':reason' => $reason, ':user_id' => $user_id,  ':id' => $id];
             try {
-                $sql = "UPDATE concrete_tests SET production_date=:prod_date, sample_code=:code, break_date=:break_date, sample_age_at_break=:age, dimension_l=:dim_l, dimension_w=:dim_w, dimension_h=:dim_h, max_force_kg=:force, compressive_strength_mpa=:strength, strength_1_day=:str1, strength_7_day=:str7, strength_28_day=:str28, is_rejected=:rejected, rejection_reason=:reason,  user_id=:user_id WHERE id = :id"; // Added results_file_path
+                // MODIFICATION: Add slump to UPDATE query
+                $sql = "UPDATE concrete_tests SET concrete_slump = :slump, production_date=:prod_date, sample_code=:code, break_date=:break_date, sample_age_at_break=:age, dimension_l=:dim_l, dimension_w=:dim_w, dimension_h=:dim_h, max_force_kg=:force, compressive_strength_mpa=:strength, strength_1_day=:str1, strength_7_day=:str7, strength_28_day=:str28, is_rejected=:rejected, rejection_reason=:reason,  user_id=:user_id WHERE id = :id";
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute($params);
+
+                // NEW: Update slump for all other tests in the same batch (same date and panel type)
+                $stmt_get_batch_info = $pdo->prepare("SELECT production_date, panel_type FROM concrete_tests WHERE id = ?");
+                $stmt_get_batch_info->execute([$id]);
+                $batch_info = $stmt_get_batch_info->fetch(PDO::FETCH_ASSOC);
+
+                if ($batch_info) {
+                    $stmt_update_batch_slump = $pdo->prepare("UPDATE concrete_tests SET concrete_slump = ? WHERE production_date = ? AND panel_type = ?");
+                    $stmt_update_batch_slump->execute([$concrete_slump_single, $batch_info['production_date'], $batch_info['panel_type']]);
+                }
+
+
                 $_SESSION['success_message'] = "بروزرسانی شد.";
                 header('Location: ' . $_SERVER['PHP_SELF']);
                 exit();
@@ -728,17 +780,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit; // Stop script execution
     } elseif (isset($_POST['action']) && $_POST['action'] == 'lookup_date' && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
         ob_clean(); // << Keep this first
-        // header('Content-Type: application/json'); // << Temporarily comment out header for easier debugging if PHP errors output HTML
+        header('Content-Type: application/json'); // << Re-enabled
         $response = ['found' => false, 'records' => [], 'message' => 'Lookup started']; // Initial message
 
         try { // Wrap more code in try-catch
             $prod_jalali = toLatinDigitsPhp(trim($_POST['production_date'] ?? ''));
+            // NEW: Get panel_type for lookup
+            $panel_type = trim($_POST['panel_type'] ?? '');
             $prod_g = null;
-            error_log("[Lookup Debug] Received Jalali Date: '$prod_jalali'"); // Log received date
 
-            if (empty($prod_jalali) || !preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $prod_jalali)) {
-                $response['message'] = 'فرمت تاریخ نامعتبر.';
-                error_log("[Lookup Debug] Invalid Jalali Format.");
+            if (empty($prod_jalali) || !preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $prod_jalali) || empty($panel_type)) {
+                $response['message'] = 'تاریخ و نوع پنل برای جستجو الزامی است.';
                 echo json_encode($response);
                 exit; // Exit early
             }
@@ -749,34 +801,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $prod_g_arr = jalali_to_gregorian(intval($prod_p[0]), intval($prod_p[1]), intval($prod_p[2]));
                 if ($prod_g_arr) {
                     $prod_g = sprintf('%04d-%02d-%02d', $prod_g_arr[0], $prod_g_arr[1], $prod_g_arr[2]);
-                    error_log("[Lookup Debug] Converted Gregorian: '$prod_g'"); // Log converted date
-                } else {
-                    error_log("[Lookup Debug] jalali_to_gregorian failed.");
                 }
-            } else {
-                error_log("[Lookup Debug] Invalid Jalali parts count.");
             }
 
             if ($prod_g === null) {
                 $response['message'] = 'خطا در تبدیل تاریخ.';
-                error_log("[Lookup Debug] Gregorian date is null after conversion attempt.");
                 echo json_encode($response);
                 exit; // Exit early
             }
 
-            // Fetch ALL records for that date (up to 4), ordered by age
+            // MODIFICATION: Fetch ALL records for that date AND panel_type
             $sql = "SELECT * FROM concrete_tests
-                WHERE production_date = ?
-                ORDER BY sample_age_at_break ASC, id ASC
-                LIMIT 4"; // Limit just in case, but expect <= 4
+                    WHERE production_date = ? AND panel_type = ?
+                    ORDER BY sample_age_at_break ASC, id ASC
+                    LIMIT 4";
             $stmt = $pdo->prepare($sql);
-            $stmt->execute([$prod_g]);
+            // MODIFICATION: Bind both params
+            $stmt->execute([$prod_g, $panel_type]);
             $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $found_count = count($records);
-            error_log("[Lookup Debug] Found " . $found_count . " records for date " . $prod_g);
+            error_log("[Lookup Debug] Found " . $found_count . " records for date " . $prod_g . " and panel " . $panel_type);
 
-            $response['found'] = ($found_count > 0); // True if at least one exists
-            $responseData = ['record_id' => [], 'sample_code' => [], 'dimension_l' => [], 'dimension_w' => [], 'dimension_h' => [], 'max_force_kg' => []];
+            $response['found'] = ($found_count > 0);
+
+            // MODIFICATION: Add concrete_slump to the response
+            $responseData = [
+                'record_id' => [],
+                'sample_code' => [],
+                'dimension_l' => [],
+                'dimension_w' => [],
+                'dimension_h' => [],
+                'max_force_kg' => [],
+                'concrete_slump' => '' // Initialize slump
+            ];
+
+            // Get slump from the first record found
+            if ($found_count > 0) {
+                $responseData['concrete_slump'] = $records[0]['concrete_slump'];
+            }
+
             $sample_ages_lookup = [1, 1, 7, 28];
             $num_expected = count($sample_ages_lookup); // Should be 4
             $filled_indices = array_fill(0, $num_expected, false); // Track which slots are filled
@@ -831,8 +894,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $response['message'] = 'خطای داخلی سرور.';
         }
 
-        // Re-enable header before sending JSON
-        header('Content-Type: application/json');
         echo json_encode($response);
         exit; // CRUCIAL: stop script execution
         // --- Action: UPDATE BATCH ---
@@ -842,7 +903,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 // --- GET Request Handling ---
-// (Fetch records, handle edit state, filters - same as previous combined version)
 $form_data = $_SESSION['form_data'] ?? null;
 unset($_SESSION['form_data']);
 $edit_record = null;
@@ -872,12 +932,15 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
 $search_query = "";
 $search_params = [];
 $sql_conditions = [];
+// MODIFICATION: Add panel_type to filters
+$filter_panel_type = trim($_GET['filter_panel_type'] ?? '');
 $filter_rejected = $_GET['filter_rejected'] ?? '';
 $filter_sample_code = trim($_GET['filter_sample'] ?? '');
 $filter_age = trim($_GET['filter_age'] ?? '');
 $filter_date_from_j = trim($_GET['filter_date_from'] ?? '');
 $filter_date_to_j = trim($_GET['filter_date_to'] ?? '');
-error_log("Filters Received: DateFrom='$filter_date_from_j', DateTo='$filter_date_to_j', Sample='$filter_sample_code', Rejected='$filter_rejected'"); // DEBUG
+
+// Date From Filter
 if (!empty($filter_date_from_j)) {
     $jds = toLatinDigitsPhp($filter_date_from_j);
     $jp = explode('/', $jds);
@@ -886,9 +949,8 @@ if (!empty($filter_date_from_j)) {
         if ($ga) {
             $gs = sprintf('%04d-%02d-%02d', $ga[0], $ga[1], $ga[2]);
             if (DateTime::createFromFormat('Y-m-d', $gs)) {
-                $sql_conditions[] = "production_date >= ?"; // Add condition
-                $search_params[] = $gs;                  // Add corresponding parameter
-                error_log("Filter Added: production_date >= $gs");
+                $sql_conditions[] = "production_date >= ?";
+                $search_params[] = $gs;
             }
         }
     }
@@ -902,55 +964,51 @@ if (!empty($filter_date_to_j)) {
         if ($ga) {
             $gs = sprintf('%04d-%02d-%02d', $ga[0], $ga[1], $ga[2]);
             if (DateTime::createFromFormat('Y-m-d', $gs)) {
-                $sql_conditions[] = "production_date <= ?"; // Add condition
-                $search_params[] = $gs;                  // Add corresponding parameter
-                error_log("Filter Added: production_date <= $gs");
+                $sql_conditions[] = "production_date <= ?";
+                $search_params[] = $gs;
             }
         }
     }
 }
 // Sample Code Filter
 if (!empty($filter_sample_code)) {
-    $sql_conditions[] = "sample_code LIKE ?";       // Add condition
-    $search_params[] = "%" . $filter_sample_code . "%"; // Add corresponding parameter
-    error_log("Filter Added: sample_code LIKE '%$filter_sample_code%'");
+    $sql_conditions[] = "sample_code LIKE ?";
+    $search_params[] = "%" . $filter_sample_code . "%";
 }
-// << Age Filter >>
+// NEW: Panel Type Filter
+if (!empty($filter_panel_type)) {
+    $sql_conditions[] = "panel_type = ?";
+    $search_params[] = $filter_panel_type;
+}
+
+// Age Filter
 if ($filter_age !== '' && is_numeric($filter_age)) {
-    $sql_conditions[] = "sample_age_at_break = ?"; // Exact match for age
-    $search_params[] = intval($filter_age);        // Use integer value
-    error_log("Filter Added: sample_age_at_break = $filter_age");
-} elseif ($filter_age !== '') {
-    // Log if a non-empty, non-numeric value was passed for age
-    error_log("Invalid non-numeric value received for age filter: '$filter_age'");
+    $sql_conditions[] = "sample_age_at_break = ?";
+    $search_params[] = intval($filter_age);
 }
-// Rejected Status Filter - CORRECTED
+// Rejected Status Filter
 if ($filter_rejected === '0' || $filter_rejected === '1') {
-    $sql_conditions[] = "is_rejected = ?";          // CORRECT Condition
-    $search_params[] = intval($filter_rejected);   // CORRECT Parameter
-    error_log("Filter Added: is_rejected = $filter_rejected");
+    $sql_conditions[] = "is_rejected = ?";
+    $search_params[] = intval($filter_rejected);
 }
 
 // Combine conditions if any exist
 if (!empty($sql_conditions)) {
     $search_query = " WHERE " . implode(" AND ", $sql_conditions);
 }
-error_log("Final WHERE clause: $search_query");
-error_log("Final Params: " . print_r($search_params, true));
-// --- END CORRECTED Filter Logic ---
-// Fetch Records
+
+// --- Fetch Records ---
 try {
-    // Use the correct ORDER BY from previous step
-    $sql = "SELECT * FROM concrete_tests" . $search_query . " ORDER BY production_date DESC, sample_age_at_break ASC, id ASC";
+    // MODIFICATION: Changed ORDER BY to group by panel_type as well
+    $sql = "SELECT * FROM concrete_tests" . $search_query . " ORDER BY production_date DESC, panel_type ASC, sample_age_at_break ASC, id ASC";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($search_params); // Execute with the built parameters
     $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    error_log("Fetched " . count($records) . " records.");
 } catch (PDOException $e) {
     $_SESSION['error_message'] = "Error loading data.";
     $records = [];
 }
-// Prepare Edit Form Data
+// --- Prepare Edit Form Data ---
 $edit_prod_shamsi = '';
 $edit_break_shamsi = '';
 $edit_code = '';
@@ -966,26 +1024,31 @@ $edit_strength_1 = '';
 $edit_strength_7 = '';
 $edit_strength_28 = '';
 $edit_current_file_path = null;
+// NEW: Variable for slump in edit form
+$edit_slump = '';
+$edit_panel_type = '';
+
 if ($edit_id > 0) {
-    if ($edit_record && !$form_data) {
-        if ($edit_record && !$form_data) { // Fresh load for edit
-            $edit_prod_shamsi = gregorianToShamsi($edit_record['production_date']);
-            $edit_break_shamsi = gregorianToShamsi($edit_record['break_date']);
-            $edit_code = $edit_record['sample_code'];
-            $edit_l = $edit_record['dimension_l'];
-            $edit_w = $edit_record['dimension_w'];
-            $edit_h = $edit_record['dimension_h'];
-            $edit_force = $edit_record['max_force_kg'];
-            $edit_age = $edit_record['sample_age_at_break'];
-            $edit_strength = $edit_record['compressive_strength_mpa'];
-            $edit_rejected = $edit_record['is_rejected'];
-            $edit_reason = $edit_record['rejection_reason'];
-            $edit_strength_1 = $edit_record['strength_1_day'];
-            $edit_strength_7 = $edit_record['strength_7_day'];
-            $edit_strength_28 = $edit_record['strength_28_day'];
-            $edit_current_file_path = $edit_record['results_file_path'];
-        }
-    } elseif ($form_data) {
+    if ($edit_record && !$form_data) { // Fresh load for edit
+        $edit_prod_shamsi = gregorianToShamsi($edit_record['production_date']);
+        $edit_break_shamsi = gregorianToShamsi($edit_record['break_date']);
+        $edit_code = $edit_record['sample_code'];
+        $edit_l = $edit_record['dimension_l'];
+        $edit_w = $edit_record['dimension_w'];
+        $edit_h = $edit_record['dimension_h'];
+        $edit_force = $edit_record['max_force_kg'];
+        $edit_age = $edit_record['sample_age_at_break'];
+        $edit_strength = $edit_record['compressive_strength_mpa'];
+        $edit_rejected = $edit_record['is_rejected'];
+        $edit_reason = $edit_record['rejection_reason'];
+        $edit_strength_1 = $edit_record['strength_1_day'];
+        $edit_strength_7 = $edit_record['strength_7_day'];
+        $edit_strength_28 = $edit_record['strength_28_day'];
+        $edit_current_file_path = $edit_record['results_file_path'];
+        // NEW: Populate slump and panel type for edit form
+        $edit_slump = $edit_record['concrete_slump'];
+        $edit_panel_type = $edit_record['panel_type'];
+    } elseif ($form_data) { // Repopulate from failed POST
         $edit_prod_shamsi = $form_data['production_date'] ?? '';
         $edit_break_shamsi = $form_data['break_date'] ?? '';
         $edit_code = $form_data['sample_code'] ?? '';
@@ -999,6 +1062,8 @@ if ($edit_id > 0) {
         $edit_strength_7 = $form_data['strength_7_day'] ?? '';
         $edit_strength_28 = $form_data['strength_28_day'] ?? '';
         $edit_current_file_path = $form_data['current_file_path'] ?? null;
+        // NEW: Repopulate slump from failed POST
+        $edit_slump = $form_data['concrete_slump'] ?? '';
     }
 }
 
@@ -1725,38 +1790,31 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
 </head>
 
 <body>
-    <!-- Print-only Header -->
     <div id="print-header">
         <table id="print-header-table">
             <tr>
                 <td class="logo-left">
-                    <!-- Replace with your actual logo path -->
                     <img src="/assets/images/alumglass-farsi-logo-H40.png" alt="Logo Left" style="max-height: 40px; display: block;">
                 </td>
                 <td class="header-center">
-                    <!-- Use the user-defined header text -->
                     <?php echo nl2br(htmlspecialchars($print_settings['header'])); ?>
                 </td>
                 <td class="logo-right">
-                    <!-- Replace with your actual logo path -->
                     <img src="/assets/images/hotelfereshteh1.png" alt="Logo Right" style="max-height: 40px; display: block;">
                 </td>
             </tr>
         </table>
     </div>
-    <!-- Print-only Footer -->
     <div id="print-footer">
-        <!-- Footer Text Area -->
         <div class="footer-text-area">
             <?php echo nl2br(htmlspecialchars($print_settings['footer'])); ?>
             <div class="page-number-container">صفحه: <span class="page-number"></span> / <span class="total-pages"></span></div>
         </div>
 
-        <!-- Signature Area -->
-        <?php if (!empty($print_settings['signature_area'])): ?>
+        <?php if (!empty($print_settings['signature_area'])) : ?>
             <table id="print-signature-table">
                 <thead>
-                    <tr><?php echo $print_settings['signature_area']; // Output the TD cells directly as headers 
+                    <tr><?php echo $print_settings['signature_area']; // Output the TD cells directly as headers 
                         ?></tr>
                 </thead>
                 <tbody>
@@ -1785,21 +1843,21 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
             <div class="small text-muted">امروز: <?php echo htmlspecialchars($current_day . '، ' . $current_shamsi); ?></div>
         </div>
         <div id="messages">
-            <?php if (isset($_SESSION['success_message'])): ?>
+            <?php if (isset($_SESSION['success_message'])) : ?>
                 <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
                     <?php echo $_SESSION['success_message'];
                     unset($_SESSION['success_message']); ?>
                     <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             <?php endif; ?>
-            <?php if (isset($_SESSION['error_message'])): ?>
+            <?php if (isset($_SESSION['error_message'])) : ?>
                 <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
                     <?php echo $_SESSION['error_message'];
                     unset($_SESSION['error_message']); ?>
                     <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             <?php endif; ?>
-            <?php if (isset($_SESSION['warning_message'])): // Display warning messages too 
+            <?php if (isset($_SESSION['warning_message'])) : // Display warning messages too 
             ?>
                 <div class="alert alert-warning alert-dismissible fade show py-2" role="alert">
                     <?php echo $_SESSION['warning_message'];
@@ -1809,14 +1867,25 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
             <?php endif; ?>
         </div>
 
-        <!-- Search Card -->
         <div class="card search-card">
             <div class="card-header"><i class="bi bi-search me-2"></i>جستجو</div>
             <div class="card-body">
                 <form method="get" class="row g-2 align-items-end">
                     <div class="col-md"><label>تولید از:</label><input type="text" class="form-control form-control-sm datepicker" name="filter_date_from" value="<?php echo htmlspecialchars($filter_date_from_j); ?>"></div>
-                    <div class="col-md"><label>تولید تا:</label><input type="text" class="form-control form-control-sm datepicker"
-                            name="filter_date_to" value="<?php echo htmlspecialchars($filter_date_to_j); ?>"></div>
+                    <div class="col-md"><label>تولید تا:</label><input type="text" class="form-control form-control-sm datepicker" name="filter_date_to" value="<?php echo htmlspecialchars($filter_date_to_j); ?>"></div>
+
+                    <div class="col-md">
+                        <label>نوع پنل:</label>
+                        <select class="form-select form-select-sm" name="filter_panel_type">
+                            <option value="">همه</option>
+                            <?php foreach ($panel_types as $pt) : ?>
+                                <option value="<?php echo htmlspecialchars($pt); ?>" <?php echo ($filter_panel_type === $pt) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($pt); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
                     <div class="col-md">
                         <label>سن:</label>
                         <select class="form-select form-select-sm" name="filter_age">
@@ -1824,7 +1893,6 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                             <option value="1" <?php echo ($filter_age === '1') ? 'selected' : ''; ?>>1 روزه</option>
                             <option value="7" <?php echo ($filter_age === '7') ? 'selected' : ''; ?>>7 روزه</option>
                             <option value="28" <?php echo ($filter_age === '28') ? 'selected' : ''; ?>>28 روزه</option>
-                            <!-- Add other standard ages if needed -->
                         </select>
                     </div>
                     <div class="col-md"><label>وضعیت:</label><select class="form-select form-select-sm" name="filter_rejected">
@@ -1837,72 +1905,63 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                 </form>
             </div>
         </div>
-        <!-- Toggle Button for Input Forms -->
         <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-3">
             <button class="btn btn-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#inputFormsContainer" aria-expanded="false" aria-controls="inputFormsContainer" id="toggleFormBtn">
                 <i class="bi bi-plus-lg"></i> نمایش فرم ثبت / ویرایش
             </button>
         </div>
-        <!-- End Toggle Button -->
-        <!-- Input Forms Container (initially hidden) -->
         <div class="collapse" id="inputFormsContainer">
-            <?php if ($edit_id > 0): // --- SHOW SINGLE EDIT FORM --- 
+            <?php if ($edit_id > 0) : // --- SHOW SINGLE EDIT FORM --- 
             ?>
                 <div class="card single-edit-form">
-                    <div class="card-header"><i class="bi bi-pencil-square me-2"></i>ویرایش تست (<?php echo htmlspecialchars($edit_code); ?>)</div>
+                    <div class="card-header"><i class="bi bi-pencil-square me-2"></i>ویرایش تست (<?php echo htmlspecialchars($edit_code ?? ''); ?>)</div>
                     <div class="card-body">
                         <form id="singleEditForm" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']) . '?edit=' . $edit_id; ?>" method="post" class="needs-validation" novalidate enctype="multipart/form-data">
                             <input type="hidden" name="action" value="save_update">
                             <input type="hidden" name="id" value="<?php echo $edit_id; ?>">
                             <input type="hidden" name="current_file_path" value="<?php echo htmlspecialchars($edit_current_file_path ?? ''); ?>">
 
-                            <!-- Fields for editing single record (same as before) -->
-                            <!-- Row 1: Basic Info -->
                             <div class="row g-3 mb-3">
-                                <div class="col-md-6 col-lg-3"><label>تاریخ تولید:</label><input class="form-control form-control-sm" value="<?php echo htmlspecialchars($edit_prod_shamsi); ?>" readonly><input type="hidden" name="production_date" value="<?php echo htmlspecialchars($edit_prod_shamsi); ?>"></div>
-                                <div class="col-md-6 col-lg-3"><label>کد نمونه:</label><input class="form-control form-control-sm" value="<?php echo htmlspecialchars($edit_code); ?>" readonly><input type="hidden" name="sample_code" value="<?php echo htmlspecialchars($edit_code); ?>"></div>
-                                <div class="col-md-6 col-lg-3"><label>تاریخ شکست:</label><input type="text" class="form-control form-control-sm datepicker" name="break_date" value="<?php echo htmlspecialchars($edit_break_shamsi); ?>"></div>
-                                <div class="col-md-6 col-lg-3"><label>سن شکست:</label>
-                                    <div id="edit_sample_age_display" class="readonly-display"><?php echo htmlspecialchars($edit_age); ?></div>
+                                <div class="col-md-6 col-lg-2"><label>تاریخ تولید:</label><input class="form-control form-control-sm" value="<?php echo htmlspecialchars($edit_prod_shamsi ?? ''); ?>" readonly><input type="hidden" name="production_date" value="<?php echo htmlspecialchars($edit_prod_shamsi ?? ''); ?>"></div>
+                                <div class="col-md-6 col-lg-2"><label>نوع پنل:</label><input class="form-control form-control-sm" value="<?php echo htmlspecialchars($edit_panel_type ?? ''); ?>" readonly></div>
+                                <div class="col-md-6 col-lg-2"><label>اسلامپ:</label><input type="number" step="0.1" min="0" class="form-control form-control-sm" name="concrete_slump" value="<?php echo htmlspecialchars($edit_slump ?? ''); ?>"></div>
+                                <div class="col-md-6 col-lg-2"><label>کد نمونه:</label><input class="form-control form-control-sm" value="<?php echo htmlspecialchars($edit_code ?? ''); ?>" readonly><input type="hidden" name="sample_code" value="<?php echo htmlspecialchars($edit_code ?? ''); ?>"></div>
+                                <div class="col-md-6 col-lg-2"><label>تاریخ شکست:</label><input type="text" class="form-control form-control-sm datepicker" name="break_date" value="<?php echo htmlspecialchars($edit_break_shamsi ?? ''); ?>"></div>
+                                <div class="col-md-6 col-lg-2"><label>سن شکست:</label>
+                                    <div id="edit_sample_age_display" class="readonly-display"><?php echo htmlspecialchars($edit_age ?? ''); ?></div>
                                 </div>
                             </div>
-                            <!-- Row 2: Dimensions & Force -->
                             <div class="row g-3 mb-3">
                                 <div class="col-md-4 col-lg-2"><label>طول(mm):</label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm dimension-input" name="dimension_l" value="<?php echo htmlspecialchars($edit_l ?? ''); ?>"></div>
                                 <div class="col-md-4 col-lg-2"><label>عرض(mm):</label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm dimension-input" name="dimension_w" value="<?php echo htmlspecialchars($edit_w ?? ''); ?>"></div>
                                 <div class="col-md-4 col-lg-2"><label>ارتفاع(mm):</label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm dimension-input" name="dimension_h" value="<?php echo htmlspecialchars($edit_h ?? ''); ?>"></div>
-                                <div class="col-md-6 col-lg-3"><label>Fx max(kg):</label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm" name="max_force_kg" value="<?php echo htmlspecialchars($edit_force); ?>"></div>
+                                <div class="col-md-6 col-lg-3"><label>Fx max(kg):</label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm" id="edit_max_force_kg" name="max_force_kg" value="<?php echo htmlspecialchars($edit_force ?? ''); ?>"></div>
                                 <div class="col-md-6 col-lg-3"><label>مقاومت محاسبه (MPa):</label>
                                     <div id="edit_compressive_strength_display" class="readonly-display"><?php echo $edit_strength ? number_format((float)$edit_strength, 2) : ''; ?></div>
                                 </div>
                             </div>
-                            <!-- Row 3: Manual Strengths -->
                             <div class="row g-3 mb-3">
-                                <div class="col-md-4 col-lg-3"><label>مقاومت ثبت ۱ روزه(MPa):</label><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="strength_1_day" value="<?php echo htmlspecialchars($edit_strength_1); ?>"></div>
-                                <div class="col-md-4 col-lg-3"><label>مقاومت ثبت ۷ روزه(MPa):</label><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="strength_7_day" value="<?php echo htmlspecialchars($edit_strength_7); ?>"></div>
-                                <div class="col-md-4 col-lg-3"><label>مقاومت ثبت ۲۸ روزه(MPa):</label><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="strength_28_day" value="<?php echo htmlspecialchars($edit_strength_28); ?>"></div>
+                                <div class="col-md-4 col-lg-3"><label>مقاومت ثبت ۱ روزه(MPa):</label><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="strength_1_day" value="<?php echo htmlspecialchars($edit_strength_1 ?? ''); ?>"></div>
+                                <div class="col-md-4 col-lg-3"><label>مقاومت ثبت ۷ روزه(MPa):</label><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="strength_7_day" value="<?php echo htmlspecialchars($edit_strength_7 ?? ''); ?>"></div>
+                                <div class="col-md-4 col-lg-3"><label>مقاومت ثبت ۲۸ روزه(MPa):</label><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="strength_28_day" value="<?php echo htmlspecialchars($edit_strength_28 ?? ''); ?>"></div>
                             </div>
-                            <!-- Row 4: Rejection -->
                             <div class="row g-3 mb-3 align-items-end">
-                                <div class="col-md-6 col-lg-4"><label>دلیل مردودی:</label><input type="text" class="form-control form-control-sm" id="edit_rejection_reason" name="rejection_reason" value="<?php echo htmlspecialchars($edit_reason); ?>" <?php echo ($edit_rejected != 1) ? 'disabled' : ''; ?>>
+                                <div class="col-md-6 col-lg-4"><label>دلیل مردودی:</label><input type="text" class="form-control form-control-sm" id="edit_rejection_reason" name="rejection_reason" value="<?php echo htmlspecialchars($edit_reason ?? ''); ?>" <?php echo ($edit_rejected != 1) ? 'disabled' : ''; ?>>
                                     <div class="invalid-feedback small">...</div>
                                 </div>
                                 <div class="col-md-auto">
                                     <div class="form-check"><input class="form-check-input" type="checkbox" id="edit_is_rejected" name="is_rejected" value="1" <?php echo ($edit_rejected == 1) ? 'checked' : ''; ?>><label class="form-check-label">مردود؟</label></div>
                                 </div>
                             </div>
-                            <!-- Row 5: File Upload -->
                             <div class="row g-3 mb-1 align-items-center">
                                 <div class="col-md-6 col-lg-4">
                                     <label for="test_results_files_input" class="form-label">فایل(های) نتایج (PDF/Image/...):</label>
                                     <input type="file" class="form-control form-control-sm" id="test_results_files_input" name="test_results_files[]" accept=".pdf,.jpg,.jpeg,.png,.gif,.txt,.docx,.xlsx" multiple>
                                 </div>
                                 <div class="col-md-6 col-lg-4 pt-3">
-
                                     <span class="text-muted small">فایل‌های موجود در جدول اصلی قابل مشاهده/حذف هستند.</span>
                                 </div>
                             </div>
-
                             <div class="row g-3 mb-3">
                                 <div class="col-12">
                                     <div class="progress" id="uploadProgressBarContainer" style="display: none; height: 5px;">
@@ -1910,7 +1969,6 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                                     </div>
                                 </div>
                             </div>
-                            <!-- Row 6: Buttons -->
                             <div class="row mt-4">
                                 <div class="col-12 d-flex justify-content-start"> <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check-lg me-1"></i> ذخیره تغییرات</button> <a href="<?php echo htmlspecialchars(strtok($_SERVER["REQUEST_URI"], '?')); ?>" class="btn btn-secondary btn-sm ms-2"><i class="bi bi-x-lg me-1"></i> انصراف</a> </div>
                             </div>
@@ -1918,43 +1976,53 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                     </div>
                 </div>
 
-            <?php else: // --- SHOW BATCH INPUT FORM --- 
+            <?php else : // --- SHOW BATCH INPUT FORM --- 
             ?>
                 <div class="card edit-form">
-
                     <div class="card-header"><i class="bi bi-clipboard-plus-fill me-2"></i><span id="batchFormTitle">ثبت بچ جدید نمونه‌ها</span></div>
                     <div class="card-body">
                         <form id="batchTestForm" method="post" class="needs-validation" novalidate>
                             <input type="hidden" name="action" id="batchFormAction" value="save_batch">
-                            <div class="row g-3 mb-4">
+                            <div class="row g-3 mb-4 align-items-end">
                                 <div class="col-md-6 col-lg-3">
                                     <label for="production_date" class="form-label">تاریخ تولید بچ:*</label>
-                                    <input type="text" class="form-control form-control-sm datepicker" id="production_date" name="production_date" value="<?php /* ... value ... */ ?>" required autocomplete="off">
+                                    <input type="text" class="form-control form-control-sm datepicker" id="production_date" name="production_date" required autocomplete="off">
                                     <div class="invalid-feedback">تاریخ تولید الزامی است.</div>
                                 </div>
-                                <div class="col-md-6 col-lg-3 pt-3" id="batchDateStatus">
-
-                                    <span class="text-muted small">تاریخ جدید را انتخاب کنید یا تاریخ موجود را برای ویرایش وارد کنید.</span>
+                                <div class="col-md-6 col-lg-3">
+                                    <label for="panel_type" class="form-label">نوع پنل:*</label>
+                                    <select class="form-select form-select-sm" id="panel_type" name="panel_type" required>
+                                        <option value="" selected disabled>-- انتخاب کنید --</option>
+                                        <?php foreach ($panel_types as $pt) : ?>
+                                            <option value="<?php echo htmlspecialchars($pt); ?>"><?php echo htmlspecialchars($pt); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="invalid-feedback">نوع پنل الزامی است.</div>
+                                </div>
+                                <div class="col-md-6 col-lg-2">
+                                    <label for="concrete_slump" class="form-label">اسلامپ (cm):</label>
+                                    <input type="number" step="0.1" min="0" class="form-control form-control-sm" id="concrete_slump" name="concrete_slump">
+                                </div>
+                                <div class="col-md-6 col-lg-4" id="batchDateStatus">
+                                    <span class="text-muted small">تاریخ و نوع پنل را برای ثبت جدید یا ویرایش انتخاب کنید.</span>
                                 </div>
                             </div>
                             <?php
                             $sample_labels = ["نمونه آنی/۱ روزه", "نمونه ۱ روزه (دستی)", "نمونه ۷ روزه", "نمونه ۲۸ روزه"];
                             $num_samples_form = count($sample_labels);
-                            for ($i = 0; $i < $num_samples_form; $i++):
+                            for ($i = 0; $i < $num_samples_form; $i++) :
                                 $is_required = ($i < 2);
                                 $required_attr = $is_required ? 'required' : '';
-                                // We don't pre-populate from $form_data here anymore, JS will handle it
                             ?>
                                 <fieldset class="sample-input-row">
                                     <legend><?php echo $sample_labels[$i]; ?></legend>
-
                                     <input type="hidden" name="record_id[]" id="record_id_<?php echo $i; ?>" value="">
                                     <div class="row g-3">
-                                        <div class="col-md-6 col-lg-3"><label>کد نمونه:*</label><input type="text" class="form-control form-control-sm" name="sample_code[]" id="sample_code_<?php echo $i; ?>" value="" required></div>
-                                        <div class="col-md-6 col-lg-3"><label>Fx max(kg):<?php echo $is_required ? '*' : ''; ?></label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm" name="max_force_kg[]" id="max_force_kg_<?php echo $i; ?>" value="" <?php echo $required_attr; ?>></div>
-                                        <div class="col-md-4 col-lg-2"><label>طول(mm):<?php echo $is_required ? '*' : ''; ?></label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm dimension-input" name="dimension_l[]" id="dimension_l_<?php echo $i; ?>" value="" <?php echo $required_attr; ?>></div>
-                                        <div class="col-md-4 col-lg-2"><label>عرض(mm):<?php echo $is_required ? '*' : ''; ?></label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm dimension-input" name="dimension_w[]" id="dimension_w_<?php echo $i; ?>" value="" <?php echo $required_attr; ?>></div>
-                                        <div class="col-md-4 col-lg-2"><label>ارتفاع(mm):<?php echo $is_required ? '*' : ''; ?></label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm dimension-input" name="dimension_h[]" id="dimension_h_<?php echo $i; ?>" value="" <?php echo $required_attr; ?>></div>
+                                        <div class="col-md-6 col-lg-3"><label>کد نمونه:*</label><input type="text" class="form-control form-control-sm" name="sample_code[]" id="sample_code_<?php echo $i; ?>" required></div>
+                                        <div class="col-md-6 col-lg-3"><label>Fx max(kg):<?php echo $is_required ? '*' : ''; ?></label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm" name="max_force_kg[]" id="max_force_kg_<?php echo $i; ?>" <?php echo $required_attr; ?>></div>
+                                        <div class="col-md-4 col-lg-2"><label>طول(mm):<?php echo $is_required ? '*' : ''; ?></label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm dimension-input" name="dimension_l[]" id="dimension_l_<?php echo $i; ?>" <?php echo $required_attr; ?>></div>
+                                        <div class="col-md-4 col-lg-2"><label>عرض(mm):<?php echo $is_required ? '*' : ''; ?></label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm dimension-input" name="dimension_w[]" id="dimension_w_<?php echo $i; ?>" <?php echo $required_attr; ?>></div>
+                                        <div class="col-md-4 col-lg-2"><label>ارتفاع(mm):<?php echo $is_required ? '*' : ''; ?></label><input type="number" step="0.01" min="0.01" class="form-control form-control-sm dimension-input" name="dimension_h[]" id="dimension_h_<?php echo $i; ?>" <?php echo $required_attr; ?>></div>
                                     </div>
                                 </fieldset>
                             <?php endfor; ?>
@@ -1963,58 +2031,35 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                                     <button type="submit" class="btn btn-success btn-sm" id="batchSubmitButton">
                                         <i class="bi bi-check-lg me-1"></i> <span id="batchSubmitButtonText">ثبت <?php echo $num_samples_form; ?> نمونه</span>
                                     </button>
-                                    <button type="button" class="btn btn-secondary btn-sm ms-2" onclick="clearBatchForm()">پاک کردن فرم</button>
+                                    <button type="button" class="btn btn-secondary btn-sm ms-2" onclick="clearBatchForm(true)">پاک کردن فرم</button>
                                 </div>
                             </div>
                         </form>
                     </div>
                 </div>
-            <?php endif; // End conditional form display 
+            <?php endif; // End conditional form display 
             ?>
         </div>
 
-        <!-- Records Table Card -->
         <div class="card shadow-sm">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 h6"><i class="bi bi-table me-2"></i>لیست تست‌ها</h5>
                 <div class="d-flex align-items-center print-button-container">
                     <span class="badge bg-light text-dark border me-3">تعداد: <?php echo count($records); ?></span>
-
                     <?php
-                    // --- Create Links for Export & Print ---
-                    // Get current query string (filters)
                     $query_string = $_SERVER['QUERY_STRING'] ?? '';
-                    // Remove any existing 'edit' parameter if present
                     parse_str($query_string, $query_params);
-                    unset($query_params['edit']); // Don't carry edit state to export/print
+                    unset($query_params['edit']);
                     $filtered_query_string = http_build_query($query_params);
-
-                    // Base URLs
-                    $base_url = strtok($_SERVER["REQUEST_URI"], '?'); // Get URL without query string
-                    $print_page_url = 'concrete_tests_print.php'; // Assumes separate print page
-                    $excel_export_url = 'export_concrete_csv.php'; // CSV export script
-                    $pdf_export_url   = 'export_concrete_pdf.php'; // PDF export script
-
-                    // Append query string if filters exist
-                    if (!empty($filtered_query_string)) {
-                        $print_page_url .= '?' . $filtered_query_string;
-                        $excel_export_url .= '?' . $filtered_query_string;
-                        $pdf_export_url .= '?' . $filtered_query_string;
-                    }
+                    $print_page_url = 'concrete_tests_print.php?' . $filtered_query_string;
+                    $excel_export_url = 'export_concrete_csv.php?' . $filtered_query_string;
+                    $pdf_export_url   = 'export_concrete_pdf.php?' . $filtered_query_string;
                     ?>
-                    <!-- Export Buttons -->
                     <div class="btn-group btn-group-sm ms-2">
-                        <a href="<?php echo htmlspecialchars($excel_export_url); ?>" target="_blank" class="btn btn-outline-success" title="خروجی اکسل (CSV)">
-                            <i class="bi bi-file-earmark-excel me-1"></i> اکسل
-                        </a>
-                        <a href="<?php echo htmlspecialchars($pdf_export_url); ?>" target="_blank" class="btn btn-outline-danger" title="خروجی PDF">
-                            <i class="bi bi-file-earmark-pdf me-1"></i> PDF
-                        </a>
-                        <a href="<?php echo htmlspecialchars($print_page_url); ?>" target="_blank" class="btn btn-outline-secondary" title="باز کردن صفحه آماده چاپ">
-                            <i class="bi bi-printer me-1"></i> چاپ
-                        </a>
+                        <a href="<?php echo htmlspecialchars($excel_export_url); ?>" target="_blank" class="btn btn-outline-success" title="خروجی اکسل (CSV)"><i class="bi bi-file-earmark-excel me-1"></i> اکسل</a>
+                        <a href="<?php echo htmlspecialchars($pdf_export_url); ?>" target="_blank" class="btn btn-outline-danger" title="خروجی PDF"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</a>
+                        <a href="<?php echo htmlspecialchars($print_page_url); ?>" target="_blank" class="btn btn-outline-secondary" title="باز کردن صفحه آماده چاپ"><i class="bi bi-printer me-1"></i> چاپ</a>
                     </div>
-
                 </div>
             </div>
             <div class="card-body p-0">
@@ -2024,6 +2069,8 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                             <tr>
                                 <th class="action-buttons-th" style="width: 50px;">عملیات</th>
                                 <th style="width: 85px;">تاریخ تولید</th>
+                                <th style="min-width: 90px;">نوع پنل</th>
+                                <th style="width: 60px;">اسلامپ</th>
                                 <th style="min-width: 80px;">کد نمونه</th>
                                 <th style="width: 85px;">تاریخ شکست</th>
                                 <th style="width: 50px;">سن</th>
@@ -2034,29 +2081,29 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (empty($records)): ?>
+                            <?php if (empty($records)) : ?>
                                 <tr>
-                                    <td colspan="9" class="text-center text-muted py-3">رکوردی یافت نشد.</td>
+                                    <td colspan="11" class="text-center text-muted py-3">رکوردی یافت نشد.</td>
                                 </tr>
-                                <?php else:
-                                $current_prod_date_group = null;
-                                $group_records = []; // Temp array to hold records of the current group
-
-                                // Group records by production_date first
+                                <?php else :
+                                // MODIFICATION: Grouping logic now includes panel_type
                                 $grouped_records = [];
                                 foreach ($records as $record) {
-                                    $grouped_records[$record['production_date']][] = $record;
+                                    $group_key = $record['production_date'] . '___' . $record['panel_type']; // Use a unique separator
+                                    $grouped_records[$group_key][] = $record;
                                 }
 
-                                foreach ($grouped_records as $prod_date => $group_records):
+                                foreach ($grouped_records as $group_key => $group_records) :
                                     $row_count = count($group_records);
-                                    $first_row = true;
-                                    $associated_file = find_test_file($record['id'], $record['sample_code']);
-                                    foreach ($group_records as $record):
+                                    $first_row_in_group = true;
+                                    list($prod_date, $panel_type_group) = explode('___', $group_key);
+
+                                    foreach ($group_records as $record) :
                                         $row_class = $record['is_rejected'] ? 'table-danger' : '';
-                                        if ($first_row) {
+                                        if ($first_row_in_group) {
                                             $row_class .= ' group-start';
-                                        } // Add class to first row only
+                                        }
+                                        $associated_file = find_test_file($record['id'], $record['sample_code']);
                                 ?>
                                         <tr class="<?php echo $row_class; ?>">
                                             <td class="action-buttons-td align-middle">
@@ -2075,11 +2122,17 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                                                     ?>
                                                 </div>
                                             </td>
-                                            <?php if ($first_row): // Show production date spanning the group 
+                                            <?php if ($first_row_in_group) : // Show production date, panel type, and slump spanning the group
                                             ?>
                                                 <td class="align-middle" rowspan="<?php echo $row_count; ?>">
                                                     <?php $prod_shamsi = gregorianToShamsi($prod_date);
                                                     echo !empty($prod_shamsi) ? $prod_shamsi : '-'; ?>
+                                                </td>
+                                                <td class="align-middle" rowspan="<?php echo $row_count; ?>">
+                                                    <?php echo htmlspecialchars($panel_type_group); ?>
+                                                </td>
+                                                <td class="align-middle" rowspan="<?php echo $row_count; ?>">
+                                                    <?php echo htmlspecialchars($record['concrete_slump'] ?? '-'); ?>
                                                 </td>
                                             <?php endif; ?>
                                             <td><?php echo htmlspecialchars($record['sample_code']); ?></td>
@@ -2091,7 +2144,6 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                                                 <?php // Display the relevant strength based on age
                                                 $display_strength = '-';
                                                 if ($record['sample_age_at_break'] == 1) {
-                                                    // For age 1, prioritize strength_1_day if available, else compressive_strength_mpa
                                                     if ($record['strength_1_day'] !== null) {
                                                         $display_strength = "<div style='border-bottom: 1px solid black; font-weight: bold;'>مقاومت 1 روزه</div><div>" . number_format((float)$record['strength_1_day'], 2) . "</div>";
                                                     } elseif ($record['compressive_strength_mpa'] !== null) {
@@ -2102,23 +2154,18 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                                                 } elseif ($record['sample_age_at_break'] == 28 && $record['strength_28_day'] !== null) {
                                                     $display_strength = "<div style='border-bottom: 1px solid black; font-weight: bold;'>مقاومت 28 روزه</div><div>" . number_format((float)$record['strength_28_day'], 2) . "</div>";
                                                 } elseif ($record['compressive_strength_mpa'] !== null) {
-                                                    // Fallback to compressive_strength_mpa if specific age strength is null
                                                     $display_strength = "<div style='border-bottom: 1px solid black; font-weight: bold;'>" . number_format((float)$record['compressive_strength_mpa'], 2) . "</div>";
                                                 }
                                                 echo $display_strength;
                                                 ?>
                                             </td>
                                             <td class="manage-files-td align-middle">
-                                                <button type="button" class="btn btn-info btn-sm"
-                                                    onclick="openFileManagerModal('<?php echo $record['production_date']; ?>', '<?php echo htmlspecialchars(addslashes($record['sample_code']), ENT_QUOTES); ?>')"
-                                                    title="مشاهده و مدیریت فایل‌ها">
-                                                    <i class="bi bi-folder2-open"></i>
-                                                </button>
+                                                <button type="button" class="btn btn-info btn-sm" onclick="openFileManagerModal('<?php echo $record['production_date']; ?>', '<?php echo htmlspecialchars(addslashes($record['sample_code']), ENT_QUOTES); ?>')" title="مشاهده و مدیریت فایل‌ها"><i class="bi bi-folder2-open"></i></button>
                                             </td>
-                                            <td> <?php if ($record['is_rejected']): ?> <span class="badge bg-danger" <?php if (!empty($record['rejection_reason'])) echo 'data-bs-toggle="tooltip" title="' . htmlspecialchars($record['rejection_reason']) . '"'; ?>> مردود <?php if (!empty($record['rejection_reason'])): ?> <i class="bi bi-info-circle ms-1"></i> <?php endif; ?> </span> <?php else: ?> <span class="badge bg-success">قبول</span> <?php endif; ?> </td>
+                                            <td> <?php if ($record['is_rejected']) : ?> <span class="badge bg-danger" <?php if (!empty($record['rejection_reason'])) echo 'data-bs-toggle="tooltip" title="' . htmlspecialchars($record['rejection_reason']) . '"'; ?>> مردود <?php if (!empty($record['rejection_reason'])) : ?> <i class="bi bi-info-circle ms-1"></i> <?php endif; ?> </span> <?php else : ?> <span class="badge bg-success">قبول</span> <?php endif; ?> </td>
                                         </tr>
                             <?php
-                                        $first_row = false; // Mark first row as done for the group
+                                        $first_row_in_group = false;
                                     endforeach; // End loop through records in the group
                                 endforeach; // End loop through grouped dates
                             endif; // End if empty records
@@ -2131,10 +2178,6 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
         <form id="deleteRecordForm" method="POST" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" style="display: none;">
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="id" id="deleteRecordIdInput" value="">
-            <?php // Optional: Add CSRF token if your POST handling requires it 
-            ?>
-            <!-- <input type="hidden" name="csrf_token" value="<?php // echo $_SESSION['csrf_token']; 
-                                                                ?>"> -->
         </form>
         <div class="modal fade" id="fileManagerModal" tabindex="-1" aria-labelledby="fileManagerModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-lg">
@@ -2145,7 +2188,6 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                     </div>
                     <div class="modal-body" id="fileManagerBody">
                         <p class="text-center">در حال بارگذاری لیست فایل‌ها...</p>
-
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">بستن</button>
@@ -2156,13 +2198,11 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
 
 
 
-        <!-- JS Includes -->
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/persian-date.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
 
-        <!-- Custom JavaScript -->
         <script>
             // --- 0. Helpers & Initializations ---
             function toLatinDigits(num) {
@@ -2181,7 +2221,6 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
             var tooltipList = tooltipTriggerList.map(function(el) {
                 return new bootstrap.Tooltip(el);
             });
-
             // Bootstrap Modal Instances (Create once)
             var printModalElement = document.getElementById('printSettingsModal');
             var printModal = printModalElement ? new bootstrap.Modal(printModalElement, {
@@ -2196,6 +2235,10 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
             const batchFormElement = document.getElementById('batchTestForm');
             const loadingElement = document.querySelector('.loading');
             const batchProdDateInput = document.getElementById('production_date');
+            // NEW: Selectors for new fields
+            const batchPanelTypeSelect = document.getElementById('panel_type');
+            const batchSlumpInput = document.getElementById('concrete_slump');
+
             const batchFormActionInput = document.getElementById('batchFormAction');
             const batchStatusDiv = document.getElementById('batchDateStatus');
             const batchFormTitle = document.getElementById('batchFormTitle');
@@ -2209,73 +2252,56 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
             const batchForceInputs = batchFormElement ? batchFormElement.querySelectorAll('input[name="max_force_kg[]"]') : [];
             const collapseElement = document.getElementById('inputFormsContainer');
             const toggleFormBtn = document.getElementById('toggleFormBtn');
-            const toggleButton = document.getElementById('toggleFormBtn');
 
 
             // --- 1. General Functions ---
-
             function confirmDelete(id, code) {
                 const escapedCode = code.replace(/'/g, "\\'").replace(/"/g, '\\"');
                 const message = `آیا از حذف تست '${escapedCode}' با شناسه ${id} اطمینان دارید؟`;
                 if (confirm(message)) {
-                    const deleteForm = document.getElementById('deleteRecordForm'); // Find the form by its ID
-                    const idInput = document.getElementById('deleteRecordIdInput'); // Find the hidden ID input by its ID
+                    const deleteForm = document.getElementById('deleteRecordForm');
+                    const idInput = document.getElementById('deleteRecordIdInput');
                     if (deleteForm && idInput) {
                         idInput.value = id;
                         deleteForm.submit();
                     } else {
-                        console.error("Hidden delete form elements ('deleteRecordForm' or 'deleteRecordIdInput') not found!");
+                        console.error("Hidden delete form elements not found!");
                         alert("خطا در ارسال درخواست حذف. لطفا صفحه را رفرش کنید.");
                     }
                 }
             }
 
-            function togglePrintSettingsModal(show) {
-                if (!printModal) {
-                    console.error("Print modal not init.");
-                    return;
-                }
-                if (show) {
-                    if (!printModalElement.classList.contains('show')) {
-                        printModal.show();
-                    }
-                } else {
-                    if (printModalElement.classList.contains('show')) {
-                        printModal.hide();
-                    }
-                }
-            }
-
             function gregorianToShamsiJs(gDate) {
-                // Basic implementation - consider a proper JS library for full accuracy
-                if (!gDate || !/^\d{4}-\d{2}-\d{2}$/.test(gDate)) return gDate; // Return original if invalid
+                if (!gDate || !/^\d{4}-\d{2}-\d{2}$/.test(gDate)) return gDate;
                 try {
-                    // This requires persian-date.min.js to be loaded
                     if (typeof persianDate === 'undefined') return gDate;
                     const parts = gDate.split('-');
                     const pd = new persianDate([parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2])]);
                     return pd.format('YYYY/MM/DD');
                 } catch (e) {
                     return gDate;
-                } // Fallback
+                }
             }
 
             // --- 2. Batch Form Logic ---
-
-            function clearBatchForm(clearDate = false) {
+            function clearBatchForm(clearMainFields = false) {
                 if (!batchFormElement) return;
 
-                if (clearDate && batchProdDateInput) {
-                    batchProdDateInput.value = '';
-                    if (typeof $ !== 'undefined' && $(batchProdDateInput).data('datepicker')) {
-                        $(batchProdDateInput).datepicker('setDate', null);
+                if (clearMainFields) {
+                    if (batchProdDateInput) {
+                        batchProdDateInput.value = '';
+                        if (typeof $ !== 'undefined' && $(batchProdDateInput).data('datepicker')) {
+                            $(batchProdDateInput).datepicker('setDate', null);
+                        }
                     }
+                    // NEW: Reset panel type and slump
+                    if (batchPanelTypeSelect) batchPanelTypeSelect.value = '';
+                    if (batchSlumpInput) batchSlumpInput.value = '';
                 }
 
-                // Reset all fields to default empty/new state
+                // Reset all sample rows
                 for (let i = 0; i < 4; i++) {
-                    const is_first_row_required = (i == 0); // Only first row details required by default
-
+                    const is_required = (i < 2);
                     if (batchRecordIdInputs[i]) batchRecordIdInputs[i].value = '';
                     if (batchSampleCodeInputs[i]) {
                         batchSampleCodeInputs[i].value = '';
@@ -2285,22 +2311,22 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                     }
                     if (batchDimLInputs[i]) {
                         batchDimLInputs[i].value = '';
-                        batchDimLInputs[i].required = is_first_row_required;
+                        batchDimLInputs[i].required = is_required;
                         batchDimLInputs[i].disabled = false;
                     }
                     if (batchDimWInputs[i]) {
                         batchDimWInputs[i].value = '';
-                        batchDimWInputs[i].required = is_first_row_required;
+                        batchDimWInputs[i].required = is_required;
                         batchDimWInputs[i].disabled = false;
                     }
                     if (batchDimHInputs[i]) {
                         batchDimHInputs[i].value = '';
-                        batchDimHInputs[i].required = is_first_row_required;
+                        batchDimHInputs[i].required = is_required;
                         batchDimHInputs[i].disabled = false;
                     }
                     if (batchForceInputs[i]) {
                         batchForceInputs[i].value = '';
-                        batchForceInputs[i].required = is_first_row_required;
+                        batchForceInputs[i].required = is_required;
                         batchForceInputs[i].disabled = false;
                     }
                 }
@@ -2309,13 +2335,15 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                 if (batchFormActionInput) batchFormActionInput.value = 'save_batch';
                 if (batchFormTitle) batchFormTitle.textContent = 'ثبت بچ جدید نمونه‌ها';
                 if (batchSubmitButtonText) batchSubmitButtonText.textContent = 'ثبت ۴ نمونه';
-                if (batchStatusDiv) batchStatusDiv.innerHTML = '<span class="text-muted small">تاریخ جدید را انتخاب کنید یا تاریخ موجود را برای ویرایش وارد کنید.</span>';
+                if (batchStatusDiv) batchStatusDiv.innerHTML = '<span class="text-muted small">تاریخ و نوع پنل را برای ثبت جدید یا ویرایش انتخاب کنید.</span>';
                 if (batchSubmitButton) batchSubmitButton.disabled = false;
                 if (batchProdDateInput) batchProdDateInput.disabled = false;
+                if (batchPanelTypeSelect) batchPanelTypeSelect.disabled = false;
+                if (batchSlumpInput) batchSlumpInput.disabled = false;
                 batchFormElement.classList.remove('was-validated');
             }
 
-
+            // MODIFICATION: This is the function from your request, now updated
             function populateBatchForm(data) {
                 if (!batchFormElement || !data || !data.records) {
                     console.error("Populate error: Invalid data received", data);
@@ -2324,20 +2352,25 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                     return;
                 }
                 const records = data.records;
-                console.log("Populating form with records:", records); // DEBUG: See the structure
+                console.log("Populating form with records:", records);
+
+                // NEW: Populate the slump value for the batch
+                if (batchSlumpInput) {
+                    batchSlumpInput.value = records.concrete_slump || '';
+                }
+
                 for (let i = 0; i < 4; i++) {
-                    const recordId = records.record_id?.[i] || ''; // Use optional chaining ?.
+                    const recordId = records.record_id?.[i] || '';
                     const isExisting = !!recordId;
 
-                    // --- >>> CRITICAL FIX: Populate the hidden ID input <<< ---
                     if (batchRecordIdInputs[i]) {
-                        batchRecordIdInputs[i].value = recordId; // Set the hidden input's value
-                        batchRecordIdInputs[i].disabled = false; // <<< ENSURE NOT DISABLED
-                        console.log(`Populated record_id_${i} with value: ${recordId}`); // DEBUG
+                        batchRecordIdInputs[i].value = recordId;
+                        batchRecordIdInputs[i].disabled = false;
+                        console.log(`Populated record_id_${i} with value: ${recordId}`);
                     } else {
-                        console.warn(`Hidden input record_id_${i} not found!`); // DEBUG
+                        console.warn(`Hidden input record_id_${i} not found!`);
                     }
-                    // --- >>> END FIX <<< ---
+
                     if (batchSampleCodeInputs[i]) {
                         batchSampleCodeInputs[i].value = records.sample_code?.[i] || '';
                         batchSampleCodeInputs[i].readOnly = isExisting;
@@ -2350,52 +2383,60 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                     const h_val = records.dimension_h?.[i] || '';
                     const force_val = records.max_force_kg?.[i] || '';
 
+                    const is_row_required = (i < 2) || l_val || w_val || h_val || force_val;
+
                     if (batchDimLInputs[i]) {
                         batchDimLInputs[i].value = l_val;
                         batchDimLInputs[i].disabled = false;
-                        batchDimLInputs[i].required = (i == 0) || (l_val !== '');
+                        batchDimLInputs[i].required = is_row_required;
                     }
                     if (batchDimWInputs[i]) {
                         batchDimWInputs[i].value = w_val;
                         batchDimWInputs[i].disabled = false;
-                        batchDimWInputs[i].required = (i == 0) || (w_val !== '');
+                        batchDimWInputs[i].required = is_row_required;
                     }
                     if (batchDimHInputs[i]) {
                         batchDimHInputs[i].value = h_val;
                         batchDimHInputs[i].disabled = false;
-                        batchDimHInputs[i].required = (i == 0) || (h_val !== '');
+                        batchDimHInputs[i].required = is_row_required;
                     }
                     if (batchForceInputs[i]) {
                         batchForceInputs[i].value = force_val;
                         batchForceInputs[i].disabled = false;
-                        batchForceInputs[i].required = (i == 0) || (force_val !== '');
+                        batchForceInputs[i].required = is_row_required;
                     }
                 }
 
                 // Set form state to Update
                 if (batchFormActionInput) batchFormActionInput.value = 'update_batch';
-                if (batchFormTitle) batchFormTitle.textContent = 'ویرایش/تکمیل بچ تاریخ: ' + (batchProdDateInput ? batchProdDateInput.value : '');
+                if (batchFormTitle) batchFormTitle.textContent = 'ویرایش/تکمیل بچ: ' + (batchProdDateInput ? batchProdDateInput.value : '') + ' - ' + (batchPanelTypeSelect ? batchPanelTypeSelect.value : '');
                 if (batchSubmitButtonText) batchSubmitButtonText.textContent = 'ذخیره تغییرات بچ';
                 if (batchStatusDiv) batchStatusDiv.innerHTML = '<span class="text-success small"><i class="bi bi-check-circle-fill"></i> ' + (data.message || 'رکورد(ها) یافت شد.') + '</span>';
                 if (batchSubmitButton) batchSubmitButton.disabled = false;
                 if (batchProdDateInput) batchProdDateInput.disabled = false;
+                if (batchPanelTypeSelect) batchPanelTypeSelect.disabled = false;
+                if (batchSlumpInput) batchSlumpInput.disabled = false;
             }
 
-
-            const performDateLookup = function() {
-                if (!batchProdDateInput || !batchStatusDiv || !batchFormElement) return;
+            // MODIFICATION: Lookup now depends on both date and panel type
+            const performLookup = function() {
+                if (!batchProdDateInput || !batchPanelTypeSelect || !batchStatusDiv || !batchFormElement) return;
 
                 const selectedDate = batchProdDateInput.value;
+                const selectedPanelType = batchPanelTypeSelect.value;
 
-                // Disable form and show loading
-                clearBatchForm(false); // Clear previous results immediately
-                batchStatusDiv.innerHTML = '<span class="text-info small"><i class="spinner-border spinner-border-sm"></i> در حال بررسی تاریخ...</span>';
-                if (batchSubmitButton) batchSubmitButton.disabled = true;
-                batchFormElement.querySelectorAll('fieldset input:not([type="hidden"]), fieldset select').forEach(el => el.disabled = true);
-                if (batchProdDateInput) batchProdDateInput.disabled = true;
+                // Only proceed if both fields have a value
+                if (selectedDate && /^\d{4}\/\d{2}\/\d{2}$/.test(toLatinDigits(selectedDate)) && selectedPanelType) {
 
-                if (selectedDate && /^\d{4}\/\d{2}\/\d{2}$/.test(toLatinDigits(selectedDate))) {
-                    console.log("Lookup date:", selectedDate);
+                    // Disable form and show loading
+                    clearBatchForm(false);
+                    batchStatusDiv.innerHTML = '<span class="text-info small"><i class="spinner-border spinner-border-sm"></i> در حال بررسی...</span>';
+                    batchSubmitButton.disabled = true;
+                    batchFormElement.querySelectorAll('fieldset input, fieldset select').forEach(el => el.disabled = true);
+                    batchProdDateInput.disabled = true;
+                    batchPanelTypeSelect.disabled = true;
+                    batchSlumpInput.disabled = true;
+
                     fetch('<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>', {
                             method: 'POST',
                             headers: {
@@ -2404,7 +2445,8 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                             },
                             body: new URLSearchParams({
                                 'action': 'lookup_date',
-                                'production_date': selectedDate
+                                'production_date': selectedDate,
+                                'panel_type': selectedPanelType
                             })
                         })
                         .then(response => {
@@ -2416,7 +2458,7 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                         .then(data => {
                             console.log("Lookup data:", data);
                             if (data.found) {
-                                populateBatchForm(data); // Populates and enables fields as needed
+                                populateBatchForm(data); // Populates and enables fields
                             } else {
                                 clearBatchForm(false); // Clears and enables for new entry
                                 batchStatusDiv.innerHTML = `<span class="text-muted small">${data.message || 'آماده ثبت بچ جدید.'}</span>`;
@@ -2425,18 +2467,19 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                         .catch(error => {
                             console.error('Lookup error:', error);
                             clearBatchForm(false); // Ensure form is usable after error
-                            batchStatusDiv.innerHTML = '<span class="text-danger small">خطا در بررسی تاریخ.</span>';
+                            batchStatusDiv.innerHTML = '<span class="text-danger small">خطا در ارتباط با سرور.</span>';
                         })
                         .finally(() => {
-                            // Re-enable only the date input and submit button here.
-                            // clear/populate functions handle individual field enablement.
-                            if (batchSubmitButton) batchSubmitButton.disabled = false;
-                            batchFormElement.querySelectorAll('fieldset input:not([type="hidden"]), fieldset select').forEach(el => el.disabled = false);
-                            if (batchProdDateInput) batchProdDateInput.disabled = false;
+                            // Re-enable form controls managed by populate/clear functions
+                            batchSubmitButton.disabled = false;
+                            batchFormElement.querySelectorAll('fieldset input, fieldset select').forEach(el => el.disabled = false);
+                            batchProdDateInput.disabled = false;
+                            batchPanelTypeSelect.disabled = false;
+                            batchSlumpInput.disabled = false;
                         });
                 } else {
-                    console.log("Date cleared or invalid:", selectedDate);
-                    clearBatchForm(false); // Clear and enable fields
+                    // If one of the fields is cleared, reset to new entry mode but don't clear the user's selections
+                    clearBatchForm(false);
                     batchStatusDiv.innerHTML = '<span class="text-muted small">تاریخ جدید را انتخاب کنید یا تاریخ موجود را برای ویرایش وارد کنید.</span>';
                     if (batchSubmitButton) batchSubmitButton.disabled = false;
                     if (batchProdDateInput) batchProdDateInput.disabled = false;
@@ -2445,25 +2488,27 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
 
 
             // --- 3. Single Edit Form Logic ---
-
+            // REPLACE THIS ENTIRE FUNCTION
             function updateEditSampleAgeDisplay() {
                 const prodIn = document.querySelector('#singleEditForm input[name="production_date"]'); // Hidden input
-                const breakIn = document.getElementById('edit_break_date');
+                const breakIn = document.querySelector('#singleEditForm input[name="break_date"]');
                 const ageDisplay = document.getElementById('edit_sample_age_display');
                 if (!prodIn || !breakIn || !ageDisplay) return;
-                const pRaw = prodIn.value;
-                const bRaw = breakIn.value;
-                const pLatin = toLatinDigits(pRaw);
-                const bLatin = toLatinDigits(bRaw);
+
+                const pRaw = toLatinDigits(prodIn.value);
+                const bRaw = toLatinDigits(breakIn.value);
+
                 let ageText = '';
-                if (pLatin && bLatin && /^\d{4}\/\d{2}\/\d{2}$/.test(pLatin) && /^\d{4}\/\d{2}\/\d{2}$/.test(bLatin)) {
+                if (pRaw && bRaw && /^\d{4}\/\d{2}\/\d{2}$/.test(pRaw) && /^\d{4}\/\d{2}\/\d{2}$/.test(bRaw)) {
                     try {
                         if (typeof persianDate !== 'undefined') {
-                            const pParts = pLatin.split('/');
-                            const bParts = bLatin.split('/');
+                            const pParts = pRaw.split('/');
+                            const bParts = bRaw.split('/');
                             const pDate = new persianDate([parseInt(pParts[0]), parseInt(pParts[1]), parseInt(pParts[2])]);
                             const bDate = new persianDate([parseInt(bParts[0]), parseInt(bParts[1]), parseInt(bParts[2])]);
-                            if (pDate.isValid() && bDate.isValid()) {
+
+                            // CORRECTED: Removed the incorrect .isValid() check
+                            if (pDate.gDate && bDate.gDate && !isNaN(pDate.gDate.getTime()) && !isNaN(bDate.gDate.getTime())) {
                                 const pMilli = pDate.gDate.getTime();
                                 const bMilli = bDate.gDate.getTime();
                                 const diffMilli = bMilli - pMilli;
@@ -2473,9 +2518,6 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                                     ageText = 'خطا';
                                 }
                             }
-                        } else {
-                            console.error("persianDate library not loaded.");
-                            ageText = '?';
                         }
                     } catch (e) {
                         console.error('Err age calc JS:', e);
@@ -2487,47 +2529,33 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
 
             function updateEditCompressiveStrengthDisplay() {
                 const forceIn = document.getElementById('edit_max_force_kg');
-                const lIn = document.getElementById('edit_dimension_l');
-                const wIn = document.getElementById('edit_dimension_w');
+                const lIn = document.querySelector('#singleEditForm input[name="dimension_l"]');
+                const wIn = document.querySelector('#singleEditForm input[name="dimension_w"]');
                 const strengthDisplay = document.getElementById('edit_compressive_strength_display');
                 if (!forceIn || !lIn || !wIn || !strengthDisplay) return;
-                const fS = forceIn.value;
-                const lS = lIn.value;
-                const wS = wIn.value;
+
                 let strengthText = '';
-                if (fS && lS && wS) {
-                    try {
-                        const f = parseFloat(fS);
-                        const l = parseFloat(lS);
-                        const w = parseFloat(wS);
-                        if (!isNaN(f) && !isNaN(l) && !isNaN(w) && l > 0 && w > 0 && f > 0) {
-                            const s = (f * 9.80665) / (l * w);
-                            strengthText = s.toFixed(2);
-                        }
-                    } catch (e) {
-                        console.error('Err strength calc JS:', e);
-                        strengthText = '?';
-                    }
+                const f = parseFloat(forceIn.value);
+                const l = parseFloat(lIn.value);
+                const w = parseFloat(wIn.value);
+
+                if (!isNaN(f) && !isNaN(l) && !isNaN(w) && l > 0 && w > 0 && f > 0) {
+                    const s = (f * 9.80665) / (l * w);
+                    strengthText = s.toFixed(2);
                 }
                 strengthDisplay.textContent = strengthText;
             }
 
             // --- 4. File Manager Logic ---
-
             function openFileManagerModal(prodDate, sampleCode) {
                 if (!fileManagerBsModal) return;
-
-                // Update modal title
                 document.getElementById('fileManagerSampleCode').textContent = sampleCode;
-                document.getElementById('fileManagerProdDate').textContent = gregorianToShamsiJs(prodDate); // Use a JS converter if needed, or show Gregorian
-
-                // Reference to modal body
+                document.getElementById('fileManagerProdDate').textContent = gregorianToShamsiJs(prodDate);
                 const modalBody = document.getElementById('fileManagerBody');
-                modalBody.innerHTML = '<p class="text-center">در حال بارگذاری لیست فایل‌ها...</p>'; // Show loading
-                fileManagerBsModal.show(); // Show modal immediately
+                modalBody.innerHTML = '<p class="text-center">در حال بارگذاری لیست فایل‌ها...</p>';
+                fileManagerBsModal.show();
 
-                // Fetch file list via AJAX
-                fetch('<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>', { // Post to self
+                fetch('<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
@@ -2539,9 +2567,9 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                             'sample_code': sampleCode
                         })
                     })
-                    .then(response => response.text()) // Expect HTML response
+                    .then(response => response.text())
                     .then(html => {
-                        modalBody.innerHTML = html; // Inject file list HTML
+                        modalBody.innerHTML = html;
                     })
                     .catch(error => {
                         console.error('Error fetching file list:', error);
@@ -2550,15 +2578,10 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
             }
 
             function deleteManagedFile(prodDate, sampleCode, filename, buttonElement) {
-                const escapedFilename = filename.replace(/'/g, "\\'").replace(/"/g, '\\"');
-                if (!confirm(`آیا از حذف فایل '${escapedFilename}' اطمینان دارید؟ این عمل غیرقابل بازگشت است.`)) {
-                    return;
-                }
+                if (!confirm(`آیا از حذف فایل '${filename}' اطمینان دارید؟`)) return;
 
-                // Disable button temporarily
                 buttonElement.disabled = true;
-                buttonElement.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-
+                buttonElement.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
                 fetch('<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>', {
                         method: 'POST',
@@ -2570,38 +2593,33 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                             'action': 'delete_file',
                             'prod_date': prodDate,
                             'sample_code': sampleCode,
-                            'filename': filename // Send the specific filename
+                            'filename': filename
                         })
                     })
-                    .then(response => response.json()) // Expect JSON response
+                    .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            // Remove the file row from the modal list
-                            const fileRow = buttonElement.closest('tr'); // Assumes files are in a table
-                            if (fileRow) {
-                                fileRow.remove();
-                            }
-                            // Check if list is empty now
+                            const fileRow = buttonElement.closest('tr');
+                            if (fileRow) fileRow.remove();
                             const fileTableBody = document.querySelector('#fileManagerBody table tbody');
                             if (fileTableBody && fileTableBody.rows.length === 0) {
                                 document.getElementById('fileManagerBody').innerHTML = '<p class="text-center text-muted">هیچ فایلی یافت نشد.</p>';
                             }
-
                         } else {
                             alert('خطا در حذف فایل: ' + (data.message || 'خطای ناشناخته'));
-                            buttonElement.disabled = false; // Re-enable button on error
-                            buttonElement.innerHTML = '<i class="bi bi-trash"></i>'; // Restore icon
+                            buttonElement.disabled = false;
+                            buttonElement.innerHTML = '<i class="bi bi-trash"></i>';
                         }
                     })
                     .catch(error => {
                         console.error('Error deleting file:', error);
                         alert('خطا در ارتباط با سرور.');
-                        buttonElement.disabled = false; // Re-enable button on error
-                        buttonElement.innerHTML = '<i class="bi bi-trash"></i>'; // Restore icon
+                        buttonElement.disabled = false;
+                        buttonElement.innerHTML = '<i class="bi bi-trash"></i>';
                     });
             }
 
-            // --- 5. Form Validation ---
+            // --- 5. Event Listeners & Initialization ---
             (function() {
                 'use strict';
                 var forms = document.querySelectorAll('.needs-validation');
@@ -2667,10 +2685,6 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                 });
             })();
 
-
-
-            // --- 6. Event Listeners & Initialization ---
-
             document.addEventListener('DOMContentLoaded', function() {
                 try {
                     // Initialize Datepickers
@@ -2679,90 +2693,58 @@ $pageTitle = $edit_id > 0 ? "ویرایش تست بتن" : "ثبت و مدیری
                             format: 'YYYY/MM/DD',
                             autoClose: true,
                             initialValue: false,
-                            persianDigit: true,
                             observer: true,
-                            calendar: {
-                                persian: {
-                                    locale: 'fa',
-                                    leapYearMode: 'astronomical'
-                                }
-                            },
                             onSelect: function(unix) {
                                 const inputElement = this.model.inputElement;
-                                // Use setTimeout to ensure value is updated before triggering change/lookup
                                 setTimeout(() => {
-                                    if (inputElement.id === 'production_date') {
-                                        performDateLookup(); // Trigger lookup after select
-                                    }
-                                    // Trigger standard change for other listeners (like edit age calc)
+                                    // Trigger change for all datepickers to handle lookups or calculations
                                     $(inputElement).trigger('change');
                                 }, 50);
                             }
                         });
-                    } else {
-                        console.error("jQuery or persianDatepicker not loaded.");
                     }
 
-                    // Batch Form Date Listeners (Change/Blur)
+                    // Batch Form Listeners
                     if (batchProdDateInput) {
-                        batchProdDateInput.addEventListener('change', performDateLookup);
-                        batchProdDateInput.addEventListener('blur', performDateLookup);
+                        batchProdDateInput.addEventListener('change', performLookup);
+                    }
+                    if (batchPanelTypeSelect) {
+                        batchPanelTypeSelect.addEventListener('change', performLookup);
                     }
 
                     // Single Edit Form Calculation Listeners
                     if (singleEditFormElement) {
-                        const editBreakDate = document.getElementById('edit_break_date');
-                        const editForce = document.getElementById('edit_max_force_kg');
-                        const editDimL = document.getElementById('edit_dimension_l');
-                        const editDimW = document.getElementById('edit_dimension_w');
-                        if (editBreakDate) editBreakDate.addEventListener('change', updateEditSampleAgeDisplay);
-                        if (editForce) editForce.addEventListener('input', updateEditCompressiveStrengthDisplay);
-                        if (editDimL) editDimL.addEventListener('input', updateEditCompressiveStrengthDisplay);
-                        if (editDimW) editDimW.addEventListener('input', updateEditCompressiveStrengthDisplay);
-                        // Initial calculation if editing
-                        if (document.getElementById('edit_sample_age_display')) { // Check if edit form is active
-                            updateEditSampleAgeDisplay();
-                            updateEditCompressiveStrengthDisplay();
-                        }
+                        ['change', 'input'].forEach(evt => {
+                            singleEditFormElement.querySelector('input[name="break_date"]').addEventListener(evt, updateEditSampleAgeDisplay);
+                            singleEditFormElement.querySelector('input[name="max_force_kg"]').addEventListener(evt, updateEditCompressiveStrengthDisplay);
+                            singleEditFormElement.querySelector('input[name="dimension_l"]').addEventListener(evt, updateEditCompressiveStrengthDisplay);
+                            singleEditFormElement.querySelector('input[name="dimension_w"]').addEventListener(evt, updateEditCompressiveStrengthDisplay);
+                        });
+                        updateEditSampleAgeDisplay();
+                        updateEditCompressiveStrengthDisplay();
                     }
 
                     // Collapse Button Text Toggle Listener
                     if (collapseElement && toggleFormBtn) {
-                        collapseElement.addEventListener('show.bs.collapse', function() {
-                            toggleFormBtn.innerHTML = '<i class="bi bi-dash-lg"></i> پنهان کردن فرم';
-                            toggleFormBtn.setAttribute('aria-expanded', 'true');
-                        });
-                        collapseElement.addEventListener('hide.bs.collapse', function() {
-                            toggleFormBtn.innerHTML = '<i class="bi bi-plus-lg"></i> نمایش فرم ثبت / ویرایش';
-                            toggleFormBtn.setAttribute('aria-expanded', 'false');
-                        });
+                        collapseElement.addEventListener('show.bs.collapse', () => toggleFormBtn.innerHTML = '<i class="bi bi-dash-lg"></i> پنهان کردن فرم');
+                        collapseElement.addEventListener('hide.bs.collapse', () => toggleFormBtn.innerHTML = '<i class="bi bi-plus-lg"></i> نمایش فرم ثبت / ویرایش');
                     }
 
-                    // Single Edit Form Submit Listener (for progress)
-                    const fileInputElement = document.getElementById('test_results_files_input');
-                    const uploadProgressContainer = document.getElementById('uploadProgressBarContainer'); // Use the correct variable name
-
-                    if (singleEditFormElement && fileInputElement && loadingElement && uploadProgressContainer) {
-                        singleEditFormElement.addEventListener('submit', function(event) {
-                            if (singleEditFormElement.checkValidity()) { // Only show loading if form is valid
-                                if (fileInputElement.files.length > 0) {
-                                    loadingElement.style.display = 'flex'; // Use main spinner
-                                    // progressBarContainer.style.display = 'flex'; // Optional basic bar
-                                    // progressBar.style.width = '100%';
-                                } else {
-                                    loadingElement.style.display = 'flex'; // Show spinner for non-file saves too
-                                }
+                    // General form submission spinner
+                    document.querySelectorAll('.needs-validation').forEach(form => {
+                        form.addEventListener('submit', function(event) {
+                            if (form.checkValidity()) {
+                                if (loadingElement) loadingElement.style.display = 'flex';
                             }
                         });
-                    }
+                    });
 
                 } catch (error) {
                     console.error("DOM Init Error:", error);
                 }
-            }); // End DOMContentLoaded
+            });
         </script>
         <?php
-        // Include footer
         include('footer.php');
         ?>
 </body>

@@ -1,0 +1,23 @@
+[
+    {
+        "type": "textAndCircle",
+        "regex": "^(\\d+|[A-Za-z]+[\\d-]*)\\s+Zone$",
+        "numberGroupIndex": 1,
+        "svgFilePattern": "/ghom/Zone{NUMBER}.svg",
+        "labelPattern": "Zone {NUMBER}",
+        "defaultContractor": "پیمانکار پیش‌فرض زون عمومی",
+        "defaultBlock": "بلوک پیش‌فرض زون عمومی"
+    },
+    {
+        "svgFile": "/ghom/Zone09.svg",
+        "label": "Zone 09",
+        "defaultContractor": "شرکت آتیه نما زون 09 ",
+        "defaultBlock": "بلوکA  زون 9 "
+    },
+    {
+        "svgFile": "/ghom/Plan.svg",
+        "label": "Plan اصلی",
+        "defaultContractor": "مدیر پیمان ",
+        "defaultBlock": "پروژه بیمارستان قم "
+    }
+]

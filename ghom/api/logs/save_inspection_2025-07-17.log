@@ -1,0 +1,41 @@
+[2025-07-17 12:31:10] ================== SAVE REQUEST START ==================
+[2025-07-17 12:31:10] User: 1 (admin) | Element: Z01-GC-4-A-شآ-up
+[2025-07-17 12:31:10] Received Stages Data: {"66":{"items":[{"itemId":"351","status":"OK","value":""},{"itemId":"352","status":"Not OK","value":""},{"itemId":"353","status":"OK","value":""},{"itemId":"354","status":"Not OK","value":""},{"itemId":"355","status":"Pending","value":""},{"itemId":"356","status":"Not OK","value":""},{"itemId":"357","status":"OK","value":""}],"overall_status":"Not OK","inspection_date":"1404\/04\/18","notes":"sdAdASDasd"},"67":{"items":[{"itemId":"358","status":"Pending","value":""},{"itemId":"359","status":"Pending","value":""},{"itemId":"360","status":"Pending","value":""},{"itemId":"361","status":"Pending","value":""},{"itemId":"362","status":"Pending","value":""},{"itemId":"363","status":"Pending","value":""},{"itemId":"364","status":"Pending","value":""}],"overall_status":"Pending","inspection_date":"","notes":""},"68":{"items":[{"itemId":"365","status":"Pending","value":""},{"itemId":"366","status":"Pending","value":""},{"itemId":"367","status":"Pending","value":""}],"overall_status":"Pending","inspection_date":"","notes":""},"69":{"items":[{"itemId":"368","status":"Pending","value":""}],"overall_status":"Pending","inspection_date":"","notes":""},"70":{"items":[{"itemId":"369","status":"Pending","value":""},{"itemId":"370","status":"Pending","value":""},{"itemId":"371","status":"Pending","value":""},{"itemId":"372","status":"Pending","value":""}],"overall_status":"Pending","inspection_date":"","notes":""},"71":{"items":[{"itemId":"373","status":"Pending","value":""},{"itemId":"374","status":"Pending","value":""},{"itemId":"375","status":"Pending","value":""},{"itemId":"376","status":"Pending","value":""},{"itemId":"377","status":"Pending","value":""}],"overall_status":"Pending","inspection_date":"","notes":""},"72":{"items":[{"itemId":"378","status":"Pending","value":""},{"itemId":"379","status":"Pending","value":""}],"overall_status":"Pending","inspection_date":"","notes":""}}
+[2025-07-17 12:31:10] Received Files: ["attachments"]
+[2025-07-17 12:31:10] --- Processing Stage ID: 66 ---
+[2025-07-17 12:31:10]   Action: UPDATE existing record ID: 154
+[2025-07-17 12:31:10] File Upload SUCCESS: Moved 'arad.png' to 'ghom_Z01-GC-4-A-____-up_1752748270_6878d0eeb55c8.png' for input 'attachments'.
+[2025-07-17 12:31:10]   SQL (UPDATE): UPDATE inspections SET overall_status = :overall_status, inspection_date = :inspection_date, notes = :notes, attachments = :attachments, user_id = :user_id WHERE inspection_id = :inspection_id
+[2025-07-17 12:31:10]   PARAMS: {"overall_status":"Not OK","inspection_date":"2025-7-9","notes":"sdAdASDasd","attachments":"[\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-4-A-____-up_1752748270_6878d0eeb55c8.png\"]","user_id":1,"inspection_id":154}
+[2025-07-17 12:31:10]   Updating checklist items for inspection ID: 154
+[2025-07-17 12:31:10] --- Processing Stage ID: 67 ---
+[2025-07-17 12:31:10]   Action: UPDATE existing record ID: 420
+[2025-07-17 12:31:10]   SQL (UPDATE): UPDATE inspections SET overall_status = :overall_status, inspection_date = :inspection_date, notes = :notes, attachments = :attachments, user_id = :user_id WHERE inspection_id = :inspection_id
+[2025-07-17 12:31:10]   PARAMS: {"overall_status":"Pending","inspection_date":null,"notes":"","attachments":null,"user_id":1,"inspection_id":420}
+[2025-07-17 12:31:10]   Updating checklist items for inspection ID: 420
+[2025-07-17 12:31:10] --- Processing Stage ID: 68 ---
+[2025-07-17 12:31:10]   Action: INSERT new record.
+[2025-07-17 12:31:10]   SQL (INSERT): INSERT INTO inspections (element_id, part_name, stage_id, user_id, overall_status, inspection_date, notes, attachments, contractor_status, contractor_date, contractor_notes, contractor_attachments) VALUES (:element_id, :part_name, :stage_id, :user_id, :overall_status, :inspection_date, :notes, :attachments, :contractor_status, :contractor_date, :contractor_notes, :contractor_attachments)
+[2025-07-17 12:31:10]   PARAMS: {"element_id":"Z01-GC-4-A-\u0634\u0622","part_name":"up","stage_id":68,"user_id":1,"overall_status":"Pending","inspection_date":null,"notes":"","attachments":null,"contractor_status":null,"contractor_date":null,"contractor_notes":null,"contractor_attachments":null}
+[2025-07-17 12:31:10]   Updating checklist items for inspection ID: 431
+[2025-07-17 12:31:10] --- Processing Stage ID: 69 ---
+[2025-07-17 12:31:10]   Action: INSERT new record.
+[2025-07-17 12:31:10]   SQL (INSERT): INSERT INTO inspections (element_id, part_name, stage_id, user_id, overall_status, inspection_date, notes, attachments, contractor_status, contractor_date, contractor_notes, contractor_attachments) VALUES (:element_id, :part_name, :stage_id, :user_id, :overall_status, :inspection_date, :notes, :attachments, :contractor_status, :contractor_date, :contractor_notes, :contractor_attachments)
+[2025-07-17 12:31:10]   PARAMS: {"element_id":"Z01-GC-4-A-\u0634\u0622","part_name":"up","stage_id":69,"user_id":1,"overall_status":"Pending","inspection_date":null,"notes":"","attachments":null,"contractor_status":null,"contractor_date":null,"contractor_notes":null,"contractor_attachments":null}
+[2025-07-17 12:31:10]   Updating checklist items for inspection ID: 432
+[2025-07-17 12:31:10] --- Processing Stage ID: 70 ---
+[2025-07-17 12:31:10]   Action: INSERT new record.
+[2025-07-17 12:31:10]   SQL (INSERT): INSERT INTO inspections (element_id, part_name, stage_id, user_id, overall_status, inspection_date, notes, attachments, contractor_status, contractor_date, contractor_notes, contractor_attachments) VALUES (:element_id, :part_name, :stage_id, :user_id, :overall_status, :inspection_date, :notes, :attachments, :contractor_status, :contractor_date, :contractor_notes, :contractor_attachments)
+[2025-07-17 12:31:10]   PARAMS: {"element_id":"Z01-GC-4-A-\u0634\u0622","part_name":"up","stage_id":70,"user_id":1,"overall_status":"Pending","inspection_date":null,"notes":"","attachments":null,"contractor_status":null,"contractor_date":null,"contractor_notes":null,"contractor_attachments":null}
+[2025-07-17 12:31:10]   Updating checklist items for inspection ID: 433
+[2025-07-17 12:31:10] --- Processing Stage ID: 71 ---
+[2025-07-17 12:31:10]   Action: INSERT new record.
+[2025-07-17 12:31:10]   SQL (INSERT): INSERT INTO inspections (element_id, part_name, stage_id, user_id, overall_status, inspection_date, notes, attachments, contractor_status, contractor_date, contractor_notes, contractor_attachments) VALUES (:element_id, :part_name, :stage_id, :user_id, :overall_status, :inspection_date, :notes, :attachments, :contractor_status, :contractor_date, :contractor_notes, :contractor_attachments)
+[2025-07-17 12:31:10]   PARAMS: {"element_id":"Z01-GC-4-A-\u0634\u0622","part_name":"up","stage_id":71,"user_id":1,"overall_status":"Pending","inspection_date":null,"notes":"","attachments":null,"contractor_status":null,"contractor_date":null,"contractor_notes":null,"contractor_attachments":null}
+[2025-07-17 12:31:10]   Updating checklist items for inspection ID: 434
+[2025-07-17 12:31:10] --- Processing Stage ID: 72 ---
+[2025-07-17 12:31:10]   Action: INSERT new record.
+[2025-07-17 12:31:10]   SQL (INSERT): INSERT INTO inspections (element_id, part_name, stage_id, user_id, overall_status, inspection_date, notes, attachments, contractor_status, contractor_date, contractor_notes, contractor_attachments) VALUES (:element_id, :part_name, :stage_id, :user_id, :overall_status, :inspection_date, :notes, :attachments, :contractor_status, :contractor_date, :contractor_notes, :contractor_attachments)
+[2025-07-17 12:31:10]   PARAMS: {"element_id":"Z01-GC-4-A-\u0634\u0622","part_name":"up","stage_id":72,"user_id":1,"overall_status":"Pending","inspection_date":null,"notes":"","attachments":null,"contractor_status":null,"contractor_date":null,"contractor_notes":null,"contractor_attachments":null}
+[2025-07-17 12:31:10]   Updating checklist items for inspection ID: 435
+[2025-07-17 12:31:10] SUCCESS: Transaction committed.

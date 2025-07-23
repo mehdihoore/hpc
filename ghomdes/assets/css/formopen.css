@@ -1,0 +1,444 @@
+/* =================================================================== */
+/* FIXED FORM POPUP STYLES - Resolves scrolling and sizing issues */
+/* =================================================================== */
+
+.form-popup {
+    /* Basic setup */
+    position: fixed;
+    z-index: 1001;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    border: 1px solid #d0d0d0;
+
+    /* CRITICAL FIX: Use block layout instead of flexbox for interact.js compatibility */
+    display: none;
+    /* Initially hidden */
+
+    /* Sizing - Allow for proper expansion */
+    width: 750px;
+    height: 600px;
+    /* Set initial height instead of max-height */
+    min-width: 450px;
+    min-height: 500px;
+    max-width: 95vw;
+    max-height: 90vh;
+
+    /* Default position for mobile (centered) */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    /* CRITICAL: Ensure proper box-sizing */
+    box-sizing: border-box;
+}
+
+/* Draggable & Resizable for Desktop */
+@media (min-width: 992px) {
+    .form-popup {
+        top: 60px;
+        right: 20px;
+        left: auto;
+        transform: none;
+        touch-action: none;
+    }
+}
+
+/* When the popup is shown, use block display */
+.form-popup.show {
+    display: block;
+}
+
+/* 1. Form Header (Fixed height, no flex) */
+.form-header-new {
+    position: relative;
+    padding: 15px 25px;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: #f8f9fa;
+    text-align: right;
+    cursor: move;
+    /* Fixed height to prevent expansion */
+    height: auto;
+    min-height: 80px;
+    box-sizing: border-box;
+}
+
+.form-header-new h3 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #0056b3;
+}
+
+.form-header-new p {
+    margin: 5px 0 0;
+    color: #6c757d;
+}
+
+.form-header-new .form-meta {
+    font-size: 0.85em;
+    color: #6c757d;
+    margin-top: 10px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* 2. Form Body (SCROLLABLE - This is the key fix) */
+.form-body-new {
+    /* CRITICAL: Calculate height properly */
+    position: relative;
+    height: calc(100% - 160px);
+    /* Subtract header and footer heights */
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Loader style */
+.form-loader {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    padding: 40px;
+    font-size: 1.2em;
+    color: #6c757d;
+}
+
+/* Stage Tabs (STICKY within the scrollable area) */
+.stage-tabs-container {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #ffffff;
+    border-bottom: 2px solid #007bff;
+    padding: 15px 25px 0 25px;
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 0;
+}
+
+.stage-tab-button {
+    padding: 10px 18px;
+    cursor: pointer;
+    background: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-bottom: none;
+    margin-left: 5px;
+    border-radius: 6px 6px 0 0;
+    font-weight: 500;
+    color: #495057;
+    position: relative;
+    bottom: -2px;
+    transition: all 0.2s ease;
+}
+
+.stage-tab-button:hover {
+    background: #f8f9fa;
+}
+
+.stage-tab-button.active {
+    background: #ffffff;
+    border-color: #007bff #007bff #ffffff;
+    color: #0056b3;
+    font-weight: bold;
+}
+
+.stage-content-container {
+    padding: 25px;
+    /* Allow content to expand naturally */
+    min-height: 400px;
+}
+
+.stage-tab-content {
+    display: none;
+}
+
+.stage-tab-content.active {
+    display: block;
+}
+
+.no-stages-message {
+    padding: 40px;
+    text-align: center;
+    color: #6c757d;
+    font-size: 1.1em;
+}
+
+/* 3. Form Footer (Fixed at bottom) */
+.form-footer-new {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 15px 25px;
+    border-top: 1px solid #e0e0e0;
+    background-color: #f8f9fa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 60px;
+    box-sizing: border-box;
+}
+
+.resize-handle {
+    width: 20px;
+    height: 20px;
+    background-image:
+        linear-gradient(135deg, #aaa 25%, transparent 25%),
+        linear-gradient(225deg, #aaa 25%, transparent 25%),
+        linear-gradient(315deg, #aaa 25%, transparent 25%),
+        linear-gradient(45deg, #aaa 25%, transparent 25%);
+    background-size: 8px 8px;
+    cursor: nwse-resize;
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+
+.resize-handle:hover {
+    opacity: 1;
+}
+
+/* --- Button Styles --- */
+.btn {
+    padding: 8px 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.btn.cancel {
+    background-color: #6c757d;
+    color: white;
+    border-color: #6c757d;
+}
+
+.btn.cancel:hover {
+    background-color: #5a6268;
+}
+
+.btn.save {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.btn.save:hover {
+    background-color: #0056b3;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* --- Inner Form Elements (Improved) --- */
+.stage-container {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.stage-container>legend {
+    display: none;
+}
+
+.stage-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px dashed #ced4da;
+}
+
+@media (max-width: 768px) {
+    .stage-sections {
+        grid-template-columns: 1fr;
+    }
+}
+
+.stage-sections fieldset {
+    border: 1px solid #ccc;
+    padding: 15px;
+    border-radius: 5px;
+    background-color: #fff;
+}
+
+.stage-sections fieldset legend {
+    font-weight: bold;
+    padding: 0 5px;
+    color: #343a40;
+}
+
+.stage-sections fieldset:disabled {
+    background-color: #f8f9fa;
+    opacity: 0.7;
+}
+
+.stage-sections fieldset:disabled legend {
+    color: #6c757d;
+}
+
+.item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 5px;
+    border-bottom: 1px solid #f1f1f1;
+    min-height: 50px;
+}
+
+.item-row:last-child {
+    border-bottom: none;
+}
+
+.item-text {
+    flex-grow: 1;
+    margin-left: 15px;
+    line-height: 1.4;
+}
+
+.item-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-shrink: 0;
+}
+
+/* Status selector improvements */
+.status-selector-new {
+    display: flex;
+    gap: 5px;
+}
+
+.status-selector-new input[type="radio"] {
+    display: none;
+}
+
+.status-selector-new .status-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    cursor: pointer;
+    border: 2px solid #ccc;
+    color: #ccc;
+    transition: all 0.2s ease;
+    font-size: 1.2em;
+}
+
+.status-selector-new .status-icon:hover {
+    transform: scale(1.1);
+}
+
+.status-selector-new .status-icon.ok {
+    border-color: #28a745;
+}
+
+.status-selector-new .status-icon.nok {
+    border-color: #dc3545;
+}
+
+.status-selector-new input[type="radio"]:checked+.status-icon.ok {
+    background-color: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+.status-selector-new input[type="radio"]:checked+.status-icon.nok {
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+/* Form inputs */
+.checklist-input {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 14px;
+    width: 150px;
+}
+
+.checklist-input:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Form groups in sections */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #343a40;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .form-popup {
+        width: 95vw;
+        height: 80vh;
+        top: 10vh;
+        left: 2.5vw;
+        transform: none;
+    }
+
+    .form-header-new,
+    .stage-content-container {
+        padding: 15px;
+    }
+
+    .stage-tabs-container {
+        padding: 10px 15px 0 15px;
+    }
+
+    .item-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .item-controls {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .checklist-input {
+        width: 200px;
+    }
+}
+
+/* =================================================================== */
+/* END: FIXED FORM POPUP STYLES */
+/* =================================================================== */

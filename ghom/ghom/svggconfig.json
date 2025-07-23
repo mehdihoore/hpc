@@ -1,0 +1,12 @@
+{
+    "GFRC": { "label": "GFRC", "defaultVisible": true, "interactive": true, "elementType": "GFRC" },
+   
+    "Atieh": { "label": "بلوک A- آتیه نما", "color": "#0de16d", "defaultVisible": true, "interactive": true, "contractor": "شرکت آتیه نما", "block": "A", "elementType": "Region" },
+    "org": { "label": "بلوک - اورژانس A- آتیه نما", "color": "#ebb00d", "defaultVisible": true, "interactive": true, "contractor": "شرکت آتیه نما", "block": "A - اورژانس", "elementType": "Region" },
+    "AranB": { "label": "بلوک B-آرانسج", "color": "#38abee", "defaultVisible": true, "interactive": true, "contractor": "شرکت آرانسج", "block": "B", "elementType": "Region" },
+    "AranC": { "label": "بلوک C-آرانسج", "color": "#ee3838", "defaultVisible": true, "interactive": true, "contractor": "شرکت آرانسج", "block": "C", "elementType": "Region" },
+    "hayatOmran": { "label": " حیاط عمران آذرستان", "color": "#eef595da", "defaultVisible": true, "interactive": true, "contractor": "شرکت عمران آذرستان", "block": "حیاط", "elementType": "Region" },
+    "hayatRos": { "label": " حیاط رس", "color": "#eb0de7da", "defaultVisible": true, "interactive": true, "contractor": "شرکت ساختمانی رس", "block": "حیاط", "elementType": "Region" }
+    
+    
+}

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>چارت تعاملی نظام فلسفی کانت</title>
+    <link rel="stylesheet" href="assets/css/jquery.orgchart.css" />
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 10px;
+        background-color: #f8f9fa;
+        color: #333;
+      }
+      h1 {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 20px;
+      }
+      #chart-container {
+        width: 100%; /* یا یک عرض ثابت مانند 1200px */
+        max-width: 100%;
+        height: 750px; /* ارتفاع را می‌توانید تنظیم کنید */
+        border: 1px solid #ccc;
+        background-color: #fff;
+        overflow: auto; /* برای pan و zoom در صورت بزرگ بودن چارت */
+        box-sizing: border-box;
+      }
+      /* اطمینان از جهت صحیح متن در نودها با توجه به کلاس oc-rtl */
+      .orgchart.oc-rtl .node .title,
+      .orgchart.oc-rtl .node .name {
+        /* 'name' is used by default if 'nodeContent' is not set to 'title' */
+        direction: rtl;
+        text-align: right;
+      }
+      /* اگر از nodeContent: 'name' استفاده می کنید، ممکن است فقط name را هدف قرار دهید */
+      .orgchart .node .name {
+        direction: rtl;
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>نظام فلسفی کانت</h1>
+    <div id="chart-container"></div>
+
+    <script src="assets/js/jquery-3.6.0.min.js"></script>
+    <script src="assets/js/jquery.orgchart.js"></script>
+    <script>
+      $(function () {
+        // تعریف داده‌ها برای چارت
+        // بر اساس ساختار متنی که ارائه دادید
+        let datasource = {
+          name: "مقولات کانت و نظام فلسفی او",
+          children: [
+            {
+              name: "مقوله (کانت)",
+              children: [
+                { name: "مفهوم خالص فاهمه" },
+                { name: "مشخصه ظهور هر شیء بطور کلی" },
+                { name: "مفاهیم شیء بطور کلی" },
+                { name: "شرط امکان اشیاء بطور کلی" },
+                { name: "دوازده مقوله متمایز اما مرتبط" },
+              ],
+            },
+            {
+              name: "مفهوم مقوله",
+              children: [
+                { name: "Verstand" },
+                { name: "پیشاتجربه (a priori)" },
+                { name: "تعیین شهود با تابع منطقی احکام" },
+              ],
+            },
+            {
+              name: "ارتباط با ارسطو",
+              children: [
+                { name: "استفاده از اصطلاح 'مقوله'" },
+                { name: "تفاوت در معنا و کاربرد" },
+                { name: "تأثیر سنت ارسطویی کونیگسبرگ" },
+              ],
+            },
+            {
+              name: "نظام فلسفی کانت",
+              children: [
+                {
+                  name: "ایده‌آلیسم استعلایی",
+                  children: [
+                    { name: "نولولوژی" },
+                    { name: "گنوستولوژی" },
+                    { name: "اثر پاول رابه" },
+                    { name: "جهان پدیداری در زمان و مکان" },
+                    { name: "اشیاء فی‌نفسه (غیرزمانی و مکانی)" },
+                  ],
+                },
+                {
+                  name: "نقد عقل محض",
+                  children: [
+                    {
+                      name: "زیبایی‌شناسی استعلایی",
+                      children: [
+                        { name: "زمان" },
+                        { name: "مکان" },
+                        { name: "صور احساسیت" },
+                      ],
+                    },
+                    {
+                      name: "منطق استعلایی",
+                      children: [
+                        {
+                          name: "تحلیل استعلایی",
+                          children: [
+                            { name: "جدول احکام" },
+                            { name: "استنتاج متافیزیکی مقولات" },
+                            { name: "استنتاج استعلایی مقولات" },
+                            { name: "تمثیلات تجربه" },
+                          ],
+                        },
+                        { name: "دیالکتیک استعلایی" },
+                      ],
+                    },
+                  ],
+                },
+                {
+                  name: "جدول احکام",
+                  children: [
+                    { name: "منشأ مقولات" },
+                    { name: "احکام ترکیبی" },
+                    { name: "احکام تحلیلی" },
+                  ],
+                },
+                {
+                  name: "شماتیسم",
+                  children: [
+                    { name: "پل بین مقولات و شهود حسی" },
+                    { name: "اثر پاول رابه" },
+                  ],
+                },
+                {
+                  name: "اخلاق",
+                  children: [
+                    { name: "قانون اخلاقی جهانی" },
+                    { name: "اختیار" },
+                    { name: "خودآیینی (autonomy)" },
+                  ],
+                },
+                {
+                  name: "نظریه سیاسی",
+                  children: [
+                    { name: "آزادی" },
+                    { name: "برابری" },
+                    { name: "جامعه عادلانه" },
+                    { name: "صلح پایدار" },
+                  ],
+                },
+                {
+                  name: "زیبایی‌شناسی (نقد قوه حکم)",
+                  children: [
+                    {
+                      name: "داوری‌های ذوق (زیبایی)",
+                      children: [
+                        { name: "غیرعلاقه‌مندانه" },
+                        { name: "جهانشمولیت" },
+                        { name: "صورت غایت‌مندی" },
+                        { name: "ضرورت" },
+                        { name: "بازی آزاد فاهمه و تخیل" },
+                      ],
+                    },
+                    {
+                      name: "نظریه هنر",
+                      children: [
+                        { name: "تقلید زیبایی طبیعت" },
+                        { name: "نقش نبوغ" },
+                        { name: "ایده زیبایی‌شناختی" },
+                      ],
+                    },
+                    {
+                      name: "رابطه با نظریه اخلاق",
+                      children: [{ name: "زیبایی نماد اخلاق" }],
+                    },
+                    { name: "نظام در مقابل گردایه" },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "روش شناسی",
+              children: [
+                { name: "تحلیل و ترکیب" },
+                { name: "معماری" },
+                { name: "کاربرد در مابعدالطبیعه" },
+                { name: "روش ζητητικός (زتتیک)" },
+              ],
+            },
+          ],
+        };
+
+        // مقداردهی اولیه چارت
+        $("#chart-container").orgchart({
+          data: datasource,
+          nodeContent: "name", // محتوایی که در نود نمایش داده می‌شود (از فیلد 'name' در دیتا سورس)
+          pan: true, // قابلیت جابجایی چارت (pan)
+          zoom: true, // قابلیت بزرگنمایی و کوچک‌نمایی (zoom)
+          direction: "t2b", // جهت نمایش چارت: 't2b' (بالا به پایین), 'b2t', 'l2r', 'r2l' (راست به چپ)
+          // برای فارسی، 'r2l' هم می‌تواند مناسب باشد اگر چارت افقی بخواهید.
+          exportButton: true, // نمایش دکمه خروجی گرفتن از چارت
+          exportFilename: "چارت_فلسفه_کانت", // نام فایل خروجی
+          chartClass: "oc-rtl", // افزودن کلاس برای پشتیبانی بهتر از RTL توسط کتابخانه
+        });
+      });
+    </script>
+  </body>
+</html>

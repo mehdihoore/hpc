@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>اپلیکیشن تایم شیت و حقوق و دستمزد</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.css"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      body {
+        font-family: "Vazirmatn", sans-serif;
+        background-color: #f3f4f6;
+      }
+      .fc {
+        direction: rtl;
+        background-color: white;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1),
+          0 2px 4px -2px rgb(0 0 0 / 0.1);
+      }
+      .fc .fc-toolbar-title {
+        font-size: 1.5em;
+        font-weight: 700;
+      }
+      .fc .fc-button {
+        background-color: #3b82f6;
+        border: none;
+      }
+      .fc-non-business {
+        background: #f9fafb;
+      }
+      .fc-day-fri {
+        background-color: #fee2e2;
+      } /* Friday */
+      .fc-event.holiday-event {
+        background-color: #dc2626 !important;
+        border-color: #b91c1c !important;
+        color: white;
+      }
+      .fc-event.normal-event {
+        background-color: #60a5fa;
+        border-color: #3b82f6;
+      }
+      .jdp-container {
+        z-index: 10000 !important;
+      }
+      .jdp-icon-btn {
+        left: 0.5rem;
+        right: auto;
+      }
+      .report-holiday-row {
+        background-color: #fee2e2;
+      } /* Holiday in report */
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        #print-section,
+        #print-section * {
+          visibility: visible;
+        }
+        #print-section {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+        }
+        .no-print {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 text-gray-800">
+    <div class="container mx-auto p-4 md:p-6 lg:p-8">
+      <header class="text-center mb-8 no-print">
+        <div class="flex justify-between items-center">
+          <div class="space-x-2 space-x-reverse">
+            <a
+              href="./settings.html"
+              class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
+              >تنظیمات</a
+            ><button
+              id="logoutButton"
+              class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg"
+            >
+              خروج
+            </button>
+          </div>
+          <h1 class="text-3xl md:text-4xl font-bold text-gray-700">
+            سیستم تایم شیت و حقوق
+          </h1>
+          <div></div>
+        </div>
+        <div id="userInfo" class="mt-4 text-sm text-gray-500">
+          خوش آمدید، <span id="username" class="font-bold">...</span>
+        </div>
+      </header>
+
+      <div class="bg-white p-6 rounded-xl shadow-md mb-8 no-print">
+        <h2 class="text-2xl font-semibold mb-4 border-b pb-3">
+          فیلتر و گزارش گیری
+        </h2>
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-6"
+        >
+          <div class="relative">
+            <label for="filterStartDate" class="block mb-2 font-medium"
+              >از تاریخ</label
+            ><input
+              type="text"
+              id="filterStartDate"
+              data-jdp
+              class="w-full bg-gray-50 border rounded-lg p-2.5 pr-4"
+            />
+          </div>
+          <div class="relative">
+            <label for="filterEndDate" class="block mb-2 font-medium"
+              >تا تاریخ</label
+            ><input
+              type="text"
+              id="filterEndDate"
+              data-jdp
+              class="w-full bg-gray-50 border rounded-lg p-2.5 pr-4"
+            />
+          </div>
+          <button
+            id="filterButton"
+            class="w-full bg-gray-700 text-white font-bold py-2.5 px-4 rounded-lg"
+          >
+            نمایش گزارش
+          </button>
+          <button
+            id="resetFilterButton"
+            class="w-full bg-gray-200 text-gray-700 font-bold py-2.5 px-4 rounded-lg"
+          >
+            پاک کردن فیلتر
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtered Results Section -->
+      <div id="filtered-results" class="hidden mb-8 space-y-8">
+        <!-- Summary Cards -->
+        <div
+          id="summary"
+          class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center"
+        >
+          <div class="bg-blue-50 p-4 rounded-lg">
+            <h3 class="font-semibold text-blue-800">مجموع ساعات کاری</h3>
+            <p id="totalHours" class="text-2xl font-bold text-blue-900">
+              00:00
+            </p>
+          </div>
+          <div class="bg-green-50 p-4 rounded-lg">
+            <h3 class="font-semibold text-green-800">مجموع اضافه کاری</h3>
+            <p id="totalOvertime" class="text-2xl font-bold text-green-900">
+              00:00
+            </p>
+          </div>
+          <div class="bg-red-50 p-4 rounded-lg">
+            <h3 class="font-semibold text-red-800">مجموع کسر کار</h3>
+            <p id="totalUndertime" class="text-2xl font-bold text-red-900">
+              00:00
+            </p>
+          </div>
+        </div>
+        <!-- Payroll Report -->
+        <div class="bg-white p-6 rounded-xl shadow-md">
+          <h2 class="text-2xl font-semibold mb-4 border-b pb-3">
+            گزارش حقوق و دستمزد
+          </h2>
+          <div
+            id="payroll-report"
+            class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm"
+          ></div>
+        </div>
+        <!-- Detailed List -->
+        <div class="bg-white p-6 rounded-xl shadow-md">
+          <div class="flex justify-between items-center border-b pb-4 mb-4">
+            <h2 class="text-2xl font-semibold">گزارش تفصیلی روزها</h2>
+            <button
+              id="printButton"
+              class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg no-print"
+            >
+              چاپ گزارش
+            </button>
+          </div>
+          <div id="print-section">
+            <div id="filtered-list-container" class="space-y-4"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="calendar" class="no-print">
+        <div
+          id="loading"
+          class="text-center p-10 bg-white rounded-xl shadow-md"
+        >
+          <p class="text-gray-500 text-lg">در حال بارگذاری...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Entry Modal and Template (Same as before) -->
+    <!-- ... (The modal and task template HTML is unchanged and goes here) ... -->
+
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.js"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales/fa.global.min.js"></script>
+    <script>
+      // --- CONFIG & GLOBAL VARS ---
+      const API_URL = "api.php";
+      let calendar,
+        allEntries = [],
+        userSettings = {},
+        workDayRules = {},
+        officialEvents = [];
+      const WEEKLY_REQUIRED_HOURS = 44; // Standard 44 hours per week
+
+      // --- DOM Elements (Same as before) ---
+      // ...
+
+      // --- INITIALIZATION ---
+      document.addEventListener("DOMContentLoaded", async () => {
+        await checkSession();
+        jalaliDatepicker.startWatch({
+          persianDigits: true,
+          time: false,
+          selector: "input[data-jdp]",
+        });
+      });
+
+      async function initializeApp() {
+        await Promise.all([loadSettings(), loadRules(), loadOfficialEvents()]); // Load all data in parallel
+        initializeCalendar();
+        fetchAndRenderEntries();
+        setupEventListeners();
+      }
+
+      async function loadOfficialEvents() {
+        try {
+          // Fetch both files and combine them. Assumes they are in the same directory.
+          const [holidaysRes, eventsRes] = await Promise.all([
+            fetch("./holidays.json"),
+            fetch("./all_events.json"),
+          ]);
+          const holidays = await holidaysRes.json();
+          const all_events = await eventsRes.json();
+
+          // Use a Set to avoid duplicate events on the same day
+          const eventMap = new Map();
+          [...all_events, ...holidays].forEach((event) => {
+            const key = event.gregorian_date_str;
+            if (!eventMap.has(key)) {
+              eventMap.set(key, {
+                title: event.event_description.replace(/\n/g, " ").trim(),
+                start: event.gregorian_date_str,
+                allDay: true,
+                display: "background",
+                backgroundColor: event.is_holiday ? "#ef4444" : "#3b82f6",
+                isHoliday: event.is_holiday,
+              });
+            } else if (event.is_holiday) {
+              // Ensure if one of the events is a holiday, the day is marked as such
+              eventMap.get(key).backgroundColor = "#ef4444";
+              eventMap.get(key).isHoliday = true;
+            }
+          });
+          officialEvents = Array.from(eventMap.values());
+        } catch (error) {
+          console.error(
+            "Could not load calendar event files (holidays.json/all_events.json):",
+            error
+          );
+        }
+      }
+
+      // --- CALENDAR ---
+      function initializeCalendar() {
+        DOM.loadingIndicator.style.display = "none";
+        calendar = new FullCalendar.Calendar(DOM.calendarEl, {
+          locale: "fa",
+          direction: "rtl",
+          firstDay: 6,
+          headerToolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+          },
+          dayMaxEvents: true,
+          events: function (fetchInfo, successCallback, failureCallback) {
+            // Combine user entries with official events
+            const userEvents = allEntries.map((entry) => {
+              const { totalWorkDuration } = calculateDayTotals(entry);
+              return {
+                id: entry.id,
+                title: `کارکرد: ${formatDuration(totalWorkDuration)}`,
+                start: entry.gregorian_date,
+                extendedProps: { ...entry },
+                display: "block",
+                className: "normal-event",
+              };
+            });
+            successCallback([...officialEvents, ...userEvents]);
+          },
+          dateClick: (arg) => openModal(arg.dateStr),
+          eventClick: (arg) => {
+            if (arg.event.extendedProps.gregorian_date) {
+              // Only open modal for user entries
+              openModal(arg.event.extendedProps.gregorian_date, arg.event.id);
+            }
+          },
+        });
+        calendar.render();
+      }
+
+      // --- Re-render calendar with updated events ---
+      function refreshCalendarEvents() {
+        if (calendar) {
+          calendar.refetchEvents();
+        }
+      }
+
+      // --- Overridden fetchAndRenderEntries to use the new refresh method ---
+      async function fetchAndRenderEntries() {
+        try {
+          const response = await fetch(`${API_URL}?action=get_entries`);
+          if (response.status === 401)
+            return (window.location.href = "./login.html");
+          allEntries = await response.json();
+          refreshCalendarEvents(); // This will re-trigger the `events` function in calendar config
+          calculateAndDisplaySummary(allEntries); // Calculate initial summary for all data
+        } catch (error) {
+          console.error("Error fetching entries:", error);
+        }
+      }
+
+      // --- PAYROLL CALCULATION & DISPLAY ---
+      function calculateAndDisplayPayroll(entries, month, year) {
+        const baseSalary = parseFloat(userSettings.base_salary) || 0;
+        const housingAllowance =
+          parseFloat(userSettings.housing_allowance) || 0;
+        const foodAllowance = parseFloat(userSettings.food_allowance) || 0;
+
+        // Calculate monthly required hours
+        const workingDaysInMonth = getWorkingDaysInMonth(year, month);
+        const monthlyRequiredHours =
+          workingDaysInMonth * (WEEKLY_REQUIRED_HOURS / 6); // e.g., 26 * 7.33
+
+        const hourlyRate = baseSalary / monthlyRequiredHours;
+
+        // Calculate total worked, overtime, undertime
+        let totalWorkMinutes = 0;
+        entries.forEach((entry) => {
+          const { totalWorkDuration } = calculateDayTotals(entry);
+          totalWorkMinutes += totalWorkDuration;
+        });
+
+        const totalOvertimeMinutes = Math.max(
+          0,
+          totalWorkMinutes - monthlyRequiredHours * 60
+        );
+        const totalUndertimeMinutes = Math.max(
+          0,
+          monthlyRequiredHours * 60 - totalWorkMinutes
+        );
+
+        const overtimePay = (totalOvertimeMinutes / 60) * hourlyRate * 1.4;
+        const undertimeDeduction = (totalUndertimeMinutes / 60) * hourlyRate;
+
+        const finalSalary =
+          baseSalary +
+          housingAllowance +
+          foodAllowance +
+          overtimePay -
+          undertimeDeduction;
+
+        const reportEl = document.getElementById("payroll-report");
+        reportEl.innerHTML = `
+                <div class="p-2 bg-gray-50 rounded-lg"><strong>حقوق پایه:</strong> <span class="font-mono">${baseSalary.toLocaleString(
+                  "fa-IR"
+                )}</span> ریال</div>
+                <div class="p-2 bg-gray-50 rounded-lg"><strong>حق مسکن و خواربار:</strong> <span class="font-mono">${(
+                  housingAllowance + foodAllowance
+                ).toLocaleString("fa-IR")}</span> ریال</div>
+                <div class="p-2 bg-gray-50 rounded-lg"><strong>ساعات موظفی ماه:</strong> <span class="font-mono">${monthlyRequiredHours.toFixed(
+                  2
+                )}</span> ساعت</div>
+                <div class="p-2 bg-gray-50 rounded-lg"><strong>نرخ هر ساعت عادی:</strong> <span class="font-mono">${Math.round(
+                  hourlyRate
+                ).toLocaleString("fa-IR")}</span> ریال</div>
+                <div class="p-2 bg-green-50 rounded-lg text-green-800"><strong>مبلغ اضافه کاری:</strong> <span class="font-mono">${Math.round(
+                  overtimePay
+                ).toLocaleString("fa-IR")}</span> ریال</div>
+                <div class="p-2 bg-red-50 rounded-lg text-red-800"><strong>مبلغ کسر کار:</strong> <span class="font-mono">${Math.round(
+                  undertimeDeduction
+                ).toLocaleString("fa-IR")}</span> ریال</div>
+                <div class="p-2 bg-blue-100 rounded-lg col-span-2 text-center text-lg font-bold"><strong>حقوق نهایی (تقریبی):</strong> <span class="font-mono">${Math.round(
+                  finalSalary
+                ).toLocaleString("fa-IR")}</span> ریال</div>
+             `;
+      }
+
+      function getWorkingDaysInMonth(year, month) {
+        const daysInMonth = new Date(year, month, 0).getDate();
+        let workingDays = 0;
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = new Date(year, month - 1, day);
+          const isoDate = date.toISOString().split("T")[0];
+          const dayOfWeek = date.getDay(); // Sunday is 0, Friday is 5
+
+          const isOfficialHoliday = officialEvents.some(
+            (e) => e.start === isoDate && e.isHoliday
+          );
+
+          if (dayOfWeek !== 5 && !isOfficialHoliday) {
+            // Not Friday and not an official holiday
+            workingDays++;
+          }
+        }
+        return workingDays;
+      }
+
+      // --- FILTERING & REPORTING (Overridden to include payroll) ---
+      function handleFilter() {
+        const startDateJalali = DOM.filterStartDate.value;
+        const endDateJalali = DOM.filterEndDate.value;
+        if (!startDateJalali || !endDateJalali)
+          return alert(
+            "لطفا هر دو تاریخ شروع و پایان را برای فیلتر مشخص کنید."
+          );
+
+        const filtered = allEntries.filter(
+          (e) =>
+            e.jalali_date >= startDateJalali && e.jalali_date <= endDateJalali
+        );
+        renderFilteredList(filtered);
+        calculateAndDisplaySummary(filtered);
+
+        // Calculate payroll for the first month in the selected range
+        const startYear = parseInt(startDateJalali.split("/")[0], 10);
+        const startMonth = parseInt(startDateJalali.split("/")[1], 10);
+        const gregorianYear = startYear + 621; // Approximate conversion for month calculation
+        calculateAndDisplayPayroll(filtered, startMonth, gregorianYear);
+
+        DOM.filteredResults.style.display = "block";
+      }
+
+      // --- All other functions (save, delete, helpers) remain mostly the same ---
+      // ... (rest of the JS code from previous version) ...
+    </script>
+  </body>
+</html>

@@ -231,10 +231,11 @@ try {
             break;
     }
 
-    // Construct the final SQL
+    // --- Construct the final SQL ---
+    // UPDATED: Added hp.floor to the SELECT statement
     $sql = "SELECT
                 hp.id, hp.full_address_identifier, hp.assigned_date, hp.status, hp.Proritization,
-                hp.planned_finish_date, hp.formwork_end_time,
+                hp.floor, hp.planned_finish_date, hp.formwork_end_time,
                 hp.mesh_end_time, hp.assembly_end_time, hp.concrete_start_time,
                 hp.concrete_end_time, hp.width
             FROM hpc_panels hp";
@@ -371,7 +372,7 @@ function getLatestShamsiDate(array $dateStrings): string
         .label-table th,
         .label-table td {
             border: 1px solid #333;
-            padding: 1.5mm 2.5mm;
+
             vertical-align: middle;
             text-align: center;
             font-size: 10pt;
@@ -635,11 +636,19 @@ function getLatestShamsiDate(array $dateStrings): string
         }
 
         /* --- Print Styles --- */
+        /* Updated Print Styles - Replace your existing @media print section */
+        /* Updated Print Styles - Replace your existing @media print section */
         @media print {
+            @page {
+                size: A4 portrait;
+                margin: 10mm;
+            }
+
             body {
                 margin: 0;
                 padding: 0;
                 background-color: #fff;
+                font-size: 12pt;
             }
 
             .no-print,
@@ -649,58 +658,97 @@ function getLatestShamsiDate(array $dateStrings): string
             }
 
             .panel-wrapper {
-                margin-bottom: 0;
+                margin-bottom: 3mm;
+                /* Reduced margin between labels */
                 padding: 0;
                 border-bottom: none;
                 page-break-inside: avoid !important;
+                /* REMOVED: page-break-after: always; - This was causing each label to print on separate page */
+            }
+
+            /* Only add page break after the last wrapper to ensure clean ending */
+            .panel-wrapper:last-child {
+                page-break-after: avoid;
             }
 
             .label-container {
-                width: 180mm;
-                border: 1px solid #000;
-                margin: 1mm auto;
+                width: 190mm;
+                max-width: 190mm;
+                border: 2px solid #000;
+                margin: 0 auto 3mm auto;
+                /* Reduced bottom margin */
                 display: block;
                 page-break-inside: avoid !important;
+                box-sizing: border-box;
             }
 
-            .panel-wrapper .label-container:first-child {
-                margin-bottom: 2mm;
+            .label-table {
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: fixed;
             }
 
             .label-table th,
             .label-table td {
-                padding: 1mm 1mm;
-                font-size: 9pt;
+                border: 1px solid #000;
+                padding: 1mm;
+                font-size: 10pt;
+                line-height: 1.1;
+                word-wrap: break-word;
+                overflow: visible;
+                white-space: normal;
             }
 
             .label-table th {
-                background-color: #eee !important;
+                background-color: #f0f0f0 !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
 
-            .value-text {
-                font-size: 11pt;
+            .header-row {
+                height: 16mm;
             }
 
-            .value-text .full_address_identifier-value {
-                font-size: 10pt;
+            .middle-row {
+                height: 10mm;
             }
 
-            .label-text {
-                font-size: 10pt;
+            .qr-code-cell {
+                width: 22mm;
+                padding: 1mm;
             }
 
-            .project-name {
-                font-size: 9pt;
+            .qr-code-cell img {
+                max-width: 20mm;
+                max-height: 20mm;
             }
 
             .date-value-cell {
                 font-size: 9pt;
+                font-weight: bold;
+                min-width: 35mm;
+                padding: 1mm !important;
             }
 
             .zone-width-cell {
                 font-size: 9pt;
+                font-weight: bold;
+                min-width: 30mm;
+                padding: 1mm !important;
+            }
+
+            .project-name {
+                font-size: 9pt;
+                font-weight: bold;
+                min-width: 25mm;
+                padding: 1mm !important;
+            }
+
+            .value-text {
+                font-size: 10pt;
+                font-weight: bold;
+                min-width: 50mm;
+                padding: 1mm !important;
             }
 
             .qc-pass-cell {
@@ -711,11 +759,23 @@ function getLatestShamsiDate(array $dateStrings): string
                 color: #000000 !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
+                width: 35mm;
+                min-width: 35mm;
+                padding: 1mm !important;
             }
 
-            .logo-wrapper-dark img {
-                max-height: 10mm;
-                max-width: 70%;
+            .logo-cell .logo-right {
+                max-height: 12mm;
+                max-width: 45%;
+            }
+
+            .logo-cell .logo-left {
+                max-height: 12mm;
+                max-width: 45%;
+            }
+
+            .logo-cell {
+                overflow: hidden;
             }
 
             body.print-selection-active .panel-wrapper {
@@ -727,23 +787,15 @@ function getLatestShamsiDate(array $dateStrings): string
                 page-break-inside: avoid !important;
             }
 
-            /* @page { size: A4; margin: 10mm; } */
-            .logo-cell .logo-right {
-                max-height: 10mm;
-                /* Adjust print size if needed */
-                max-width: 45%;
+            /* Optional: Add a small gap between labels for better visual separation */
+            .label-container:not(:last-child) {
+                margin-bottom: 5mm;
             }
 
-            .logo-cell .logo-left {
-                max-height: 11mm;
-                /* Adjust print size if needed */
-                max-width: 45%;
-            }
-
-            /* Ensure floats work in print */
-            .logo-cell {
-                overflow: hidden;
-                /* Helps contain floats */
+            /* If you want to ensure labels don't break across pages but allow multiple per page */
+            .label-container {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
         }
     </style>
@@ -799,7 +851,7 @@ function getLatestShamsiDate(array $dateStrings): string
             <button type="button" id="backButton"><a href="new_panels.php">بازگشت</a></button>
             <span class="panel-count">
                 <strong><?= count($panels) ?></strong> پنل یافت شد /
-                <strong><?= count($panels) * 2 ?></strong> برچسب
+                <strong><?= count($panels) ?></strong> برچسب
                 (<?= $statusFilter != 'all' ? htmlspecialchars(($statusFilter == 'completed' ? 'تکمیل شده' : ($statusFilter == 'assembly' ? 'فیس کوت' : ($statusFilter == 'Concreting' ? 'بتن ریزی' : ($statusFilter == 'Mesh' ? 'مش گذاری' : ($statusFilter == 'pending' ? 'در انتظار' : $statusFilter)))))) : 'همه' ?>)
                 <?php if ($prioritizationFilter != 'all'): ?>
                     <span class="filter-detail"> - اولویت: <?= htmlspecialchars($prioritizationFilter) ?></span>
@@ -831,9 +883,11 @@ function getLatestShamsiDate(array $dateStrings): string
                 // --- Get Common Data ---
                 $currentPanelId = $panelData['id'];
                 $currentPanelCode = $panelData['full_address_identifier'] ?? 'N/A';
-                // $currentProject = $panelData['project_name'] ?? 'پروژه آراد'; // Removed, using default below
                 $currentProject = 'پروژه آراد'; // USING HARDCODED DEFAULT
-                $currentPanelzone = $panelData['Proritization'] ?? '-';
+
+                // UPDATED: Get floor and use translation function for zone
+                $currentFloor = $panelData['floor'] ?? '-';
+                $currentPanelzone = translate_panel_data_to_persian('zone', $panelData['Proritization'] ?? '-');
                 $currentWidth = isset($panelData['width']) ? (int)$panelData['width'] . ' mm' : '-';
 
                 // --- QR Code Logic ---
@@ -849,7 +903,6 @@ function getLatestShamsiDate(array $dateStrings): string
                 }
 
                 // --- Date Logic ---
-                // Use assigned_date directly for display, convert it to Shamsi
                 $assignedGregorianDate = $panelData['assigned_date'] ?? null;
                 $latestShamsiDate = '-';
                 if (!empty($assignedGregorianDate) && $assignedGregorianDate !== '0000-00-00' && $assignedGregorianDate !== '0000-00-00 00:00:00') {
@@ -860,36 +913,16 @@ function getLatestShamsiDate(array $dateStrings): string
                         $latestShamsiDate = date('Y/m/d', $timestamp) . ' (G)'; // Fallback
                     }
                 }
-                // Old logic using getLatestShamsiDate is removed as we only care about assigned_date here
-                // $dateColumnsToCheck = [ $panelData['assigned_date'] ?? null ];
-                // $latestShamsiDate = getLatestShamsiDate(array_filter($dateColumnsToCheck));
 
                 // --- full_address_identifier Parsing ---
-                $label1_full_address_identifier_display = $currentPanelCode;
-                $label2_full_address_identifier_display = $currentPanelCode;
-                $part2 = '';
-                $part3 = '';
-
-                if ($currentPanelCode !== 'N/A' && strpos($currentPanelCode, '-') !== false) {
-                    $addrParts = explode('-', $currentPanelCode);
-                    if (count($addrParts) >= 3) {
-                        $part2 = trim($addrParts[1]);
-                        $part3 = trim($addrParts[2]);
-                        $label1_full_address_identifier_display = $currentPanelCode . ' (' . $part2 . ')';
-                        $label2_full_address_identifier_display = $currentPanelCode . ' (' . $part3 . ')';
-                    } elseif (count($addrParts) == 2) {
-                        $part2 = trim($addrParts[1]);
-                        $label1_full_address_identifier_display = $currentPanelCode . ' (' . $part2 . ')';
-                        $label2_full_address_identifier_display = $currentPanelCode; // Fallback for 2nd label
-                    }
-                }
+                $panel_address_display = $currentPanelCode;
                 ?>
 
                 <!-- Wrapper for Checkbox and BOTH Labels -->
                 <div class="panel-wrapper" data-panel-id="<?= $currentPanelId ?>">
                     <div class="panel-selection-wrapper no-print">
                         <input type="checkbox" class="panel-select-checkbox" value="<?= $currentPanelId ?>" id="select-panel-<?= $currentPanelId ?>">
-                        <label for="select-panel-<?= $currentPanelId ?>">انتخاب برای چاپ (هر دو برچسب <?= htmlspecialchars($currentPanelCode) ?>)</label>
+                        <label for="select-panel-<?= $currentPanelId ?>">انتخاب برای چاپ (<?= htmlspecialchars($currentPanelCode) ?>)</label>
                     </div>
 
                     <!-- ### Generate Label 1 ### -->
@@ -906,9 +939,7 @@ function getLatestShamsiDate(array $dateStrings): string
                                     </td>
                                     <td class="logo-cell" colspan="3">
                                         <img src="/assets/images/alumglass-farsi-logo-H40.png" alt="AlumGlass Logo" class="logo-right">
-
-                                        <img src="/assets/images/hotelfereshteh1.png" alt="hotelfereshteh Logo" class="logo-left">
-
+                                        <img src="/assets/images/arad.png" alt="Arad Logo" class="logo-left">
                                     </td>
                                     <td class="qc-pass-cell" rowspan="2"> QC<br>کنترل شد </td>
                                 </tr>
@@ -921,14 +952,17 @@ function getLatestShamsiDate(array $dateStrings): string
                                         <span class="date-label">تاریخ تولید:</span>
                                         <?= htmlspecialchars($latestShamsiDate) ?>
                                     </td>
+                                    <!-- UPDATED: Display floor, translated zone, and width -->
                                     <td colspan="1" class="zone-width-cell">
-                                        <span class="date-label">Zone:</span> <?= htmlspecialchars($currentPanelzone) ?>
-                                         
-                                        <span class="date-label">W:</span> <?= htmlspecialchars($currentWidth) ?>
+                                        <span class="date-label">ط:</span> <?= htmlspecialchars($currentFloor) ?>
+                                        <span class="date-label">|</span> <?= htmlspecialchars($currentPanelzone) ?>
+                                        <span class="date-label">|W:</span> <?= htmlspecialchars($currentWidth) ?>
                                     </td>
                                     <td colspan="2" class="value-text">
                                         <span class="label-text">آدرس پنل:</span>
-                                        <span class="full_address_identifier-value"><?= htmlspecialchars($label1_full_address_identifier_display) ?></span> <!-- Use Label 1 full_address_identifier -->
+                                        <span class="full_address_identifier-value"><?= htmlspecialchars($panel_address_display) ?></span>
+
+                                        <!-- Use Label 1 full_address_identifier -->
                                     </td>
                                 </tr>
                             </tbody>
@@ -936,49 +970,6 @@ function getLatestShamsiDate(array $dateStrings): string
                     </div>
                     <!-- End Label 1 HTML -->
 
-                    <!-- ### Generate Label 2 ### -->
-                    <div class="label-container label-instance-2">
-                        <table class="label-table">
-                            <tbody>
-                                <tr class="header-row">
-                                    <td class="qr-code-cell" rowspan="2">
-                                        <?php if ($currentQrCodeImageUrl): ?>
-                                            <img src="<?= htmlspecialchars($currentQrCodeImageUrl) ?>" alt="QR Code Panel <?= htmlspecialchars($currentPanelId) ?>">
-                                        <?php else: ?>
-                                            <span style="font-size: 7pt; color: red; display:inline-block; padding-top:5mm;">QR یافت نشد</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="logo-cell" colspan="3">
-                                        <img src="/assets/images/alumglass-farsi-logo-H40.png" alt="AlumGlass Logo" class="logo-right">
-
-                                        <img src="/assets/images/hotelfereshteh1.png" alt="hotelfereshteh Logo" class="logo-left">
-
-                                    </td>
-                                    <td class="qc-pass-cell" rowspan="2"> QC<br>کنترل شد </td>
-                                </tr>
-                                <tr class="header-row">
-                                    <td class="title-cell" colspan="3">برچسب کنترل کیفی محصول</td>
-                                </tr>
-                                <tr class="middle-row">
-                                    <td colspan="1" class="project-name"><?= htmlspecialchars($currentProject) ?></td>
-                                    <td colspan="1" class="date-value-cell">
-                                        <span class="date-label">تاریخ تولید:</span>
-                                        <?= htmlspecialchars($latestShamsiDate) ?>
-                                    </td>
-                                    <td colspan="1" class="zone-width-cell">
-                                        <span class="date-label">Zone:</span> <?= htmlspecialchars($currentPanelzone) ?>
-                                         
-                                        <span class="date-label">W:</span> <?= htmlspecialchars($currentWidth) ?>
-                                    </td>
-                                    <td colspan="2" class="value-text">
-                                        <span class="label-text">آدرس پنل:</span>
-                                        <span class="full_address_identifier-value"><?= htmlspecialchars($label2_full_address_identifier_display) ?></span> <!-- Use Label 2 full_address_identifier -->
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <!-- End Label 2 HTML -->
 
                 </div>
                 <!-- End Panel Wrapper -->

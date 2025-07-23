@@ -1,0 +1,84 @@
+[2025-07-22 12:15:39] ================== SAVE REQUEST START ==================
+[2025-07-22 12:15:39] User: 1 (admin) | Element: Z01-GC-16-A-شآ-face
+[2025-07-22 12:15:39] Received Stages Data: {"66":{"items":[{"itemId":"351","status":"OK","value":""},{"itemId":"352","status":"Not OK","value":""},{"itemId":"353","status":"Not OK","value":""},{"itemId":"354","status":"Not OK","value":""},{"itemId":"355","status":"Pending","value":""},{"itemId":"356","status":"OK","value":""},{"itemId":"357","status":"OK","value":""}],"overall_status":"Repair","inspection_date":"۱۴۰۴\/۰۴\/۳۱","notes":"مشسنیامنتسیا"},"67":{"items":[{"itemId":"358","status":"Pending","value":""},{"itemId":"359","status":"Pending","value":""},{"itemId":"360","status":"Pending","value":""},{"itemId":"361","status":"Pending","value":""},{"itemId":"362","status":"Pending","value":""},{"itemId":"363","status":"Pending","value":""},{"itemId":"364","status":"Pending","value":""}],"overall_status":"Pending","inspection_date":"","notes":""},"68":{"items":[{"itemId":"365","status":"Pending","value":""},{"itemId":"366","status":"Pending","value":""},{"itemId":"367","status":"Pending","value":""}],"overall_status":"Pending","inspection_date":"","notes":""},"69":{"items":[{"itemId":"368","status":"Pending","value":""}],"overall_status":"Pending","inspection_date":"","notes":""},"70":{"items":[{"itemId":"369","status":"Pending","value":""},{"itemId":"370","status":"Pending","value":""},{"itemId":"371","status":"Pending","value":""},{"itemId":"372","status":"Pending","value":""}],"overall_status":"Pending","inspection_date":"","notes":""},"71":{"items":[{"itemId":"373","status":"Not OK","value":""},{"itemId":"374","status":"Not OK","value":""},{"itemId":"375","status":"Not OK","value":""},{"itemId":"376","status":"Not OK","value":""},{"itemId":"377","status":"Not OK","value":""}],"overall_status":"Reject","inspection_date":"1404\/04\/31","notes":"شسیشسی"},"72":{"items":[{"itemId":"378","status":"Pending","value":""},{"itemId":"379","status":"Pending","value":""}],"overall_status":"Pending","inspection_date":"","notes":""}}
+[2025-07-22 12:15:39] Received Files: ["attachments"]
+[2025-07-22 12:15:39] --- Processing Stage ID: 66 ---
+[2025-07-22 12:15:39]    Action: UPDATE existing record ID: 30
+[2025-07-22 12:15:39]    SQL (UPDATE): UPDATE inspections SET overall_status = :overall_status, inspection_date = :inspection_date, notes = :notes, attachments = :attachments, user_id = :user_id WHERE inspection_id = :inspection_id
+[2025-07-22 12:15:39]    PARAMS: {"overall_status":"Repair","inspection_date":"621-2-17","notes":"\u0645\u0634\u0633\u0646\u06cc\u0627\u0645\u0646\u062a\u0633\u06cc\u0627","attachments":"[\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178397_687f611d9a41c.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178397_687f611d9a764.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178397_687f611d9aa8b.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178397_687f611d9ad8d.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178397_687f611d9b077.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178397_687f611d9b339.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178397_687f611d9b639.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178445_687f614d7f112.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178445_687f614d8003f.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178445_687f614d80f0e.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178445_687f614d81e88.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178840_687f62d875415.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-16-A-____-face_1753178840_687f62d875805.jpg\"]","user_id":1,"inspection_id":30}
+[2025-07-22 12:15:39]    Appended to history_log for inspection ID: 30
+[2025-07-22 12:15:39]   Updating checklist items for inspection ID: 30
+[2025-07-22 12:15:39] --- Processing Stage ID: 67 ---
+[2025-07-22 12:15:39]    Action: UPDATE existing record ID: 31
+[2025-07-22 12:15:39]    SQL (UPDATE): UPDATE inspections SET overall_status = :overall_status, inspection_date = :inspection_date, notes = :notes, attachments = :attachments, user_id = :user_id WHERE inspection_id = :inspection_id
+[2025-07-22 12:15:39]    PARAMS: {"overall_status":"Pending","inspection_date":null,"notes":"","attachments":null,"user_id":1,"inspection_id":31}
+[2025-07-22 12:15:39]    Appended to history_log for inspection ID: 31
+[2025-07-22 12:15:39]   Updating checklist items for inspection ID: 31
+[2025-07-22 12:15:39] --- Processing Stage ID: 68 ---
+[2025-07-22 12:15:39]    Action: UPDATE existing record ID: 32
+[2025-07-22 12:15:39]    SQL (UPDATE): UPDATE inspections SET overall_status = :overall_status, inspection_date = :inspection_date, notes = :notes, attachments = :attachments, user_id = :user_id WHERE inspection_id = :inspection_id
+[2025-07-22 12:15:39]    PARAMS: {"overall_status":"Pending","inspection_date":null,"notes":"","attachments":null,"user_id":1,"inspection_id":32}
+[2025-07-22 12:15:39]    Appended to history_log for inspection ID: 32
+[2025-07-22 12:15:39]   Updating checklist items for inspection ID: 32
+[2025-07-22 12:15:39] --- Processing Stage ID: 69 ---
+[2025-07-22 12:15:39]    Action: UPDATE existing record ID: 33
+[2025-07-22 12:15:39]    SQL (UPDATE): UPDATE inspections SET overall_status = :overall_status, inspection_date = :inspection_date, notes = :notes, attachments = :attachments, user_id = :user_id WHERE inspection_id = :inspection_id
+[2025-07-22 12:15:39]    PARAMS: {"overall_status":"Pending","inspection_date":null,"notes":"","attachments":null,"user_id":1,"inspection_id":33}
+[2025-07-22 12:15:39]    Appended to history_log for inspection ID: 33
+[2025-07-22 12:15:39]   Updating checklist items for inspection ID: 33
+[2025-07-22 12:15:39] --- Processing Stage ID: 70 ---
+[2025-07-22 12:15:39]    Action: UPDATE existing record ID: 34
+[2025-07-22 12:15:39]    SQL (UPDATE): UPDATE inspections SET overall_status = :overall_status, inspection_date = :inspection_date, notes = :notes, attachments = :attachments, user_id = :user_id WHERE inspection_id = :inspection_id
+[2025-07-22 12:15:39]    PARAMS: {"overall_status":"Pending","inspection_date":null,"notes":"","attachments":null,"user_id":1,"inspection_id":34}
+[2025-07-22 12:15:39]    Appended to history_log for inspection ID: 34
+[2025-07-22 12:15:39]   Updating checklist items for inspection ID: 34
+[2025-07-22 12:15:39] --- Processing Stage ID: 71 ---
+[2025-07-22 12:15:39]    Action: UPDATE existing record ID: 35
+[2025-07-22 12:15:39]    SQL (UPDATE): UPDATE inspections SET overall_status = :overall_status, inspection_date = :inspection_date, notes = :notes, attachments = :attachments, user_id = :user_id WHERE inspection_id = :inspection_id
+[2025-07-22 12:15:39]    PARAMS: {"overall_status":"Reject","inspection_date":"2025-7-22","notes":"\u0634\u0633\u06cc\u0634\u0633\u06cc","attachments":null,"user_id":1,"inspection_id":35}
+[2025-07-22 12:15:39]    Appended to history_log for inspection ID: 35
+[2025-07-22 12:15:39]   Updating checklist items for inspection ID: 35
+[2025-07-22 12:15:39] --- Processing Stage ID: 72 ---
+[2025-07-22 12:15:39]    Action: UPDATE existing record ID: 36
+[2025-07-22 12:15:39]    SQL (UPDATE): UPDATE inspections SET overall_status = :overall_status, inspection_date = :inspection_date, notes = :notes, attachments = :attachments, user_id = :user_id WHERE inspection_id = :inspection_id
+[2025-07-22 12:15:39]    PARAMS: {"overall_status":"Pending","inspection_date":null,"notes":"","attachments":null,"user_id":1,"inspection_id":36}
+[2025-07-22 12:15:39]    Appended to history_log for inspection ID: 36
+[2025-07-22 12:15:39]   Updating checklist items for inspection ID: 36
+[2025-07-22 12:15:39] SUCCESS: Transaction committed.
+[2025-07-22 12:27:41] ================== SAVE REQUEST START ==================
+[2025-07-22 12:27:41] User: 1 (admin) | Element: Z01-GC-5-A-شآ-face
+[2025-07-22 12:27:41] Received Stages Data: {"70":{"items":[{"itemId":"369","status":"OK","value":""},{"itemId":"370","status":"Not OK","value":""},{"itemId":"371","status":"OK","value":""},{"itemId":"372","status":"OK","value":""}],"overall_status":"Repair","inspection_date":"1404\/04\/31","notes":"assdasdasd"}}
+[2025-07-22 12:27:41] Received Files: ["attachments"]
+[2025-07-22 12:27:41] --- Processing Stage ID: 70 ---
+[2025-07-22 12:27:41] File Upload SUCCESS: Moved 'photo_2024-08-04_11-40-38.jpg' to 'ghom_Z01-GC-5-A-____-face_1753180061_687f679ded798.jpg' for input 'attachments'.
+[2025-07-22 12:27:41] File Upload SUCCESS: Moved 'photo_2024-08-04_11-40-30.jpg' to 'ghom_Z01-GC-5-A-____-face_1753180061_687f679dedaa8.jpg' for input 'attachments'.
+[2025-07-22 12:27:41]    Action: UPDATE existing record ID: 27
+[2025-07-22 12:27:41]    SQL (UPDATE): UPDATE inspections SET overall_status = :overall_status, inspection_date = :inspection_date, notes = :notes, attachments = :attachments, user_id = :user_id WHERE inspection_id = :inspection_id
+[2025-07-22 12:27:41]    PARAMS: {"overall_status":"Repair","inspection_date":"2025-7-22","notes":"assdasdasd","attachments":"[\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-5-A-____-face_1753180061_687f679ded798.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-5-A-____-face_1753180061_687f679dedaa8.jpg\"]","user_id":1,"inspection_id":27}
+[2025-07-22 12:27:41]    Appended to history_log for inspection ID: 27
+[2025-07-22 12:27:41]   Updating checklist items for inspection ID: 27
+[2025-07-22 12:27:41] SUCCESS: Transaction committed.
+[2025-07-22 14:20:11] ================== SAVE REQUEST START ==================
+[2025-07-22 14:20:11] User: 1 (admin) | Element: Z01-GC-37-A-شآ-face
+[2025-07-22 14:20:11] Received Stages Data: {"66":{"items":[{"itemId":"351","status":"OK","value":"AXa"},{"itemId":"352","status":"Not OK","value":"ZXZX"},{"itemId":"353","status":"Not OK","value":""},{"itemId":"354","status":"OK","value":""},{"itemId":"355","status":"OK","value":""},{"itemId":"356","status":"OK","value":""},{"itemId":"357","status":"Not OK","value":"sdasd"}],"overall_status":"Repair","inspection_date":"1404\/04\/31","notes":"asdasdsd"}}
+[2025-07-22 14:20:11] Received Files: ["attachments"]
+[2025-07-22 14:20:11] --- Processing Stage ID: 66 ---
+[2025-07-22 14:20:11] File Upload SUCCESS: Moved 'photo_2024-08-04_11-40-38.jpg' to 'ghom_Z01-GC-37-A-____-face_1753186811_687f81fb7b534.jpg' for input 'attachments'.
+[2025-07-22 14:20:11] File Upload SUCCESS: Moved 'photo_2024-08-04_11-40-30.jpg' to 'ghom_Z01-GC-37-A-____-face_1753186811_687f81fb7bcf2.jpg' for input 'attachments'.
+[2025-07-22 14:20:11]    Action: INSERT new record.
+[2025-07-22 14:20:11]    SQL (INSERT): INSERT INTO inspections (element_id, part_name, stage_id, user_id, overall_status, inspection_date, notes, attachments, contractor_status, contractor_date, contractor_notes, contractor_attachments, history_log) VALUES (:element_id, :part_name, :stage_id, :user_id, :overall_status, :inspection_date, :notes, :attachments, :contractor_status, :contractor_date, :contractor_notes, :contractor_attachments, :history_log)
+[2025-07-22 14:20:11]    PARAMS: {"element_id":"Z01-GC-37-A-\u0634\u0622","part_name":"face","stage_id":66,"user_id":1,"overall_status":"Repair","inspection_date":"2025-7-22","notes":"asdasdsd","attachments":"[\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-37-A-____-face_1753186811_687f81fb7b534.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-37-A-____-face_1753186811_687f81fb7bcf2.jpg\"]","contractor_status":null,"contractor_date":null,"contractor_notes":null,"contractor_attachments":null,"history_log":"[{\"timestamp\":\"2025-07-22 14:20:11\",\"user_id\":1,\"role\":\"admin\",\"action\":\"Supervisor Action\",\"data\":{\"overall_status\":\"Repair\",\"inspection_date\":\"2025-7-22\",\"notes\":\"asdasdsd\",\"attachments\":[\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-37-A-____-face_1753186811_687f81fb7b534.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-37-A-____-face_1753186811_687f81fb7bcf2.jpg\"],\"checklist_items\":[{\"itemId\":\"351\",\"status\":\"OK\",\"value\":\"AXa\"},{\"itemId\":\"352\",\"status\":\"Not OK\",\"value\":\"ZXZX\"},{\"itemId\":\"353\",\"status\":\"Not OK\",\"value\":\"\"},{\"itemId\":\"354\",\"status\":\"OK\",\"value\":\"\"},{\"itemId\":\"355\",\"status\":\"OK\",\"value\":\"\"},{\"itemId\":\"356\",\"status\":\"OK\",\"value\":\"\"},{\"itemId\":\"357\",\"status\":\"Not OK\",\"value\":\"sdasd\"}]}}]"}
+[2025-07-22 14:20:11]   Updating checklist items for inspection ID: 45
+[2025-07-22 14:20:11] SUCCESS: Transaction committed.
+[2025-07-22 15:50:40] ================== SAVE REQUEST START ==================
+[2025-07-22 15:50:40] User: 1 (admin) | Element: Z01-GC-100-A-شآ-face
+[2025-07-22 15:50:40] Received Stages Data: {"66":{"items":[{"itemId":"351","status":"OK","value":""},{"itemId":"352","status":"Not OK","value":""},{"itemId":"353","status":"Not OK","value":""},{"itemId":"354","status":"OK","value":""},{"itemId":"355","status":"OK","value":""},{"itemId":"356","status":"Not OK","value":"zdADasdA"},{"itemId":"357","status":"OK","value":"asAaA"}],"overall_status":"Repair","inspection_date":"1404\/04\/31","notes":"afadasdscaScSXC"}}
+[2025-07-22 15:50:40] Received Files: ["attachments"]
+[2025-07-22 15:50:40] --- Processing Stage ID: 66 ---
+[2025-07-22 15:50:40] File Upload SUCCESS: Moved 'photo_2024-08-04_11-40-38.jpg' to 'ghom_Z01-GC-100-A-____-face_1753192240_687f97306b42e.jpg' for input 'attachments'.
+[2025-07-22 15:50:40] File Upload SUCCESS: Moved 'photo_2024-08-04_11-40-30.jpg' to 'ghom_Z01-GC-100-A-____-face_1753192240_687f97306b73d.jpg' for input 'attachments'.
+[2025-07-22 15:50:40]    Action: INSERT new record.
+[2025-07-22 15:50:40]    SQL (INSERT): INSERT INTO inspections (element_id, part_name, stage_id, user_id, overall_status, inspection_date, notes, attachments, contractor_status, contractor_date, contractor_notes, contractor_attachments, history_log) VALUES (:element_id, :part_name, :stage_id, :user_id, :overall_status, :inspection_date, :notes, :attachments, :contractor_status, :contractor_date, :contractor_notes, :contractor_attachments, :history_log)
+[2025-07-22 15:50:40]    PARAMS: {"element_id":"Z01-GC-100-A-\u0634\u0622","part_name":"face","stage_id":66,"user_id":1,"overall_status":"Repair","inspection_date":"2025-7-22","notes":"afadasdscaScSXC","attachments":"[\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-100-A-____-face_1753192240_687f97306b42e.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-100-A-____-face_1753192240_687f97306b73d.jpg\"]","contractor_status":null,"contractor_date":null,"contractor_notes":null,"contractor_attachments":null,"history_log":"[{\"timestamp\":\"2025-07-22 15:50:40\",\"user_id\":1,\"role\":\"admin\",\"action\":\"Supervisor Action\",\"data\":{\"overall_status\":\"Repair\",\"inspection_date\":\"2025-7-22\",\"notes\":\"afadasdscaScSXC\",\"attachments\":[\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-100-A-____-face_1753192240_687f97306b42e.jpg\",\"\\\/uploads\\\/messages\\\/ghom_Z01-GC-100-A-____-face_1753192240_687f97306b73d.jpg\"],\"checklist_items\":[{\"itemId\":\"351\",\"status\":\"OK\",\"value\":\"\"},{\"itemId\":\"352\",\"status\":\"Not OK\",\"value\":\"\"},{\"itemId\":\"353\",\"status\":\"Not OK\",\"value\":\"\"},{\"itemId\":\"354\",\"status\":\"OK\",\"value\":\"\"},{\"itemId\":\"355\",\"status\":\"OK\",\"value\":\"\"},{\"itemId\":\"356\",\"status\":\"Not OK\",\"value\":\"zdADasdA\"},{\"itemId\":\"357\",\"status\":\"OK\",\"value\":\"asAaA\"}]}}]"}
+[2025-07-22 15:50:40]   Updating checklist items for inspection ID: 54
+[2025-07-22 15:50:40] SUCCESS: Transaction committed.

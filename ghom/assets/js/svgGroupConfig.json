@@ -1,0 +1,23 @@
+{
+    "GFRC": { "label": "GFRC", "defaultVisible": true, "interactive": true, "elementType": "GFRC" },
+   
+    "Atieh": { "label": "بلوک A- آتیه نما", "color": "#0de16d", "defaultVisible": true, "interactive": true, "contractor": "شرکت آتیه نما", "block": "A", "elementType": "Region" },
+    "org": { "label": "بلوک - اورژانس A- آتیه نما", "color": "#ebb00d", "defaultVisible": true, "interactive": true, "contractor": "شرکت آتیه نما", "block": "A - اورژانس", "elementType": "Region" },
+    "AranB": { "label": "بلوک B-آرانسج", "color": "#38abee", "defaultVisible": true, "interactive": true, "contractor": "شرکت آرانسج", "block": "B", "elementType": "Region" },
+    "AranC": { "label": "بلوک C-آرانسج", "color": "#ee3838", "defaultVisible": true, "interactive": true, "contractor": "شرکت آرانسج", "block": "C", "elementType": "Region" },
+    "hayatOmran": { "label": " حیاط عمران آذرستان", "color": "#eef595da", "defaultVisible": true, "interactive": true, "contractor": "شرکت عمران آذرستان", "block": "حیاط", "elementType": "Region" },
+    "hayatRos": { "label": " حیاط رس", "color": "#eb0de7da", "defaultVisible": true, "interactive": true, "contractor": "شرکت ساختمانی رس", "block": "حیاط", "elementType": "Region" },
+    "handrail": { "label": "نقشه ندارد", "color": "rgba(238, 56, 56, 0.3)", "defaultVisible": true, "interactive": true },
+    "glass_40%": { "label": "شیشه 40%", "color": "rgba(173, 216, 230, 0.7)", "defaultVisible": true, "interactive": true, "elementType": "Glass" },
+    "glass_30%": { "label": "شیشه 30%", "color": "rgba(173, 216, 230, 0.7)", "defaultVisible": true, "interactive": true, "elementType": "Glass" },
+    "glass_50%": { "label": "شیشه 50%", "color": "rgba(173, 216, 230, 0.7)", "defaultVisible": true, "interactive": true, "elementType": "Glass" },
+    "glass_opaque": { "label": "شیشه مات", "color": "rgba(144, 238, 144, 0.7)", "defaultVisible": true, "interactive": true, "elementType": "Glass" },
+    "glass_80%": { "label": "شیشه 80%", "color": "rgba(255, 255, 102, 0.7)", "defaultVisible": true, "interactive": true, "elementType": "Glass" },
+    "Mullion": { "label": "مولیون", "color": "rgba(128, 128, 128, 0.9)", "defaultVisible": true, "interactive": true, "elementType": "Mullion" },
+    "Transom": { "label": "ترنزوم", "color": "rgba(169, 169, 169, 0.9)", "defaultVisible": true, "interactive": true, "elementType": "Transom" },
+    "Bazshow": { "label": "بازشو", "color": "rgba(169, 169, 169, 0.9)", "defaultVisible": true, "interactive": true, "elementType": "Bazshow" },
+    "GLASS": { "label": "شیشه", "color": "#eef595da", "defaultVisible": true, "interactive": true, "elementType": "Glass" },
+    "STONE": { "label": "سنگ", "color": "#4c28a1", "defaultVisible": true, "interactive": true, "elementType": "STONE" },
+    "Zirsazi": { "label": "زیرسازی", "color": "#2464ee", "defaultVisible": true, "interactive": true, "elementType": "Zirsazi" },
+    "Curtainwall": { "label": "کرتین وال", "color": "#4c28a1", "defaultVisible": true, "interactive": true, "elementType": "Curtainwall" }
+}

@@ -54,7 +54,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['switch_to_project_id'
                 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
                 // Redirect to the dashboard of the new project
-                $redirect_url = rtrim($project_to_switch_to['base_path'], '/') . '/admin_panel_search.php'; // Or a role-based page
+                $basePath = rtrim($project_to_switch_to['base_path'], '/');
+                $redirect_url = '';
+
+                // Check if the project is 'Ghom' by its unique project_code
+                if ($project_to_switch_to['project_code'] === 'GHM') {
+                    // Special redirect for the Ghom project
+                    $redirect_url = $basePath . '/index.php';
+                } else {
+                    // Default redirect for all other projects (Fereshteh, Arad, etc.)
+                    $redirect_url = $basePath . '/admin_panel_search.php';
+                }
+
+                // Redirect to the determined URL
                 header('Location: ' . $redirect_url);
                 exit();
             } else {

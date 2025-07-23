@@ -1,0 +1,206 @@
+{
+    "Atieh": [
+        {
+            "label": "زون 1 (آتیه نما)",
+            "svgFile": "Zone01.svg"
+        },
+        {
+            "label": "زون 2 (آتیه نما)",
+            "svgFile": "Zone02.svg"
+        },
+        {
+            "label": "زون 3 (آتیه نما)",
+            "svgFile": "Zone03.svg"
+        },
+        {
+            "label": "زون 4 (آتیه نما)",
+            "svgFile": "Zone04.svg"
+        },
+        {
+            "label": "زون 5 (آتیه نما)",
+            "svgFile": "Zone05.svg"
+        },
+        {
+            "label": "زون 6 (آتیه نما)",
+            "svgFile": "Zone06.svg"
+        },
+        {
+            "label": "زون 7 (آتیه نما)",
+            "svgFile": "Zone07.svg"
+        },
+        {
+            "label": "زون 8 (آتیه نما)",
+            "svgFile": "Zone08.svg"
+        },
+        {
+            "label": "زون 9 (آتیه نما)",
+            "svgFile": "Zone09.svg"
+        },
+        {
+            "label": "زون 10 (آتیه نما)",
+            "svgFile": "Zone10.svg"
+        },
+        {
+            "label": "زون 15 (آتیه نما)",
+            "svgFile": "Zone15.svg"
+        },
+        {
+            "label": "زون 16 (آتیه نما)",
+            "svgFile": "Zone16.svg"
+        },
+        {
+            "label": "زون 17 (آتیه نما)",
+            "svgFile": "Zone17.svg"
+        },
+        {
+            "label": "زون 18 (آتیه نما)",
+            "svgFile": "Zone18.svg"
+        },
+        {
+            "label": "زون 19 (آتیه نما)",
+            "svgFile": "Zone19.svg"
+        }
+    ],
+    "org": [
+        {
+            "label": "زون اورژانس ",
+            "svgFile": "ZoneEmergency.svg"
+        }
+    ],
+    "AranB": [
+        {
+            "label": "زون 1 (آرانسج B)",
+            "svgFile": "Zone01.svg"
+        },
+        {
+            "label": "زون 2 (آرانسج B)",
+            "svgFile": "Zone02.svg"
+        },
+        {
+            "label": "زون 3 (آرانسج B)",
+            "svgFile": "Zone03.svg"
+        },
+        {
+            "label": "زون 11 (آرانسج B)",
+            "svgFile": "Zone11.svg"
+        },
+        {
+            "label": "زون 12 (آرانسج B)",
+            "svgFile": "Zone12.svg"
+        },
+        {
+            "label": "زون 13 (آرانسج B)",
+            "svgFile": "Zone13.svg"
+        },
+        {
+            "label": "زون 14 (آرانسج B)",
+            "svgFile": "Zone14.svg"
+        },
+        {
+            "label": "زون 16 (آرانسج B)",
+            "svgFile": "Zone16.svg"
+        },
+        {
+            "label": "زون 19 (آرانسج B)",
+            "svgFile": "Zone19.svg"
+        },
+        {
+            "label": "زون 20 (آرانسج B)",
+            "svgFile": "Zone20.svg"
+        },
+        {
+            "label": "زون 21 (آرانسج B)",
+            "svgFile": "Zone21.svg"
+        },
+        {
+            "label": "زون 26 (آرانسج B)",
+            "svgFile": "Zone26.svg"
+        }
+    ],
+    "AranC": [
+        {
+            "label": "زون 4 (آرانسج C)",
+            "svgFile": "Zone04.svg"
+        },
+        {
+            "label": "زون 5 (آرانسج C)",
+            "svgFile": "Zone05.svg"
+        },
+        {
+            "label": "زون 6 (آرانسج C)",
+            "svgFile": "Zone06.svg"
+        },
+        {
+            "label": "زون 7E (آرانسج C)",
+            "svgFile": "Zone07E.svg"
+        },
+        {
+            "label": "زون 7S (آرانسج C)",
+            "svgFile": "Zone07S.svg"
+        },
+        {
+            "label": "زون 7N (آرانسج C)",
+            "svgFile": "Zone07N.svg"
+        },
+        {
+            "label": "زون 8 (آرانسج C)",
+            "svgFile": "Zone08.svg"
+        },
+        {
+            "label": "زون 9 (آرانسج C)",
+            "svgFile": "Zone09.svg"
+        },
+        {
+            "label": "زون 10 (آرانسج C)",
+            "svgFile": "Zone10.svg"
+        },
+        {
+            "label": "زون 22 (آرانسج C)",
+            "svgFile": "Zone22.svg"
+        },
+        {
+            "label": "زون 23 (آرانسج C)",
+            "svgFile": "Zone23.svg"
+        },
+        {
+            "label": "زون 24 (آرانسج C)",
+            "svgFile": "Zone24.svg"
+        }
+    ],
+    "hayatOmran": [
+        {
+            "label": "زون 15 حیاط عمران آذرستان",
+            "svgFile": "Zone15.svg"
+        },
+        {
+            "label": "زون 16 حیاط عمران آذرستان",
+            "svgFile": "Zone16.svg"
+        },
+        {
+            "label": "زون 17 حیاط عمران آذرستان",
+            "svgFile": "Zone17.svg"
+        },
+        {
+            "label": "زون 18 حیاط عمران آذرستان",
+            "svgFile": "Zone18.svg"
+        }
+    ],
+    "hayatRos": [
+        {
+            "label": "زون 11 حیاط رس ",
+            "svgFile": "Zone11.svg"
+        },
+        {
+            "label": "زون 12 حیاط رس",
+            "svgFile": "Zone12.svg"
+        },
+        {
+            "label": "زون 13 حیاط رس",
+            "svgFile": "Zone13.svg"
+        },
+        {
+            "label": "زون 14 حیاط رس",
+            "svgFile": "Zone14.svg"
+        }
+    ]
+}

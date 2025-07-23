@@ -1,18 +1,18 @@
 <?php
-// public_html/Arad/header.php
+// public_html/Fereshteh/header.php
 // --- Bootstrap and Session ---
 if (!defined('APP_ROOT')) {
     require_once __DIR__ . '/../sercon/bootstrap.php';
     secureSession();
 }
 
-// --- Redirect if not logged in or project context not Arad ---
+// --- Redirect if not logged in or project context not Fereshteh ---
 if (!isLoggedIn()) {
     header('Location: /login.php');
     exit();
 }
 $currentProjectConfigKeyInSession = $_SESSION['current_project_config_key'] ?? null;
-if ($currentProjectConfigKeyInSession !== 'arad') { // Hardcoded for this Arad header
+if ($currentProjectConfigKeyInSession !== 'arad') { // Hardcoded for this Fereshteh header
     logError("Arad header loaded with incorrect project context. Session: " . $currentProjectConfigKeyInSession);
     header('Location: /select_project.php?msg=project_mismatch_header');
     exit();
@@ -24,10 +24,10 @@ $pdo_common_header = null; // Initialize
 try {
     $pdo_common_header = getCommonDBConnection();
 } catch (Exception $e) {
-    logError("Critical: Common DB connection failed in Arad header: " . $e->getMessage());
+    logError("Critical: Common DB connection failed in Fereshteh header: " . $e->getMessage());
 }
 
-// --- Update Last Activity (uses hpc_common.users) ---
+// --- Update Last Activity (uses alumglas_hpc_common.users) ---
 if ($pdo_common_header && isset($_SESSION['user_id'])) {
     try {
         // Exclude user with ID 1 (if this is a special admin/system account)
@@ -36,13 +36,13 @@ if ($pdo_common_header && isset($_SESSION['user_id'])) {
             $stmt_update_activity->execute([$_SESSION['user_id']]);
         }
     } catch (PDOException $e) {
-        logError("Database error in Arad header (updating last_activity): " . $e->getMessage());
+        logError("Database error in Fereshteh header (updating last_activity): " . $e->getMessage());
     }
 }
 // --- End Update Last Activity ---
 
 
-// --- Unread Messages Count (uses hpc_common.messages) ---
+// --- Unread Messages Count (uses alumglas_hpc_common.messages) ---
 $totalUnreadCount = 0;
 if ($pdo_common_header && isset($_SESSION['user_id'])) {
     $currentUserIdHeader = $_SESSION['user_id'];
@@ -58,13 +58,13 @@ if ($pdo_common_header && isset($_SESSION['user_id'])) {
             $totalUnreadCount = (int) $result_unread['total_unread_count'];
         }
     } catch (PDOException $e) {
-        logError("Error fetching total unread count in Arad header: " . $e->getMessage());
+        logError("Error fetching total unread count in Fereshteh header: " . $e->getMessage());
     }
 }
 // --- End Unread Messages ---
 
 
-$pageTitle = isset($pageTitle) ? $pageTitle : 'پروژه آراد'; // Default title for Arad
+$pageTitle = isset($pageTitle) ? $pageTitle : 'پروژه آراد'; // Default title for Fereshteh
 $current_page_filename = basename($_SERVER['PHP_SELF']); // Get the current page filename
 
 // --- Role Text (from session) ---
@@ -96,7 +96,7 @@ switch ($role) {
 // --- End Role Text ---
 
 
-// --- Online Users (uses hpc_common.users) ---
+// --- Online Users (uses alumglas_hpc_common.users) ---
 $onlineUsers = [];
 if ($pdo_common_header && isset($_SESSION['user_id'])) {
     $onlineTimeoutMinutes = 5;
@@ -113,13 +113,13 @@ if ($pdo_common_header && isset($_SESSION['user_id'])) {
         $stmt_online->execute();
         $onlineUsers = $stmt_online->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        logError("Database error in Arad header (fetching online users): " . $e->getMessage());
+        logError("Database error in Fereshteh header (fetching online users): " . $e->getMessage());
     }
 }
 // --- End Fetch Online Users ---
 
 
-// --- User Avatar Path (uses hpc_common.users) ---
+// --- User Avatar Path (uses alumglas_hpc_common.users) ---
 $avatarPath = '/assets/images/default-avatar.jpg'; // Default, ensure web accessible path
 if ($pdo_common_header && isset($_SESSION['user_id'])) {
     try {
@@ -133,7 +133,7 @@ if ($pdo_common_header && isset($_SESSION['user_id'])) {
             $avatarPath = escapeHtml((strpos($potentialAvatarWebPath, '/') === 0 ? '' : '/') . ltrim($potentialAvatarWebPath, '/'));
         }
     } catch (PDOException $e) {
-        logError("Database error in Arad header (fetching avatar path): " . $e->getMessage());
+        logError("Database error in Fereshteh header (fetching avatar path): " . $e->getMessage());
     }
 }
 // --- End User Avatar Path ---
@@ -151,7 +151,7 @@ if ($pdo_common_header && isset($_SESSION['user_id'])) {
         $stmt_all_projects->execute([$_SESSION['user_id']]);
         $all_user_accessible_projects = $stmt_all_projects->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        logError("Error fetching all accessible projects in Arad header: " . $e->getMessage());
+        logError("Error fetching all accessible projects in Fereshteh header: " . $e->getMessage());
     }
 }
 // --- End Fetch ALL projects ---
@@ -200,17 +200,18 @@ if (!function_exists('getActiveClass')) {
     <link href="/assets/css/sweetalert2.min.css" rel="stylesheet">
     <!-- ... other head elements ... -->
 
-    <link href="https://cdn.datatables.net/v/dt/dt-2.3.0/datatables.min.css" rel="stylesheet" integrity="sha384-b6zpX2e8uzvhWek1oBTKdifu88SXYijvZlp44itAjiEbD8ic6XRiVFQ9F6u4gspj" crossorigin="anonymous">
+    <link href="/assets/css/datatables.min.css" rel="stylesheet">
 
 
 
     <style>
         /* Base Styles */
         @font-face {
-            font-family: 'Vazir';
-            src: url('/assets/fonts/Vazir-Regular.woff2') format('woff2');
+            font-family: "Samim";
+            src: url("/assets/fonts/Samim-FD.woff2") format("woff2"),
+                url("/assets/fonts/Samim-FD.woff") format("woff"),
+                url("/assets/fonts/Samim-FD.ttf") format("truetype");
         }
-
 
         body {
             font-family: 'Vazir', sans-serif;
@@ -1319,7 +1320,7 @@ if (!function_exists('getActiveClass')) {
 
         .project-switcher-nav .nav-link.current-project-highlight {
             background-color: #102a66 !important;
-            /* A darker shade of Arad blue */
+            /* A darker shade of Fereshteh blue */
             color: #f39c12 !important;
             /* Orange accent for current project */
             font-weight: bold;
@@ -1524,6 +1525,29 @@ if (!function_exists('getActiveClass')) {
                             <rect x="14" y="14" width="7" height="7" rx="1" ry="1" />
                         </svg>
                         گزارشات دسته‌ای
+                    </a>
+                <?php endif; ?>
+
+                <?php if (hasAccess(['admin', 'superuser', 'planner', 'supervisor'])): ?>
+                    <a href="item_entry.php" class="nav-item<?php echo getActiveClass('item_entry.php', $current_page_filename); ?>">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="7" height="7" rx="1" ry="1" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" ry="1" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" ry="1" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" ry="1" />
+                        </svg>
+                        فرم زیرسازی
+                    </a>
+                <?php endif; ?>
+                <?php if (hasAccess(['admin', 'superuser', 'planner', 'supervisor'])): ?>
+                    <a href="item_reports.php" class="nav-item<?php echo getActiveClass('item_reports.php', $current_page_filename); ?>">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="7" height="7" rx="1" ry="1" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" ry="1" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" ry="1" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" ry="1" />
+                        </svg>
+                        گزارش زیرسازی
                     </a>
                 <?php endif; ?>
                 <?php if (count($all_user_accessible_projects) > 1): ?>

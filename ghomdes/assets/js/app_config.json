@@ -1,0 +1,88 @@
+{
+    "contractors": {
+      "cat": "شرکت آتیه نما",
+      "car": "شرکت آرانسج",
+      "coa": "شرکت عمران آذرستان",
+      "crs": "شرکت ساختمانی رس"
+    },
+    "regions": {
+      "Atieh": {
+        "label": "بلوک A - آتیه نما",
+        "contractor_id": "cat",
+        "zones": [
+          { "label": "زون 1", "svgFile": "Zone01.svg" },
+          { "label": "زون 2", "svgFile": "Zone02.svg" },
+          { "label": "زون 3", "svgFile": "Zone03.svg" },
+          { "label": "زون 4", "svgFile": "Zone04.svg" },
+          { "label": "زون 5", "svgFile": "Zone05.svg" },
+          { "label": "زون 6", "svgFile": "Zone06.svg" },
+          { "label": "زون 7", "svgFile": "Zone07.svg" },
+          { "label": "زون 8", "svgFile": "Zone08.svg" },
+          { "label": "زون 9", "svgFile": "Zone09.svg" },
+          { "label": "زون 10", "svgFile": "Zone10.svg" },
+          { "label": "زون 15", "svgFile": "Zone15.svg" },
+          { "label": "زون 16", "svgFile": "Zone16.svg" },
+          { "label": "زون 17", "svgFile": "Zone17.svg" },
+          { "label": "زون 18", "svgFile": "Zone18.svg" },
+          { "label": "زون 19", "svgFile": "Zone19.svg" },
+          { "label": "زون اورژانس", "svgFile": "ZoneEmergency.svg" }
+        ]
+      },
+      "AranB": {
+        "label": "بلوک B - آرانسج",
+        "contractor_id": "car",
+        "zones": [
+          { "label": "زون 1 (B)", "svgFile": "Zone01.svg" },
+          { "label": "زون 2 (B)", "svgFile": "Zone02.svg" },
+          { "label": "زون 3 (B)", "svgFile": "Zone03.svg" },
+          { "label": "زون 11 (B)", "svgFile": "Zone11.svg" },
+          { "label": "زون 12 (B)", "svgFile": "Zone12.svg" },
+          { "label": "زون 13 (B)", "svgFile": "Zone13.svg" },
+          { "label": "زون 14 (B)", "svgFile": "Zone14.svg" },
+          { "label": "زون 16 (B)", "svgFile": "Zone16.svg" },
+          { "label": "زون 19 (B)", "svgFile": "Zone19.svg" },
+          { "label": "زون 20 (B)", "svgFile": "Zone20.svg" },
+          { "label": "زون 21 (B)", "svgFile": "Zone21.svg" },
+          { "label": "زون 26 (B)", "svgFile": "Zone26.svg" }
+        ]
+      },
+      "AranC": {
+        "label": "بلوک C - آرانسج",
+        "contractor_id": "car",
+        "zones": [
+          { "label": "زون 4 (C)", "svgFile": "Zone04.svg" },
+          { "label": "زون 5 (C)", "svgFile": "Zone05.svg" },
+          { "label": "زون 6 (C)", "svgFile": "Zone06.svg" },
+          { "label": "زون 7E", "svgFile": "Zone07E.svg" },
+          { "label": "زون 7S", "svgFile": "Zone07S.svg" },
+          { "label": "زون 7N", "svgFile": "Zone07N.svg" },
+          { "label": "زون 8 (C)", "svgFile": "Zone08.svg" },
+          { "label": "زون 9 (C)", "svgFile": "Zone09.svg" },
+          { "label": "زون 10 (C)", "svgFile": "Zone10.svg" },
+          { "label": "زون 22", "svgFile": "Zone22.svg" },
+          { "label": "زون 23", "svgFile": "Zone23.svg" },
+          { "label": "زون 24", "svgFile": "Zone24.svg" }
+        ]
+      },
+      "HayatOmran": {
+        "label": "حیاط - عمران آذرستان",
+        "contractor_id": "coa",
+        "zones": [
+          { "label": "زون 15 (حیاط)", "svgFile": "Zone15.svg" },
+          { "label": "زون 16 (حیاط)", "svgFile": "Zone16.svg" },
+          { "label": "زون 17 (حیاط)", "svgFile": "Zone17.svg" },
+          { "label": "زون 18 (حیاط)", "svgFile": "Zone18.svg" }
+        ]
+      },
+      "HayatRos": {
+        "label": "حیاط - رس",
+        "contractor_id": "crs",
+        "zones": [
+          { "label": "زون 11 (حیاط)", "svgFile": "Zone11.svg" },
+          { "label": "زون 12 (حیاط)", "svgFile": "Zone12.svg" },
+          { "label": "زون 13 (حیاط)", "svgFile": "Zone13.svg" },
+          { "label": "زون 14 (حیاط)", "svgFile": "Zone14.svg" }
+        ]
+      }
+    }
+  }

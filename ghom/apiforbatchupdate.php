@@ -1,0 +1,591 @@
+<?php
+// ghom/contractor_batch_update.php (FINAL AND COMPLETE VERSION, BUG FIXED)
+require_once __DIR__ . '/../../sercon/bootstrap.php';
+secureSession();
+
+if (!in_array($_SESSION['role'], ['admin', 'supervisor'])) {
+    http_response_code(403);
+    die("Access Denied. You do not have permission to view this page.");
+}
+$pageTitle = "اعلام وضعیت گروهی";
+require_once __DIR__ . '/header_ghom.php';
+?>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <title><?php echo escapeHtml($pageTitle); ?></title>
+    <link rel="stylesheet" href="/ghom/assets/css/jalalidatepicker.min.css" />
+    <style>
+        @font-face {
+            font-family: "Samim";
+            src: url("/ghom/assets/fonts/Samim-FD.woff2") format("woff2"),
+                url("/ghom/assets/fonts/Samim-FD.woff") format("woff"),
+                url("/ghom/assets/fonts/Samim-FD.ttf") format("truetype");
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Samim", "Tahoma", sans-serif;
+            background-color: #f4f7f6;
+            direction: rtl;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0;
+            text-align: right;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #0056b3;
+            color: white;
+            padding: 15px 20px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .header-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            align-items: center;
+            max-width: 1200px;
+            width: 100%;
+            gap: 20px;
+        }
+
+        .header-content .logo-left,
+        .header-content .logo-right {
+            display: flex;
+            align-items: center;
+            height: 50px;
+        }
+
+        .header-content .logo-left img {
+            height: 50px;
+            width: auto;
+        }
+
+        .header-content .logo-left {
+            justify-content: flex-start;
+        }
+
+        .header-content .logo-right {
+            justify-content: flex-end;
+        }
+
+        .header-content h1 {
+            margin: 0;
+            font-size: 1.6em;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        footer {
+            background-color: #343a40;
+            color: #f8f9fa;
+            text-align: center;
+            padding: 20px;
+            width: 100%;
+            margin-top: auto;
+            font-size: 0.9em;
+        }
+
+        footer p {
+            margin: 0;
+        }
+
+        /* SVG Container Optimizations */
+        #svgContainer {
+            width: 90vw;
+            height: 65vh;
+            max-width: 1200px;
+            border: 1px solid #007bff;
+            background-color: #e9ecef;
+            overflow: hidden;
+            margin: 10px auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+            position: relative;
+        }
+
+        #svgContainer.loading {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="20" fill="none" stroke="%23007bff" stroke-width="4"><animate attributeName="r" values="20;25;20" dur="1s" repeatCount="indefinite"/></circle></svg>');
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 50px 50px;
+        }
+
+        #svgContainer.loading::before {
+            content: "در حال بارگذاری...";
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #007bff;
+            font-weight: bold;
+        }
+
+        #svgContainer.dragging {
+            cursor: grabbing;
+        }
+
+        /* Optimize SVG rendering */
+        #svgContainer svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+            /* Critical for performance */
+            shape-rendering: optimizeSpeed;
+            text-rendering: optimizeSpeed;
+            image-rendering: optimizeSpeed;
+        }
+
+        /* Lightweight interactive elements */
+        .interactive-element {
+            cursor: pointer;
+            /* Simplified transitions for better performance */
+            transition: stroke 0.1s ease-out;
+        }
+
+        .element-selected {
+            stroke: #ffc107 !important;
+            stroke-width: 3px !important;
+            stroke-opacity: 1 !important;
+            fill-opacity: 0.3 !important;
+        }
+
+        /* Rest of your styles... */
+        .navigation-controls,
+        .layer-controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .navigation-controls button,
+        .layer-controls button,
+        .header-action-btn {
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            border: 1px solid transparent;
+        }
+
+        .navigation-controls button {
+            border-color: #007bff;
+            background-color: #007bff;
+            color: white;
+        }
+
+        .layer-controls button {
+            border-color: #ccc;
+            background-color: #f8f9fa;
+        }
+
+        .layer-controls button.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .header-action-btn {
+            background-color: #28a745;
+            color: white;
+            font-size: 0.9em;
+        }
+
+        p.description {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        #batch-update-panel {
+            display: none;
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            z-index: 1000;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            width: 320px;
+            border-top: 5px solid #007bff;
+        }
+
+        #selection-box {
+            position: absolute;
+            background-color: rgba(0, 123, 255, 0.15);
+            border: 1px dashed #007bff;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        /* Loading states */
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Performance indicator */
+        #performance-info {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            display: none;
+        }
+    </style>
+</head>
+
+<body data-user-role="<?php echo escapeHtml($_SESSION['role']); ?>">
+    <div style="display: flex; gap: 10px; align-items: center; justify-content: center; margin: 20px 0;">
+        <button id="toggle-batch-panel-btn" class="header-action-btn" style="font-size:0.95em; padding:6px 10px;">اعلام وضعیت گروهی</button>
+        <button id="clear-cache-btn" class="header-action-btn" style="background-color:#e74c3c; font-size:0.95em; padding:6px 10px;">پاک کردن کش</button>
+    </div>
+
+    <div id="currentZoneInfo" style="margin-top: 20px; text-align: center; padding: 10px; background-color: #f0f0f0; border: 1px solid #ddd; border-radius: 5px; display: none; font-size: 0.9em;">
+        <strong>نقشه فعلی:</strong> <span id="zoneNameDisplay"></span>
+        <strong>پیمانکار:</strong> <span id="zoneContractorDisplay"></span>
+        <strong>بلوک:</strong> <span id="zoneBlockDisplay"></span>
+    </div>
+    <div class="layer-controls" id="layerControlsContainer"></div>
+    <div class="navigation-controls"><button id="backToPlanBtn">بازگشت به پلن اصلی</button></div>
+    <div id="regionZoneNavContainer">
+        <h3 class="region-zone-nav-title">ناوبری سریع به زون‌ها</h3>
+        <div class="region-zone-nav-select-row">
+            <label for="regionSelect" class="region-zone-nav-label">انتخاب محدوده:</label>
+            <select id="regionSelect" class="region-zone-nav-select">
+                <option value="">-- ابتدا یک محدوده انتخاب کنید --</option>
+            </select>
+        </div>
+        <div id="zoneButtonsContainer" class="region-zone-nav-zone-buttons"></div>
+    </div>
+    <p class="description">برای انتخاب: کلیک کنید. برای انتخاب چندتایی: Ctrl+Click یا Shift+Click یا با موس یک کادر بکشید.</p>
+
+    <div id="svgContainer"></div>
+    <div id="batch-update-panel">
+        <h3>اعلام وضعیت گروهی</h3>
+        <p><strong><span id="selectionCount">0</span> المان انتخاب شده</strong></p>
+        <hr>
+        <div class="form-group"><label>تغییر وضعیت به:</label><select id="batch_status">
+                <option value="Ready for Inspection">آماده برای بازرسی</option>
+                <option value="Pending">در حال اجرا</option>
+            </select></div>
+        <div class="form-group"><label>تاریخ اعلام وضعیت:</label><input type="text" id="batch_date" data-jdp readonly></div>
+        <div class="form-group"><label>توضیحات مشترک (اختیاری):</label><textarea id="batch_notes" rows="3"></textarea></div>
+        <button id="submitBatchUpdate" class="btn save" style="width:100%;">ثبت برای موارد انتخابی</button>
+    </div>
+    <footer>
+        <p>@1404-1405 شرکت آلومنیوم شیشه تهران.</p>
+    </footer>
+
+    <script src="/ghom/assets/js/jalalidatepicker.min.js"></script>
+    <script src="/ghom/assets/js/shared_svg_logic.js"></script>
+
+    <!-- FULL AND CORRECTED PAGE-SPECIFIC SCRIPT -->
+    <script>
+        async function runPlanFileMigration() {
+            const migrationBtn = document.getElementById('start-migration-btn');
+            const statusDiv = document.getElementById('migration-status');
+
+            migrationBtn.disabled = true;
+            migrationBtn.textContent = 'در حال پردازش...';
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = 'شروع فرآیند...<br>';
+
+            // 1. Get a unique list of all SVG files from the config
+            const svgFiles = new Set();
+            planNavigationMappings.forEach(m => svgFiles.add(m.svgFile));
+            for (const region in regionToZoneMap) {
+                regionToZoneMap[region].forEach(zone => svgFiles.add(zone.svgFile));
+            }
+
+            const interactiveGroups = Object.keys(svgGroupConfig).filter(
+                key => svgGroupConfig[key].interactive === true
+            );
+
+            const parser = new DOMParser();
+
+            // 2. Process each file one by one
+            for (const svgPath of svgFiles) {
+                const planFile = svgPath.split('/').pop();
+                statusDiv.innerHTML += `> اسکن فایل: ${planFile}... `;
+
+                try {
+                    const response = await fetch(svgPath);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const svgData = await response.text();
+                    const doc = parser.parseFromString(svgData, "image/svg+xml");
+
+                    const elementIds = new Set();
+                    interactiveGroups.forEach(groupId => {
+                        const groupNode = doc.getElementById(groupId);
+                        if (groupNode) {
+                            groupNode.querySelectorAll('path[id], rect[id], circle[id]').forEach(shape => {
+                                // Get the pure base ID, removing any "-Face" part
+                                const baseElementId = shape.id.replace(/-(Face|Top-Face|Bottom-Face|Left-Face|Right-Face)$/, '');
+                                elementIds.add(baseElementId);
+                            });
+                        }
+                    });
+
+                    if (elementIds.size > 0) {
+                        // 3. Send the found IDs to the new API
+                        const apiResponse = await fetch('/ghom/api/batch_update_plan_files.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                plan_file: planFile,
+                                element_ids: Array.from(elementIds)
+                            })
+                        });
+                        const result = await apiResponse.json();
+                        if (result.status !== 'success') throw new Error(result.message);
+                        statusDiv.innerHTML += `<span style="color: #2ecc71;">${result.message}</span><br>`;
+                    } else {
+                        statusDiv.innerHTML += `<span style="color: #f1c40f;">بدون المان قابل شناسایی.</span><br>`;
+                    }
+
+                } catch (error) {
+                    statusDiv.innerHTML += `<span style="color: #e74c3c;">خطا: ${error.message}</span><br>`;
+                }
+                // Scroll to the bottom of the log
+                statusDiv.scrollTop = statusDiv.scrollHeight;
+            }
+
+            statusDiv.innerHTML += '<strong>فرآیند همگام‌سازی تکمیل شد!</strong>';
+            migrationBtn.disabled = false;
+            migrationBtn.textContent = 'شروع مجدد همگام‌سازی';
+        }
+
+
+
+        function getRegionAndZoneInfoForFile(svgFullFilename) {
+            for (const regionKey in regionToZoneMap) {
+                const zonesInRegion = regionToZoneMap[regionKey];
+                const foundZone = zonesInRegion.find(zone => zone.svgFile.toLowerCase() === svgFullFilename.toLowerCase());
+                if (foundZone) {
+                    const regionConfig = svgGroupConfig[regionKey];
+                    return {
+                        regionKey: regionKey,
+                        zoneLabel: foundZone.label,
+                        contractor: regionConfig?.contractor,
+                        block: regionConfig?.block
+                    };
+                }
+            }
+            return null;
+        }
+
+        function setupRegionZoneNavigationIfNeeded() {
+            const regionSelect = document.getElementById("regionSelect");
+            const zoneButtonsContainer = document.getElementById("zoneButtonsContainer");
+            if (!regionSelect || !zoneButtonsContainer || regionSelect.dataset.initialized) return;
+            for (const regionKey in regionToZoneMap) {
+                const option = document.createElement("option");
+                option.value = regionKey;
+                option.textContent = svgGroupConfig[regionKey]?.label || regionKey;
+                regionSelect.appendChild(option);
+            }
+            regionSelect.addEventListener("change", function() {
+                zoneButtonsContainer.innerHTML = "";
+                const selectedRegionKey = this.value;
+                if (selectedRegionKey && regionToZoneMap[selectedRegionKey]) {
+                    regionToZoneMap[selectedRegionKey].forEach(zone => {
+                        const button = document.createElement("button");
+                        button.textContent = zone.label;
+                        button.addEventListener("click", () => loadAndDisplaySVG(zone.svgFile));
+                        zoneButtonsContainer.appendChild(button);
+                    });
+                }
+            });
+            regionSelect.dataset.initialized = "true";
+        }
+
+        function closeAllForms() {} // Placeholder for shared library
+        function updateSelectionCount() {
+            document.getElementById('selectionCount').textContent = selectedElements.size;
+        }
+
+        function rectsOverlap(r1, r2) {
+            return !(r2.left > r1.right || r2.right < r1.left || r2.top > r1.bottom || r2.bottom < r1.top);
+        }
+
+        function getElementData(element) {
+            return {
+                element_id: element.dataset.uniqueId,
+                element_type: element.dataset.elementType,
+                zone_name: currentPlanZoneName,
+                axis_span: element.dataset.axisSpan,
+                floor_level: element.dataset.floorLevel,
+                contractor: element.dataset.contractor,
+                block: element.dataset.block,
+                plan_file: currentPlanFileName
+            };
+        }
+
+        function makeElementInteractive(element, groupId, elementId) {
+            element.classList.add('interactive-element');
+            element.dataset.elementType = svgGroupConfig[groupId]?.elementType || 'Unknown';
+            element.dataset.uniqueId = element.dataset.uniquePanelId || elementId;
+        }
+
+        function handleSvgClick(event) {
+            const targetElement = event.target.closest('.interactive-element');
+            if (!targetElement) return;
+            event.stopPropagation();
+            const uniqueId = targetElement.dataset.uniqueId;
+            if (!uniqueId) return;
+            if (event.shiftKey && lastClickedElementId) {
+                const allElements = Array.from(document.querySelectorAll('.interactive-element'));
+                const lastIndex = allElements.findIndex(el => el.dataset.uniqueId === lastClickedElementId);
+                const currentIndex = allElements.findIndex(el => el.dataset.uniqueId === uniqueId);
+                if (lastIndex !== -1 && currentIndex !== -1) {
+                    const [startIndex, endIndex] = [Math.min(lastIndex, currentIndex), Math.max(lastIndex, currentIndex)];
+                    for (let i = startIndex; i <= endIndex; i++) {
+                        const elToSelect = allElements[i];
+                        if (elToSelect) {
+                            elToSelect.classList.add('element-selected');
+                            selectedElements.set(elToSelect.dataset.uniqueId, getElementData(elToSelect));
+                        }
+                    }
+                }
+            } else if (event.ctrlKey) {
+                if (targetElement.classList.toggle('element-selected')) {
+                    selectedElements.set(uniqueId, getElementData(targetElement));
+                } else {
+                    selectedElements.delete(uniqueId);
+                }
+            } else {
+                document.querySelectorAll('.element-selected').forEach(el => el.classList.remove('element-selected'));
+                selectedElements.clear();
+                targetElement.classList.add('element-selected');
+                selectedElements.set(uniqueId, getElementData(targetElement));
+            }
+            lastClickedElementId = uniqueId;
+            updateSelectionCount();
+        }
+
+        function handleMarqueeMouseDown(e) {
+            if (e.target.closest('.interactive-element')) return;
+            isMarqueeSelecting = true;
+            const containerRect = e.currentTarget.getBoundingClientRect();
+            marqueeStartPoint = {
+                x: e.clientX - containerRect.left,
+                y: e.clientY - containerRect.top
+            };
+            selectionBoxDiv = document.createElement('div');
+            selectionBoxDiv.id = 'selection-box';
+            document.getElementById('svgContainer').appendChild(selectionBoxDiv);
+            selectionBoxDiv.style.left = `${marqueeStartPoint.x}px`;
+            selectionBoxDiv.style.top = `${marqueeStartPoint.y}px`;
+            document.addEventListener('mousemove', handleMarqueeMouseMove);
+            document.addEventListener('mouseup', handleMarqueeMouseUp, {
+                once: true
+            });
+        }
+
+        function handleMarqueeMouseMove(e) {
+            // THIS IS THE FIXED FUNCTION
+            if (!isMarqueeSelecting || !selectionBoxDiv) return;
+            const containerRect = document.getElementById('svgContainer').getBoundingClientRect();
+            let currentX = e.clientX - containerRect.left;
+            let currentY = e.clientY - containerRect.top;
+            const newLeft = Math.min(currentX, marqueeStartPoint.x);
+            const newTop = Math.min(currentY, marqueeStartPoint.y);
+            selectionBoxDiv.style.left = `${newLeft}px`;
+            selectionBoxDiv.style.top = `${newTop}px`;
+            selectionBoxDiv.style.width = `${Math.abs(currentX - marqueeStartPoint.x)}px`;
+            selectionBoxDiv.style.height = `${Math.abs(currentY - marqueeStartPoint.y)}px`;
+        }
+
+        function handleMarqueeMouseUp(e) {
+            isMarqueeSelecting = false;
+            document.removeEventListener('mousemove', handleMarqueeMouseMove);
+            if (!selectionBoxDiv) return;
+            const boxRect = selectionBoxDiv.getBoundingClientRect();
+            if (!e.ctrlKey) {
+                document.querySelectorAll('.element-selected').forEach(el => el.classList.remove('element-selected'));
+                selectedElements.clear();
+            }
+            document.querySelectorAll('.interactive-element').forEach(el => {
+                if (rectsOverlap(boxRect, el.getBoundingClientRect())) {
+                    el.classList.add('element-selected');
+                    selectedElements.set(el.dataset.uniqueId, getElementData(el));
+                }
+            });
+            updateSelectionCount();
+            selectionBoxDiv.remove();
+            selectionBoxDiv = null;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            jalaliDatepicker.startWatch();
+            const svgContainer = document.getElementById('svgContainer');
+            svgContainer.addEventListener('click', handleSvgClick);
+            svgContainer.addEventListener('mousedown', handleMarqueeMouseDown);
+            document.getElementById("backToPlanBtn").addEventListener("click", () => loadAndDisplaySVG(SVG_BASE_PATH + "Plan.svg"));
+            document.getElementById('toggle-batch-panel-btn').addEventListener('click', () => {
+                const batchPanel = document.getElementById('batch-update-panel');
+                batchPanel.style.display = batchPanel.style.display === 'block' ? 'none' : 'block';
+            });
+            document.getElementById('submitBatchUpdate').addEventListener('click', () => {
+                if (selectedElements.size === 0) {
+                    alert('لطفا ابتدا یک المان را انتخاب کنید.');
+                    return;
+                }
+                const payload = {
+                    elements_data: Array.from(selectedElements.values()),
+                    status: document.getElementById('batch_status').value,
+                    notes: document.getElementById('batch_notes').value,
+                    date: document.getElementById('batch_date').value
+                };
+                fetch('/ghom/api/batch_update_status.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        alert(data.message);
+                        if (data.status === 'success') {
+                            document.querySelectorAll('.element-selected').forEach(el => el.classList.remove('element-selected'));
+                            selectedElements.clear();
+                            updateSelectionCount();
+                        }
+                    });
+            });
+            loadAndDisplaySVG(SVG_BASE_PATH + "Plan.svg");
+            document.getElementById('start-migration-btn').addEventListener('click', runPlanFileMigration);
+        });
+    </script>
+</body>
+
+</html>

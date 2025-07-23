@@ -27,7 +27,7 @@ try {
     logError("Critical: Common DB connection failed in Fereshteh header: " . $e->getMessage());
 }
 
-// --- Update Last Activity (uses hpc_common.users) ---
+// --- Update Last Activity (uses alumglas_hpc_common.users) ---
 if ($pdo_common_header && isset($_SESSION['user_id'])) {
     try {
         // Exclude user with ID 1 (if this is a special admin/system account)
@@ -42,7 +42,7 @@ if ($pdo_common_header && isset($_SESSION['user_id'])) {
 // --- End Update Last Activity ---
 
 
-// --- Unread Messages Count (uses hpc_common.messages) ---
+// --- Unread Messages Count (uses alumglas_hpc_common.messages) ---
 $totalUnreadCount = 0;
 if ($pdo_common_header && isset($_SESSION['user_id'])) {
     $currentUserIdHeader = $_SESSION['user_id'];
@@ -96,7 +96,7 @@ switch ($role) {
 // --- End Role Text ---
 
 
-// --- Online Users (uses hpc_common.users) ---
+// --- Online Users (uses alumglas_hpc_common.users) ---
 $onlineUsers = [];
 if ($pdo_common_header && isset($_SESSION['user_id'])) {
     $onlineTimeoutMinutes = 5;
@@ -119,7 +119,7 @@ if ($pdo_common_header && isset($_SESSION['user_id'])) {
 // --- End Fetch Online Users ---
 
 
-// --- User Avatar Path (uses hpc_common.users) ---
+// --- User Avatar Path (uses alumglas_hpc_common.users) ---
 $avatarPath = '/assets/images/default-avatar.jpg'; // Default, ensure web accessible path
 if ($pdo_common_header && isset($_SESSION['user_id'])) {
     try {
@@ -1511,7 +1511,14 @@ if (!function_exists('getActiveClass')) {
                         پکینگ لیست
                     </a>
                 <?php endif; ?>
-
+                <?php if (hasAccess(['admin', 'superuser', 'supervisor', 'user', 'planner'])): ?>
+                    <a href="stand_and_panel_search.php" class="nav-item<?php echo getActiveClass('stand_and_panel_search.php', $current_page_filename); ?>">
+                        <svg class="icon-tools" viewBox="0 0 24 24">
+                            <path d="M19,3H14.82C14.4,1.84 13.3,1 12,1C10.7,1 9.6,1.84 9.18,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19V5C21,3.9 20.1,3 19,3M12,3C12.55,3 13,3.45 13,4C13,4.55 12.55,5 12,5C11.45,5 11,4.55 11,4C11,3.45 11.45,3 12,3M7,7H17V5H19V19H5V5H7V7M12,17V15H17V17H12M12,11V9H17V11H12M8,9V11H7V9H8M8,15V17H7V15H8" />
+                        </svg>
+                       جستجوی خرک‌ها
+                    </a>
+                <?php endif; ?>
                 <?php if (hasAccess(['admin', 'superuser', 'supervisor', 'user', 'planner'])): ?>
                     <a href="dashboard.php" class="nav-item<?php echo getActiveClass('dashboard.php', $current_page_filename); ?>">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

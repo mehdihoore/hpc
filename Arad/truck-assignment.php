@@ -145,7 +145,7 @@ try {
 
     // Get all panels that have completed concrete phase but haven't been assigned to trucks
     $stmt_available = $pdo->query("
-        SELECT id, address, type, area, width, length, status
+        SELECT id, address, type, area, width, length, status,full_address_identifier,floor
         FROM hpc_panels
         WHERE status = 'completed'
         AND concrete_end_time IS NOT NULL
@@ -157,7 +157,7 @@ try {
 
     // Fetch panels assigned to trucks
     $stmt_assigned = $pdo->query("
-        SELECT p.id, p.address, p.type, p.width, p.length, p.truck_id, p.packing_status, t.truck_number
+        SELECT p.id, p.address, p.type, p.width, p.length, p.truck_id, p.packing_status, t.truck_number,p.full_address_identifier, p.floor
         FROM hpc_panels p
         JOIN trucks t ON p.truck_id = t.id
         WHERE p.truck_id IS NOT NULL
@@ -328,7 +328,7 @@ try {
                         <?php else: ?>
                             <?php foreach ($availablePanels as $panel): ?>
                                 <div class="panel-item" data-id="<?= $panel['id'] ?>"
-                                    data-address="<?= htmlspecialchars(strtolower($panel['address'] ?? '')) ?>"
+                                    data-address="<?= htmlspecialchars(strtolower($panel['full_address_identifier'] ?? '')) ?>"
                                     data-type="<?= htmlspecialchars(strtolower($panel['type'] ?? '')) ?>"
                                     data-width="<?= floatval(($panel['width'] ?? 0) / 1000) ?>"
                                     data-length="<?= floatval(($panel['length'] ?? 0) / 1000) ?>"
@@ -336,8 +336,17 @@ try {
                                     ?>
                                     <?= !$isReadOnly ? 'draggable="true"' : '' ?>>
                                     <strong>شماره پنل: <?= $panel['id'] ?></strong><br>
-                                    آدرس: <?= htmlspecialchars($panel['address']) ?><br>
-                                    نوع: <?= htmlspecialchars($panel['type'] ?? 'نامشخص') ?><br>
+                                    آدرس: <?= htmlspecialchars($panel['full_address_identifier']) ?><br>
+                                    نوع:
+                                    <?php
+                                    if (isset($panel['type']) && strtolower($panel['type']) === 'terrace edge') {
+                                        echo 'لبه تراس';
+                                    } else {
+                                        echo htmlspecialchars($panel['type'] ?? 'نامشخص');
+                                    }
+                                    ?>
+                                    <br>
+                                    طبقه: <?= htmlspecialchars($panel['floor'] ?? 'نامشخص') ?><br>
                                     ابعاد:
                                     <?= number_format(($panel['width'] ?? 0) / 1000, 2) ?> × <?= number_format(($panel['length'] ?? 0) / 1000, 2) ?>
                                     متر
@@ -415,7 +424,7 @@ try {
                                         <?php if (isset($panelsByTruck[$truck['id']])): ?>
                                             <?php foreach ($panelsByTruck[$truck['id']] as $panel): ?>
                                                 <div class="panel-item assigned <?= strtolower($panel['packing_status'] ?? 'unknown') ?>" data-id="<?= $panel['id'] ?>"
-                                                    data-address="<?= htmlspecialchars(strtolower($panel['address'] ?? '')) ?>"
+                                                    data-address="<?= htmlspecialchars(strtolower($panel['full_address_identifier'] ?? '')) ?>"
                                                     data-type="<?= htmlspecialchars(strtolower($panel['type'] ?? '')) ?>"
                                                     data-width="<?= floatval(($panel['width'] ?? 0) / 1000) ?>"
                                                     data-length="<?= floatval(($panel['length'] ?? 0) / 1000) ?>"
@@ -424,8 +433,16 @@ try {
                                                     <?= !$isReadOnly ? 'draggable="true"' : '' ?>>
                                                     <div class="panel-content">
                                                         <strong>شماره پنل: <?= $panel['id'] ?></strong><br>
-                                                        آدرس: <?= htmlspecialchars($panel['address']) ?><br>
-                                                        نوع: <?= htmlspecialchars($panel['type'] ?? 'نامشخص') ?><br>
+                                                        آدرس: <?= htmlspecialchars($panel['full_address_identifier']) ?><br>
+                                                        نوع:
+                                                        <?php
+                                                        if (isset($panel['type']) && strtolower($panel['type']) === 'terrace edge') {
+                                                            echo 'لبه تراس';
+                                                        } else {
+                                                            echo htmlspecialchars($panel['type'] ?? 'نامشخص');
+                                                        }
+                                                        ?><br>
+                                                        طبقه: <?= htmlspecialchars($panel['floor'] ?? 'نامشخص') ?><br>
                                                         ابعاد: <?= number_format(($panel['width'] ?? 0) / 1000, 2) ?> × <?= number_format(($panel['length'] ?? 0) / 1000, 2) ?> متر<br>
                                                         وضعیت: <?= $panel['packing_status'] ?? 'N/A' ?>
                                                     </div>

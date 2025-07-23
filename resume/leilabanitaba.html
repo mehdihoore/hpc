@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>لیلا بنی‌طباء خان‌آبادی - رزومه</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap");
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Vazirmatn", sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 40px;
+        margin-bottom: 30px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .header::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+      }
+
+      .header h1 {
+        font-size: 2.5rem;
+        color: #2c3e50;
+        margin-bottom: 10px;
+        font-weight: 700;
+      }
+
+      .header .title {
+        font-size: 1.3rem;
+        color: #7f8c8d;
+        margin-bottom: 20px;
+        font-weight: 400;
+      }
+
+      .contact-info {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+      }
+
+      .contact-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(116, 75, 162, 0.1);
+        padding: 10px 15px;
+        border-radius: 25px;
+        transition: all 0.3s ease;
+      }
+
+      .contact-item:hover {
+        background: rgba(116, 75, 162, 0.2);
+        transform: translateY(-2px);
+      }
+
+      .main-content {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 30px;
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+      }
+
+      .card h2 {
+        color: #2c3e50;
+        margin-bottom: 15px;
+        font-size: 1.4rem;
+        font-weight: 600;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 8px;
+      }
+
+      .card h3 {
+        color: #34495e;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+        font-weight: 500;
+      }
+
+      .skill-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+        padding: 8px;
+        background: rgba(52, 152, 219, 0.1);
+        border-radius: 8px;
+        transition: all 0.3s ease;
+      }
+
+      .skill-item:hover {
+        background: rgba(52, 152, 219, 0.2);
+      }
+
+      .skill-level {
+        display: flex;
+        gap: 2px;
+      }
+
+      .star {
+        color: #f39c12;
+        font-size: 0.9rem;
+      }
+
+      .star.empty {
+        color: #bdc3c7;
+      }
+
+      .timeline {
+        position: relative;
+        padding-right: 20px;
+      }
+
+      .timeline::before {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(180deg, #3498db, #9b59b6);
+      }
+
+      .timeline-item {
+        position: relative;
+        margin-bottom: 25px;
+        padding-right: 25px;
+      }
+
+      .timeline-item::before {
+        content: "";
+        position: absolute;
+        right: -4px;
+        top: 5px;
+        width: 10px;
+        height: 10px;
+        background: #3498db;
+        border-radius: 50%;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
+      }
+
+      .timeline-item h4 {
+        color: #2c3e50;
+        font-weight: 600;
+        margin-bottom: 5px;
+      }
+
+      .timeline-item .date {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+      }
+
+      .timeline-item p {
+        color: #555;
+        line-height: 1.5;
+      }
+
+      .about-section {
+        background: linear-gradient(
+          135deg,
+          rgba(52, 152, 219, 0.1),
+          rgba(155, 89, 182, 0.1)
+        );
+        border: 1px solid rgba(52, 152, 219, 0.2);
+      }
+
+      .about-section ul {
+        list-style: none;
+        padding-right: 20px;
+      }
+
+      .about-section li {
+        margin-bottom: 8px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 8px;
+        transition: all 0.3s ease;
+      }
+
+      .about-section li:hover {
+        background: rgba(255, 255, 255, 0.8);
+        transform: translateX(-5px);
+      }
+
+      .about-section li::before {
+        content: "✓";
+        color: #27ae60;
+        font-weight: bold;
+        margin-left: 8px;
+      }
+
+      .about-section a {
+        color: #2980b9;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .about-section a:hover {
+        text-decoration: underline;
+      }
+
+      .publications {
+        background: linear-gradient(
+          135deg,
+          rgba(46, 204, 113, 0.1),
+          rgba(52, 152, 219, 0.1)
+        );
+        border: 1px solid rgba(46, 204, 113, 0.2);
+      }
+
+      .publications ul {
+        list-style: none;
+      }
+
+      .publications li {
+        margin-bottom: 10px;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 8px;
+        border-right: 4px solid #2ecc71;
+        transition: all 0.3s ease;
+      }
+
+      .publications li:hover {
+        background: rgba(255, 255, 255, 0.9);
+        transform: translateX(-3px);
+      }
+
+      .publications a {
+        color: #16a085; /* Or another color that fits this section */
+        text-decoration: none;
+        font-weight: bold; /* Making the link text bold for emphasis within the list item */
+      }
+      .publications a:hover {
+        text-decoration: underline;
+        color: #1abc9c;
+      }
+      .publications strong a {
+        /* Ensure strong tags within links also get styled */
+        font-weight: bold; /* This might be redundant if a is already bold, but good for clarity */
+      }
+
+      .section-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .tab {
+        padding: 10px 20px;
+        background: rgba(52, 152, 219, 0.1);
+        border: 1px solid rgba(52, 152, 219, 0.3);
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 500;
+      }
+
+      .tab.active {
+        background: #3498db;
+        color: white;
+        border-color: #3498db;
+      }
+
+      .tab:hover {
+        background: rgba(52, 152, 219, 0.2);
+      }
+
+      .tab.active:hover {
+        background: #2980b9;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .contact-form {
+        background: linear-gradient(
+          135deg,
+          rgba(231, 76, 60, 0.1),
+          rgba(230, 126, 34, 0.1)
+        );
+        border: 1px solid rgba(231, 76, 60, 0.2);
+      }
+
+      .contact-buttons {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .contact-btn {
+        padding: 12px 25px;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+      }
+
+      .contact-btn.email {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: white;
+      }
+
+      .contact-btn.whatsapp {
+        background: linear-gradient(135deg, #25d366, #128c7e);
+        color: white;
+      }
+
+      .contact-btn.telegram {
+        background: linear-gradient(135deg, #0088cc, #005577);
+        color: white;
+      }
+
+      .contact-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      @media (max-width: 768px) {
+        .main-content {
+          grid-template-columns: 1fr;
+        }
+
+        .header h1 {
+          font-size: 2rem;
+        }
+
+        .contact-info {
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .section-tabs {
+          justify-content: center;
+        }
+
+        .timeline {
+          padding-right: 15px;
+        }
+      }
+
+      .fade-in {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeIn 0.6s ease forwards;
+      }
+
+      @keyframes fadeIn {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .floating {
+        animation: float 3s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+      .timeline-item a {
+        color: #3498db; /* Using a theme color */
+        text-decoration: none;
+      }
+      .timeline-item a:hover {
+        text-decoration: underline;
+        color: #2980b9; /* Darker shade on hover */
+      }
+      /* Specific styling for links within h4 to ensure they look good */
+      .timeline-item h4 a {
+        color: inherit; /* Inherit color from the h4 tag */
+      }
+      .timeline-item h4 a:hover {
+        color: #2980b9; /* Optional: change color on hover, or keep default h4 hover if any */
+        text-decoration: underline;
+      }
+      /* Styling for links directly within p tags in timeline items, if different from general .timeline-item a */
+      .timeline-item p a {
+        /* You can add specific styles here if needed, otherwise they'll use .timeline-item a */
+        font-weight: 500; /* Example: Make performance links slightly bolder */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header fade-in">
+        <h1>لیلا بنی‌طباء خان‌آبادی</h1>
+        <p class="title">
+          مدیر و مسئول اجرای انتشارات | مدرس، مترجم، ویراستار، اجراگر تئاتر
+        </p>
+        <div class="contact-info">
+          <div class="contact-item">
+            <span>📧</span>
+            <span><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="185a7976716c797a79366a7d716a79587f75797174367b7775">[email&#160;protected]</a></span>
+          </div>
+          <div class="contact-item">
+            <span>📱</span>
+            <span>0913-194-6292</span>
+          </div>
+          <div class="contact-item">
+            <span>📍</span>
+            <span>تهران</span>
+          </div>
+          <div class="contact-item">
+            <span>👤</span>
+            <span>41 سال | متأهل</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="main-content">
+        <aside class="sidebar">
+          <div class="card about-section fade-in">
+            <h2>درباره من</h2>
+            <ul>
+              <li>
+                مسئول انتشارات و سرویراستار با بیش از 12 سال سابقه
+                <a
+                  href="https://www.iranketab.ir/publisher/1419-%D9%88%DB%8C%DA%98%D9%87-%D9%86%D8%B4%D8%B1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >انتشارات ویژه نشر</a
+                >
+                (فعالیت‌ها شامل ویراستاری برای
+                <a
+                  href="https://www.roshdmag.ir/fa/magsale/roshdmagsale"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  مجلات رشد</a
+                >)
+              </li>
+              <li>مسئول روابط عمومی و ادمین اینستاگرام</li>
+              <li>معاون اجرایی نمایشگاه‌های بین‌المللی کتاب</li>
+              <li>تولید محتوا با بیش از 10 سال سابقه</li>
+              <li>مترجم حرفه‌ای متون مختلف</li>
+              <li>مربی و داور کاراته</li>
+              <li>فعال محیط زیست</li>
+            </ul>
+          </div>
+
+          <div class="card fade-in">
+            <h2>تحصیلات</h2>
+            <div class="timeline">
+              <div class="timeline-item">
+                <h4>کارشناسی ارشد</h4>
+                <p class="date">زبان و ادبیات فارسی</p>
+                <p>دانشگاه دولتی کاشان</p>
+              </div>
+              <div class="timeline-item">
+                <h4>کارشناسی</h4>
+                <p class="date">زبان و ادبیات فارسی</p>
+                <p>دانشگاه اصفهان</p>
+              </div>
+              <div class="timeline-item">
+                <h4>احراز کد استادی</h4>
+                <p class="date">16 رقمی</p>
+                <p>دانشگاه علمی-کاربردی</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card fade-in">
+            <h2>مهارت‌های زبان</h2>
+            <div class="skill-item">
+              <span><strong>انگلیسی:</strong></span>
+              <div class="skill-level">
+                <span class="star">★</span>
+                <span class="star">★</span>
+                <span class="star">★</span>
+                <span class="star">★</span>
+                <span class="star empty">★</span>
+              </div>
+            </div>
+            <div class="skill-item">
+              <span><strong>عربی:</strong></span>
+              <span>مبتدی</span>
+            </div>
+          </div>
+
+          <div class="card fade-in">
+            <h2>مهارت‌های فنی</h2>
+            <div class="skill-item">✓ ICDL & Excel</div>
+            <div class="skill-item">✓ تایپ سریع ده‌انگشتی</div>
+            <div class="skill-item">✓ InDesign متوسط</div>
+            <div class="skill-item">✓ WordPress مقدماتی</div>
+            <div class="skill-item">✓ Management & Leadership</div>
+            <div class="skill-item">✓ فن بیان و سخنوری</div>
+          </div>
+
+          <div class="card contact-form fade-in">
+            <h2>تماس با من</h2>
+            <div class="contact-buttons">
+              <a href="/cdn-cgi/l/email-protection#692b0807001d080b08471b0c001b08290e04080005470a0604" class="contact-btn email">
+                <span>📧</span>
+                ایمیل
+              </a>
+              <a
+                href="https://wa.me/+989131946292"
+                class="contact-btn whatsapp"
+              >
+                <span>📱</span>
+                واتساپ
+              </a>
+              <a href="https://t.me/+989131946292" class="contact-btn telegram">
+                <span>✈️</span>
+                تلگرام
+              </a>
+            </div>
+          </div>
+        </aside>
+
+        <main>
+          <div class="card fade-in">
+            <div class="section-tabs">
+              <div class="tab active" onclick="showTab('experience')">
+                سوابق شغلی
+              </div>
+              <div class="tab" onclick="showTab('publications')">
+                آثار و انتشارات
+              </div>
+              <div class="tab" onclick="showTab('courses')">دوره‌ها</div>
+              <div class="tab" onclick="showTab('projects')">پروژه‌ها</div>
+              <div class="tab" onclick="showTab('sports')">ورزش و هنر</div>
+            </div>
+
+            <div id="experience" class="tab-content active">
+              <h2>سوابق شغلی</h2>
+              <div class="timeline">
+                <div class="timeline-item">
+                  <h4>مدیر انتشارات و سرویراستار</h4>
+                  <p class="date">۱۴۰۳ - ۱۳۹۶</p>
+                  <p>
+                    بیش از ۸ سال نظارت بر مراحل انتشار کتاب، بولتن و کاتالوگ در
+                    شرکت انتشارات ویژه‌نشر. کارشناس انتخاب کتاب در حوزه
+                    کودک-نوجوان و رمان بزرگسال.
+                  </p>
+                </div>
+                <div class="timeline-item">
+                  <h4>مدرس زبان انگلیسی</h4>
+                  <p class="date">۱۴۰۱ - تاکنون</p>
+                  <p>تدریس زبان انگلیسی در کمپ مادر و کودک پروین، تهران</p>
+                </div>
+                <div class="timeline-item">
+                  <h4>معلم ادبیات و زبان</h4>
+                  <p class="date">۱۳۹۴ - ۱۳۸۷</p>
+                  <p>
+                    تدریس ادبیات، دستور زبان فارسی، انشا و زبان انگلیسی در مدارس
+                    غیرانتفاعی اصفهان و تهران
+                  </p>
+                </div>
+                <div class="timeline-item">
+                  <h4>مسئول دفتر حقوقی</h4>
+                  <p class="date">۱۳۸۸ - ۱۳۷۸</p>
+                  <p>مسئول دفتر وکالت و موسسه حقوقی</p>
+                </div>
+              </div>
+            </div>
+
+            <div id="publications" class="tab-content publications">
+              <h2>آثار منتشر شده</h2>
+              <ul>
+                <li>
+                  <strong
+                    ><a
+                      href="https://ketabejam.com/product/%D9%81%D8%B1%D8%B3%D8%AA%D8%A7%D8%AF%D9%87/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >رمان «فرستاده»</a
+                    ></strong
+                  >
+                  - ترجمه از انگلیسی (۱۴۰۱)
+                </li>
+                <li>
+                  <strong
+                    ><a
+                      href="https://jeihoon.net/product/%D8%A2%D8%B4%D8%AA%DB%8C-%D8%A8%D8%A7-%D8%AE%D9%88%D8%AF-(%D8%A7%D9%84%D8%AA%DB%8C%D8%A7%D9%85-%DA%A9%D9%88%D8%AF%DA%A9-%D8%AF%D8%B1%D9%88%D9%86)-283566"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >«آشتی با خود»</a
+                    ></strong
+                  >
+                  - ترجمه التیام کودک درون (۱۴۰۳)
+                </li>
+                <li>
+                  <strong
+                    ><a
+                      href="#URL_TO_BARAN"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >رمان «باران»</a
+                    ></strong
+                  >
+                  - ترجمه، در دست چاپ (۱۴۰۲)
+                </li>
+                <li>
+                  <strong
+                    ><a
+                      href="https://www.iranketab.ir/book/159797-chimpanzee-politics"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >«سیاست شامپانزه‌ها»</a
+                    ></strong
+                  >
+                  ترجمه، چاپ (۱۴۰۴)
+                </li>
+                <li>
+                  <strong
+                    ><a
+                      href="https://www.iranketab.ir/book/52204-farhang-ban"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >مقاله «جمعیت نسوان وطن‌خواه ایران»</a
+                    ></strong
+                  >
+                  - مجله فرهنگبان (۱۳۹۸)
+                </li>
+                <li>
+                  <strong
+                    ><a
+                      href="#URL_TO_DASTANHAYE_KUTAH"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >داستان‌های کوتاه</a
+                    ></strong
+                  >
+                  - مجلات ادبی دانشگاه‌ها
+                </li>
+
+                <li>
+                  <strong
+                    ><a
+                      href="https://www.adinehbook.com/author-%D9%84%DB%8C%D9%84%D8%A7-%D8%A8%D9%86%DB%8C-%D8%B7%D8%A8%D8%A7"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >دیگر کارهای ویراستاری و ترجمه</a
+                    ></strong
+                  >
+                </li>
+              </ul>
+
+              <h3>در حال انجام</h3>
+              <ul>
+                <li>
+                  <a
+                    href="#URL_TO_NEZAMI"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >«نظامی و ادبیات کلاسیک»</a
+                  >
+                  - ترجمه
+                </li>
+                <li>
+                  <a
+                    href="https://pub.mirdashti.ir"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >«با موضوع صلح‌جویی میان نخستی‌ها»</a
+                  >
+                  - ترجمه
+                </li>
+              </ul>
+            </div>
+
+            <div id="courses" class="tab-content">
+              <h2>دوره‌ها و گواهینامه‌ها</h2>
+              <div class="timeline">
+                <div class="timeline-item">
+                  <h4>دوره‌های نوشتن خلاق</h4>
+                  <p class="date">چهار دوره</p>
+                  <p>شرکت در دوره‌های تخصصی نوشتن خلاق</p>
+                </div>
+                <div class="timeline-item">
+                  <h4>ویراستاری و نمونه‌خوانی</h4>
+                  <p class="date">۱۳۹۱</p>
+                  <p>مرکز جهاد دانشگاهی تهران - استاد علی صلح‌جو</p>
+                </div>
+                <div class="timeline-item">
+                  <h4>کارگاه‌های ترجمه</h4>
+                  <p class="date">مختلف</p>
+                  <p>جهاد دانشگاهی و نشر چشمه - استاد اسدالله امرایی</p>
+                </div>
+                <div class="timeline-item">
+                  <h4>برگزاری همایش‌ها</h4>
+                  <p class="date">تحت نظارت اداره فرهنگ و ارشاد</p>
+                  <p>دوره آموزشی برگزاری همایش‌ها و سمینارها</p>
+                </div>
+              </div>
+            </div>
+
+            <div id="projects" class="tab-content">
+              <h2>ایده‌ها و پروژه‌ها</h2>
+              <div class="timeline">
+                <div class="timeline-item">
+                  <h4>توانمندسازی زنان آسیب‌دیده</h4>
+                  <p class="date">۱۴۰۳ - ۱۴۰۲</p>
+                  <p>
+                    احیای روحیه زنان حاضر در کمپ ترک اعتیاد به همراه کودکانشان
+                  </p>
+                </div>
+                <div class="timeline-item">
+                  <h4>آموزش زنان خانه‌دار</h4>
+                  <p class="date">۱۳۹۳ - ۱۳۹۱</p>
+                  <p>
+                    طرح آموزش زبان انگلیسی به زنان خانه‌دار و فاصله‌گرفته از
+                    تحصیل
+                  </p>
+                </div>
+                <div class="timeline-item">
+                  <h4>کودکان کار</h4>
+                  <p class="date">۱۳۹۴ - ۱۳۹۱</p>
+                  <p>
+                    همکاری داوطلبانه با پروژه باسوادسازی کودکان کار - خانه علم
+                    دروازه‌غار
+                  </p>
+                </div>
+                <div class="timeline-item">
+                  <h4>توانمندسازی مادران نوجوان</h4>
+                  <p class="date">۱۳۹۴ - ۱۳۹۲</p>
+                  <p>مسئول پروژه در خانه اشتغال جمعیت امام علی(ع)</p>
+                </div>
+              </div>
+            </div>
+
+            <div id="sports" class="tab-content">
+              <h2>فعالیت‌های ورزشی و هنری</h2>
+
+              <h3>ورزش</h3>
+              <div class="timeline">
+                <div class="timeline-item">
+                  <h4>رتبه سوم کشوری کاراته</h4>
+                  <p class="date">۱۳۸۴ - رشت</p>
+                  <p>مسابقات کاراته (وادوریو) بانوان</p>
+                </div>
+                <div class="timeline-item">
+                  <h4>کوهنوردی</h4>
+                  <p class="date">۱۳۸۵</p>
+                  <p>صعود قله دماوند</p>
+                </div>
+                <div class="timeline-item">
+                  <h4>مربی و داور کاراته</h4>
+                  <p class="date">۱۳۸۶ - ۱۳۸۰</p>
+                  <p>دان سه کاراته، مربی‌گری درجه سه، داوری جاج C</p>
+                </div>
+              </div>
+
+              <h3>تئاتر</h3>
+              <div class="timeline">
+                <div class="timeline-item">
+                  <h4>
+                    <a
+                      href="#URL_TO_HAMLET"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >«هملت و آب‌نبات چوبی»</a
+                    >
+                  </h4>
+                  <p class="date">۱۳۹۲</p>
+                  <p>بازیگر تئاتر-پرفورمنس</p>
+                </div>
+                <div class="timeline-item">
+                  <h4>
+                    <a
+                      href="https://www.tiwall.com/p/aziz.shangal"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >«عزیز شنگال»</a
+                    >
+                  </h4>
+                  <p class="date">۱۳۹۳</p>
+                  <p>تئاتر شهر - جشنواره فجر - کارگردان: قطب‌الدین صادقی</p>
+                </div>
+                <div class="timeline-item">
+                  <h4>پرفورمنس‌های مختلف</h4>
+                  <p class="date">۱۴۰۲ - ۱۳۹۴</p>
+                  <p>
+                    <a
+                      href="https://www.instagram.com/p/C2EkrYfNeW9/?utm_source=ig_web_copy_link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >«زلف بر باد بده»</a
+                    >،
+                    <a
+                      href="https://www.tiwall.com/p/lotfanbeinsibdastbezanid"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >«لطفاً به این سیب دست بزنید»</a
+                    >،
+
+                    <a
+                      href="https://www.instagram.com/p/C2EkrYfNeW9/?utm_source=ig_web_copy_link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >«آناتومی فروپاشی»</a
+                    >
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+      function showTab(tabName) {
+        // Hide all tab contents
+        const contents = document.querySelectorAll(".tab-content");
+        contents.forEach((content) => {
+          content.classList.remove("active");
+        });
+
+        // Remove active class from all tabs
+        const tabs = document.querySelectorAll(".tab");
+        tabs.forEach((tab) => {
+          tab.classList.remove("active");
+        });
+
+        // Show selected tab content
+        document.getElementById(tabName).classList.add("active");
+
+        // Add active class to clicked tab
+        event.target.classList.add("active");
+      }
+
+      // Add animation delays to fade-in elements
+      document.addEventListener("DOMContentLoaded", function () {
+        const fadeElements = document.querySelectorAll(".fade-in");
+        fadeElements.forEach((element, index) => {
+          element.style.animationDelay = `${index * 0.1}s`;
+        });
+
+        // Add floating animation to some cards
+        const cards = document.querySelectorAll(".card");
+        cards.forEach((card, index) => {
+          if (index % 3 === 0) {
+            card.classList.add("floating");
+            card.style.animationDelay = `${index * 0.2}s`;
+          }
+        });
+      });
+
+      // Add scroll animations
+      window.addEventListener("scroll", function () {
+        const cards = document.querySelectorAll(".card");
+        cards.forEach((card) => {
+          const cardTop = card.getBoundingClientRect().top;
+          const windowHeight = window.innerHeight;
+
+          if (cardTop < windowHeight - 100) {
+            card.style.opacity = "1";
+            card.style.transform = "translateY(0)";
+          }
+        });
+      });
+    </script>
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"94ce337fa9cdb9dc","version":"2025.5.0","r":1,"token":"71658ff74578441c97c09a1b68594270","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}}}' crossorigin="anonymous"></script>
+</body>
+</html>

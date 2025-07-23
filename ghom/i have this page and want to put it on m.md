@@ -1,0 +1,11747 @@
+i have this page and want to put it on my project that have login logout roles and messengers and all i need for authentications and users is something like this:
+
+<?php
+require_once __DIR__ . '/../../sercon/bootstrap.php';
+
+secureSession();
+
+$current_file_path = __DIR__;
+$expected_project_key = null;
+if (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Fereshteh') !== false) {
+$expected_project_key = 'fereshteh';
+} elseif (strpos($current_file_path, DIRECTORY_SEPARATOR . 'Arad') !== false) {
+$expected_project_key = 'arad';
+} elseif (strpos($current_file_path, DIRECTORY_SEPARATOR . 'ghom') !== false) {
+$expected_project_key = 'ghom';
+} else {
+logError("index.php accessed from unexpected path: " . $current_file_path);
+die("خطای پیکربندی: پروژه قابل تشخیص نیست.");
+}
+
+// --- Authorization ---
+if (!isLoggedIn()) {
+header('Location: /login.php');
+exit();
+}
+if (!isset($_SESSION['current_project_config_key']) || $_SESSION['current_project_config_key'] !== $expected_project_key) {
+logError("Project context mismatch or no project selected for index.php. User ID: " . ($_SESSION['user_id'] ?? 'N/A'));
+header('Location: /select_project.php?msg=context_mismatch');
+...
+just need to make the page on php and pass all forms to hpc_ghom db and make for them tables on db and users can fill the forms. here is my html ui page:
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>پروژه بیمارستان هزار تخت خوابی قم</title>
+    <link
+      rel="icon"
+      type="image/x-icon"
+      href="ghom/assets/images/favicon.ico"
+    />
+    <style>
+      @font-face {
+      font-family: "Samim";
+      src: url("ghom/assets/fonts/Samim-FD.woff2") format("woff2"),
+        url("ghom/assets/fonts/Samim-FD.woff") format("woff"),
+        url("ghom/assets/fonts/Samim-FD.ttf") format("truetype");
+      }
+
+      body {
+      font-family: "Samim", "Tahoma", sans-serif; /* Ensure Samim is primary */
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0; /* Remove body padding, header/footer will manage their own */
+      box-sizing: border-box;
+      text-align: right;
+      background-color: #f4f7f6; /* A light background for the whole page */
+      min-height: 100vh; /* Ensure footer stays at bottom on short pages */
+      }
+      header {
+      background-color: #0056b3; /* A slightly darker blue, or your brand color */
+      color: white;
+      padding: 15px 20px;
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center; /* Center content by default */
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      display: flex; /* Added for better content alignment */
+      justify-content: center; /* Center .header-content */
+      align-items: center;
+      }
+
+      .header-content {
+      display: grid;
+      grid-template-columns: 1fr 2fr 1fr;
+      align-items: center;
+      max-width: 1200px;
+      width: 100%;
+      gap: 0;
+      }
+
+      .header-content .logo-left,
+      .header-content .logo-right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 50px;
+      }
+
+      .header-content .logo-left img,
+      .header-content .logo-right img {
+      height: 50px;
+      width: 50%;
+      }
+
+      .header-content .logo-left {
+      justify-content: flex-start;
+      }
+      .header-content .logo-right {
+      justify-content: flex-end;
+      }
+
+      .header-content h1 {
+      margin: 0;
+      font-size: 1.8em;
+      font-weight: 600;
+      text-align: center;
+      }
+      #currentZoneInfo {
+      margin-top: 20px;
+      text-align: center;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      display: none;
+      font-size: 0.9em;
+      }
+#zoneNameDisplay{
+  margin-left: 15px;
+}
+#zoneContractorDisplay{ 
+  margin-left: 15px;
+}
+#regionZoneNavContainer{
+  margin-bottom: 15px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        width: 80%;
+        max-width: 600px;
+        background-color: #f8f9fa;
+
+}
+      footer {
+      background-color: #343a40; /* Dark grey or your brand's secondary color */
+      color: #f8f9fa; /* Light text color */
+      text-align: center;
+      padding: 20px;
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: auto; /* Pushes footer to the bottom if content is short */
+      font-size: 0.9em;
+      }
+      footer p {
+      margin: 0;
+      }
+      .navigation-controls {
+      margin-bottom: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+      }
+      .navigation-controls button {
+      padding: 8px 12px;
+      border-radius: 4px;
+      border: 1px solid #007bff;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      font-family: inherit;
+      }
+      .navigation-controls button:hover {
+      background-color: #0056b3;
+      }
+
+      .layer-controls {
+      margin-bottom: 15px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      }
+      .layer-controls button {
+      padding: 6px 10px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      background-color: #f8f9fa;
+      cursor: pointer;
+      font-family: inherit;
+      }
+      .layer-controls button.active {
+      background-color: #007bff;
+      color: white;
+      border-color: #007bff;
+      }
+      .layer-controls button.inactive {
+      background-color: #e9ecef;
+      color: #495057;
+      }
+
+      h1,
+      p.description {
+      text-align: center;
+      margin-bottom: 10px;
+      }
+      #svgContainer {
+      width: 90vw;
+      height: 65vh;
+      max-width: 1200px;
+      border: 1px solid #007bff;
+      background-color: #e9ecef;
+      overflow: hidden;
+      margin: 10px auto;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: grab;
+      position: relative;
+      }
+      #svgContainer.dragging {
+      cursor: grabbing;
+      }
+      #svgContainer.loading::before {
+      content: "در حال بارگذاری SVG...";
+      font-style: italic;
+      color: #666;
+      }
+      #svgContainer svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      }
+
+      .interactive-element {
+      cursor: pointer;
+      transition: all 0.2s ease;
+      }
+
+      .interactive-element:hover {
+      filter: brightness(1.1); /* Simpler hover */
+      }
+      .form-popup {
+      display: none;
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      border: 2px solid #555;
+      z-index: 10;
+      background-color: #f9f9f9;
+      padding: 15px;
+      box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+      border-radius: 5px;
+      max-width: 95vw;
+      max-height: 80vh;
+      overflow: auto;
+      }
+      .form-popup h3 {
+      margin-top: 0;
+      text-align: center;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 10px;
+      }
+      .form-popup table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 0.9em;
+      }
+      .form-popup th,
+      .form-popup td {
+      border: 1px solid #ddd;
+      padding: 6px;
+      text-align: right;
+      vertical-align: middle;
+      }
+      .form-popup th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+      }
+      .form-popup .notes {
+      margin-top: 15px;
+      font-size: 0.8em;
+      white-space: pre-line;
+      }
+      .form-popup .btn-container {
+      text-align: left;
+      margin-top: 15px;
+      }
+      .form-popup .btn {
+      padding: 8px 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-right: 5px;
+      border-radius: 3px;
+      }
+      .form-popup .btn.cancel {
+      background-color: #dc3545;
+      }
+      .form-popup .btn:hover {
+      opacity: 0.9;
+      }
+      .highlight-issue {
+      background-color: #fff3cd;
+      font-weight: bold;
+      text-align: center;
+      }
+
+      .zoom-controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      }
+
+      .zoom-controls button {
+      padding: 8px 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      }
+
+      .zoom-controls button:hover {
+      background-color: #0056b3;
+      }
+
+      .zoom-controls button:disabled {
+      background-color: #6c757d;
+      cursor: not-allowed;
+      }
+      .region-zone-nav-title {
+        margin-top: 0;
+        margin-bottom: 10px;
+        text-align: center;
+      }
+      .region-zone-nav-select-row {
+        margin-bottom: 10px;
+        width: 100%;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .region-zone-nav-label {
+        margin-left: 5px;
+        font-weight: bold;
+      }
+      .region-zone-nav-select {
+        padding: 5px;
+        border-radius: 3px;
+        border: 1px solid #ccc;
+        min-width: 200px;
+        font-family: inherit;
+      }
+      #regionZoneNavContainer .region-zone-nav-zone-buttons,
+      .region-zone-nav-zone-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 5px;
+      }
+      .region-zone-nav-zone-buttons button {
+        padding: 8px 12px;
+        border-radius: 4px;
+        border: 1px solid #007bff;
+        background-color: #007bff;
+        color: white;
+        cursor: pointer;
+        font-family: inherit;
+        margin: 4px;
+        transition: background 0.2s;
+      }
+      .region-zone-nav-zone-buttons button:hover {
+        background-color: #0056b3;
+      }
+    .footer-text {
+      text-align: center;
+    }
+    .footer-ltr {
+      direction: ltr;
+      unicode-bidi: embed;
+    }
+    .svg-element-active {
+  stroke: #ff3333 !important; /* A distinct, bright red color for the stroke */
+  stroke-width: 3px !important; /* Make the stroke thicker */
+  transition: stroke 0.1s ease-in-out, stroke-width 0.1s ease-in-out; /* Smooth transition */
+}
+    </style>
+    </head>
+
+    <body>
+    <header>
+      <div class="header-content">
+      <div class="logo-left">
+        <img
+        src="ghom/assets/images/logo.png"
+        alt="لوگوی آلومنیوم شیشه تهران"
+        />
+      </div>
+      <h1>پروژه بیمارستان هزار تخت خوابی قم</h1>
+      <div class="logo-right">
+        <!-- Optionally, duplicate the logo or leave empty for symmetry -->
+      </div>
+      </div>
+    </header>
+    <div
+      id="currentZoneInfo"
+    >
+      <strong>نقشه فعلی:</strong>
+      <span id="zoneNameDisplay" ></span>
+      <strong>پیمانکار محدوده:</strong>
+      <span id="zoneContractorDisplay" ></span>
+      <strong>بلوک:</strong> <span id="zoneBlockDisplay"></span>
+    </div>
+    <div class="layer-controls" id="layerControlsContainer">
+      <!-- Layer toggle buttons will be added here by JavaScript -->
+    </div>
+
+    <div class="navigation-controls">
+      <button id="backToPlanBtn">بازگشت به پلن اصلی</button>
+    </div>
+    <div
+      id="regionZoneNavContainer"
+     
+    >
+      <h3 class="region-zone-nav-title">ناوبری سریع به زون‌ها</h3>
+      <div class="region-zone-nav-select-row">
+        <label for="regionSelect" class="region-zone-nav-label">انتخاب محدوده (بلاک):</label>
+        <select id="regionSelect" class="region-zone-nav-select">
+          <option value="">-- ابتدا یک محدوده انتخاب کنید --</option>
+        </select>
+      </div>
+      <div id="zoneButtonsContainer" class="region-zone-nav-zone-buttons"></div>
+
+        <!-- Zone buttons will be dynamically added here by JavaScript -->
+      </div>
+    </div>
+    <p class="description">
+      برای مشاهده چک لیست، روی المان مربوطه در نقشه کلیک کنید. اگر در پلن اصلی
+      هستید، روی نام زون کلیک کنید تا نقشه آن بارگذاری شود.
+    </p>
+    <div id="svgContainer"></div>
+
+    <!-- GFRC Form -->
+    <div class="form-popup" id="gfrcChecklistForm">
+      <h3 id="gfrcFormTitle">چک لیست کنترل کیفی - GFRC</h3>
+      <div id="gfrcStaticData">
+        <p><strong>پیمانکار:</strong> <span id="gfrcContractor"></span></p>
+        <p><strong>محدوده:</strong> <span id="gfrcArea"></span></p>
+        <p><strong>بلوک:</strong> <span id="gfrcBlock"></span></p>
+        <p><strong>وضع تحویل:</strong> <span id="gfrcDeliveryStatus"></span></p>
+        <p><strong>نوع پنل:</strong> <span id="gfrcPanelType"></span></p>
+        <p>
+          <strong>شماره پنل بازگشایی شده:</strong>
+          <span id="gfrcPanelNumber"></span>
+        </p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>شرح بررسی</th>
+            <th>وضعیت / مقدار</th>
+          </tr>
+        </thead>
+        <tbody id="gfrcChecklistBody"></tbody>
+      </table>
+      <div class="notes" id="gfrcNotes"></div>
+      <div class="btn-container">
+        <button
+          type="button"
+          class="btn cancel"
+          onclick="closeForm('gfrcChecklistForm')"
+        >
+          بستن
+        </button>
+      </div>
+    </div>
+
+    <!-- Glass Form -->
+    <div class="form-popup" id="glassChecklistForm">
+      <h3 id="glassFormTitle">چک لیست کنترل کیفی - شیشه</h3>
+      <div id="glassStaticData">
+        <p><strong>پیمانکار:</strong> <span id="glassContractor"></span></p>
+        <p><strong>محدوده:</strong> <span id="glassArea"></span></p>
+        <p><strong>نوع شیشه:</strong> <span id="glassType"></span></p>
+        <p><strong>شماره المان:</strong> <span id="glassNumber"></span></p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>شرح بررسی</th>
+            <th>وضعیت / مقدار</th>
+          </tr>
+        </thead>
+        <tbody id="glassChecklistBody"></tbody>
+      </table>
+      <div class="notes" id="glassNotes"></div>
+      <div class="btn-container">
+        <button
+          type="button"
+          class="btn cancel"
+          onclick="closeForm('glassChecklistForm')"
+        >
+          بستن
+        </button>
+      </div>
+    </div>
+
+    <!-- Mullion/Transom Form -->
+    <div class="form-popup" id="mullionChecklistForm">
+      <h3 id="mullionFormTitle">چک لیست کنترل کیفی - مولیون/ترنزوم</h3>
+      <div id="mullionStaticData">
+        <p><strong>پیمانکار:</strong> <span id="mullionContractor"></span></p>
+        <p><strong>محدوده:</strong> <span id="mullionArea"></span></p>
+        <p><strong>نوع المان:</strong> <span id="mullionType"></span></p>
+        <p><strong>شماره المان:</strong> <span id="mullionNumber"></span></p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>شرح بررسی</th>
+            <th>وضعیت / مقدار</th>
+          </tr>
+        </thead>
+        <tbody id="mullionChecklistBody"></tbody>
+      </table>
+      <div class="notes" id="mullionNotes"></div>
+      <div class="btn-container">
+        <button
+          type="button"
+          class="btn cancel"
+          onclick="closeForm('mullionChecklistForm')"
+        >
+          بستن
+        </button>
+      </div>
+    </div>
+    <div class="form-popup" id="bazshowChecklistForm">
+      <h3 id="bazshowFormTitle">چک لیست کنترل کیفی - بازشو</h3>
+      <div id="bazshowStaticData">
+        <p><strong>پیمانکار:</strong> <span id="bazshowContractor"></span></p>
+        <p><strong>محدوده:</strong> <span id="bazshowArea"></span></p>
+        <p>
+          <strong>شماره المان:</strong> <span id="bazshowElementNumber"></span>
+        </p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>شرح بررسی</th>
+            <th>وضعیت / مقدار</th>
+          </tr>
+        </thead>
+        <tbody id="bazshowChecklistBody"></tbody>
+      </table>
+      <div class="notes" id="bazshowNotes"></div>
+      <div class="btn-container">
+        <button
+          type="button"
+          class="btn cancel"
+    <p class="footer-text">
+      <span class="footer-ltr">@1404-1405</span>
+      شرکت آلومنیوم شیشه تهران. تمامی حقوق محفوظ است.
+    </p>
+      </div>
+    </div>
+    <div class="form-popup" id="zirsaziChecklistForm">
+      <h3 id="zirsaziFormTitle">چک لیست کنترل کیفی - زیرسازی</h3>
+      <div id="zirsaziStaticData">
+        <p><strong>پیمانکار:</strong> <span id="zirsaziContractor"></span></p>
+        <p><strong>محدوده:</strong> <span id="zirsaziArea"></span></p>
+        <p><strong>بلوک:</strong> <span id="zirsaziBlock"></span></p>
+        <p><strong>نوع المان:</strong> <span id="zirsaziElementType"></span></p>
+        <p><strong>شماره المان:</strong> <span id="zirsaziElementNumber"></span></p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>شرح بررسی</th>
+            <th>وضعیت / مقدار</th>
+          </tr>
+        </thead>
+        <tbody id="zirsaziChecklistBody"></tbody>
+      </table>
+      <div class="notes" id="zirsaziNotes"></div>
+      <div class="btn-container">
+        <button
+          type="button"
+          class="btn cancel"
+          onclick="closeForm('zirsaziChecklistForm')"
+        >
+          بستن
+        </button>
+      </div>
+    </div>
+    <footer>
+    <p style="text-align: center;">
+      <span >@1404-1405</span>
+      شرکت آلومنیوم شیشه تهران. تمامی حقوق محفوظ است.
+    </p></p>
+    </footer>
+    <script>
+      let currentZoom = 1;
+      const zoomStep = 0.2;
+      const minZoom = 0.5;
+      const maxZoom = 40;
+      let currentSvgElement = null;
+      let currentHoveredElement = null;
+
+      //pan variables
+      let isPanning = false;
+      let panStartX = 0;
+      let panStartY = 0;
+      let panX = 0;
+      let panY = 0;
+      let lastTouchDistance = 0;
+      // --- Global context for the current plan ---
+      let currentPlanFileName = "Plan.svg"; // To help find current plan's defaults
+      let currentPlanZoneName = "نامشخص";
+      let currentPlanDefaultContractor = "پیمانکار عمومی";
+      let currentPlanDefaultBlock = "بلوک عمومی";
+      let currentSvgAxisMarkersX = [];
+      let currentSvgAxisMarkersY = [];
+      let currentSvgHeight = 2200; // Default, will be updated
+      let currentSvgWidth = 3000; // Default, will be updated
+      let currentlyActiveSvgElement = null;
+      function clearActiveSvgElementHighlight() {
+          if (currentlyActiveSvgElement) {
+              currentlyActiveSvgElement.classList.remove('svg-element-active');
+              currentlyActiveSvgElement = null;
+          }
+      }
+      const SVG_BASE_PATH = "ghom/";
+      // --- Configuration for SVG Groups ---
+      const svgGroupConfig = {
+        GFRC: {
+          label: "GFRC",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "GFRC", // For generic processing
+        },
+        Box_40x80x4: {
+          label: "Box_40x80x4",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Zirsazi", // For generic processing
+        },
+        Box_40x20: {
+          label: "Box_40x20",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Zirsazi", // For generic processing
+        },
+        tasme: {
+          label: "تسمه",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Zirsazi", // For generic processing
+        },
+        nabshi_tooli: {
+          label: "نبشی طولی",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Zirsazi", // For generic processing
+        },
+        Gasket: {
+          label: "Gasket",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Zirsazi", // For generic processing
+        },
+        SPACER: {
+          label: "فاصله گذار",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Zirsazi", // For generic processing
+        },
+        Smoke_Barrier: {
+          label: "دودبند",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Zirsazi", // For generic processing
+        },
+        uchanel: {
+          label: "یو چنل",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Zirsazi", // For generic processing
+        },
+        unolite: {
+          label: "یونولیت",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Zirsazi", // For generic processing
+        },
+        "GFRC-Part6": {
+          label: "GFRC - قسمت 6",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "GFRC", // For generic processing
+        },
+        "GFRC-Part_4": {
+          label: "GFRC - قسمت 4",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "GFRC", // For generic processing
+        },
+        Atieh: {
+          label: "بلوک A- آتیه نما",
+          color: "#0de16d",
+          defaultVisible: true,
+          interactive: true,
+          contractor: "شرکت آتیه نما",
+          block: "A",
+          elementType: "Region",
+        },
+        org: {
+          label: "بلوک - اورژانس A- آتیه نما",
+          color: "#ebb00d",
+          defaultVisible: true,
+          interactive: true,
+          contractor: "شرکت آتیه نما",
+          block: "A - اورژانس",
+          elementType: "Region",
+        },
+        AranB: {
+          label: "بلوک B-آرانسج",
+          color: "#38abee",
+          defaultVisible: true,
+          interactive: true,
+          contractor: "شرکت آرانسج",
+          block: "B",
+          elementType: "Region",
+        },
+        AranC: {
+          label: "بلوک C-آرانسج",
+          color: "#ee3838",
+          defaultVisible: true,
+          interactive: true,
+          contractor: "شرکت آرانسج",
+          block: "C",
+          elementType: "Region",
+        },
+        hayatOmran: {
+          label: " حیاط عمران آذرستان",
+          color: "#eef595da",
+          defaultVisible: true,
+          interactive: true,
+          contractor: "شرکت عمران آذرستان",
+          block: "حیاط",
+          elementType: "Region",
+        },
+        hayatRos: {
+          label: " حیاط رس",
+          color: "#eb0de7da",
+          defaultVisible: true,
+          interactive: true,
+          contractor: "شرکت ساختمانی رس",
+          block: "حیاط",
+          elementType: "Region",
+        },
+        handrail: {
+          label: "نقشه ندارد",
+          color: "rgba(238, 56, 56, 0.3)", // semi-transparent red
+          defaultVisible: true,
+          interactive: true,
+        },
+        "glass_40%": {
+          label: "شیشه 40%",
+          color: "rgba(173, 216, 230, 0.7)",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Glass",
+        },
+        "glass_30%": {
+          label: "شیشه 30%",
+          color: "rgba(173, 216, 230, 0.7)",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Glass",
+        },
+        "glass_50%": {
+          label: "شیشه 50%",
+          color: "rgba(173, 216, 230, 0.7)",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Glass",
+        },
+        glass_opaque: {
+          label: "شیشه مات",
+          color: "rgba(144, 238, 144, 0.7)",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Glass",
+        },
+        "glass_80%": {
+          label: "شیشه 80%",
+          color: "rgba(255, 255, 102, 0.7)",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Glass",
+        },
+        Mullion: {
+          label: "مولیون",
+          color: "rgba(128, 128, 128, 0.9)",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Mullion",
+        },
+        Transom: {
+          label: "ترنزوم",
+          color: "rgba(169, 169, 169, 0.9)",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Transom",
+        },
+        Bazshow: {
+          label: "بازشو",
+          color: "rgba(169, 169, 169, 0.9)",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Bazshow",
+        },
+        GLASS: {
+          label: "شیشه",
+          color: "#eef595da",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Glass",
+        },
+        STONE: {
+          label: "سنگ",
+          color: "#4c28a1",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "STONE",
+        },
+        Zirsazi: {
+          label: "زیرسازی",
+          color: "#2464ee",
+          defaultVisible: true,
+          interactive: true,
+          elementType: "Zirsazi",
+        },
+      };
+      const regionToZoneMap = {
+        Atieh: [
+          // Key should match a key in svgGroupConfig, e.g., for "بلوک A- آتیه نما"
+          { label: "زون 1 (آتیه نما)", svgFile: SVG_BASE_PATH + "Zone01.svg" },
+          { label: "زون 2 (آتیه نما)", svgFile: SVG_BASE_PATH + "Zone02.svg" },
+          { label: "زون 3 (آتیه نما)", svgFile: SVG_BASE_PATH + "Zone03.svg" },
+          { label: "زون 4 (آتیه نما)", svgFile: SVG_BASE_PATH + "Zone04.svg" },
+          { label: "زون 5 (آتیه نما)", svgFile: SVG_BASE_PATH + "Zone05.svg" },
+          { label: "زون 6 (آتیه نما)", svgFile: SVG_BASE_PATH + "Zone06.svg" },
+          { label: "زون 7 (آتیه نما)", svgFile: SVG_BASE_PATH + "Zone07.svg" },
+          { label: "زون 8 (آتیه نما)", svgFile: SVG_BASE_PATH + "Zone08.svg" },
+          { label: "زون 9 (آتیه نما)", svgFile: SVG_BASE_PATH + "Zone09.svg" },
+          {
+            label: "زون 10 (آتیه نما)",
+            svgFile: SVG_BASE_PATH + "Zone10.svg",
+          },
+          {
+            label: "زون 15 (آتیه نما)",
+            svgFile: SVG_BASE_PATH + "Zone15.svg",
+          },
+          {
+            label: "زون 16 (آتیه نما)",
+            svgFile: SVG_BASE_PATH + "Zone16.svg",
+          },
+          {
+            label: "زون 17 (آتیه نما)",
+            svgFile: SVG_BASE_PATH + "Zone17.svg",
+          },
+          {
+            label: "زون 18 (آتیه نما)",
+            svgFile: SVG_BASE_PATH + "Zone18.svg",
+          },
+          {
+            label: "زون 19 (آتیه نما)",
+            svgFile: SVG_BASE_PATH + "Zone19.svg",
+          },
+        ],
+        org: [
+          // For "بلوک - اورژانس A- آتیه نما"
+          {
+            label: "زون اورژانس ",
+            svgFile: SVG_BASE_PATH + "ZoneEmergency.svg",
+          }, // Ensure this SVG file exists
+        ],
+        AranB: [
+          // For "بلوک B-آرانسج"
+          { label: "زون 1 (آرانسج B)", svgFile: SVG_BASE_PATH + "Zone01.svg" },
+          { label: "زون 2 (آرانسج B)", svgFile: SVG_BASE_PATH + "Zone02.svg" },
+          { label: "زون 3 (آرانسج B)", svgFile: SVG_BASE_PATH + "Zone03.svg" },
+          { label: "زون 11 (آرانسج B)", svgFile: SVG_BASE_PATH + "Zone11.svg" },
+          { label: "زون 12 (آرانسج B)", svgFile: SVG_BASE_PATH + "Zone12.svg" },
+          { label: "زون 13 (آرانسج B)", svgFile: SVG_BASE_PATH + "Zone13.svg" },
+          { label: "زون 14 (آرانسج B)", svgFile: SVG_BASE_PATH + "Zone14.svg" },
+          { label: "زون 16 (آرانسج B)", svgFile: SVG_BASE_PATH + "Zone16.svg" },
+          { label: "زون 19 (آرانسج B)", svgFile: SVG_BASE_PATH + "Zone19.svg" },
+          { label: "زون 20 (آرانسج B)", svgFile: SVG_BASE_PATH + "Zone20.svg" },
+          { label: "زون 21 (آرانسج B)", svgFile: SVG_BASE_PATH + "Zone21.svg" },
+          { label: "زون 26 (آرانسج B)", svgFile: SVG_BASE_PATH + "Zone26.svg" },
+        ],
+        AranC: [
+          // For "بلوک C-آرانسج"
+          { label: "زون 4 (آرانسج C)", svgFile: SVG_BASE_PATH + "Zone04.svg" },
+          { label: "زون 5 (آرانسج C)", svgFile: SVG_BASE_PATH + "Zone05.svg" },
+          { label: "زون 6 (آرانسج C)", svgFile: SVG_BASE_PATH + "Zone06.svg" },
+          {
+            label: "زون 7E (آرانسج C)",
+            svgFile: SVG_BASE_PATH + "Zone07E.svg",
+          },
+          {
+            label: "زون 7S (آرانسج C)",
+            svgFile: SVG_BASE_PATH + "Zone07S.svg",
+          },
+          {
+            label: "زون 7N (آرانسج C)",
+            svgFile: SVG_BASE_PATH + "Zone07N.svg",
+          },
+          { label: "زون 8 (آرانسج C)", svgFile: SVG_BASE_PATH + "Zone08.svg" },
+          { label: "زون 9 (آرانسج C)", svgFile: SVG_BASE_PATH + "Zone09.svg" },
+          { label: "زون 10 (آرانسج C)", svgFile: SVG_BASE_PATH + "Zone10.svg" },
+          { label: "زون 22 (آرانسج C)", svgFile: SVG_BASE_PATH + "Zone22.svg" },
+          { label: "زون 23 (آرانسج C)", svgFile: SVG_BASE_PATH + "Zone23.svg" },
+          { label: "زون 24 (آرانسج C)", svgFile: SVG_BASE_PATH + "Zone24.svg" },
+        ],
+        hayatOmran: [
+          // For "حیاط عمران آذرستان"
+          {
+            label: "زون 15 حیاط عمران آذرستان",
+            svgFile: SVG_BASE_PATH + "Zone15.svg",
+          },
+          {
+            label: "زون 16 حیاط عمران آذرستان",
+            svgFile: SVG_BASE_PATH + "Zone16.svg",
+          },
+          {
+            label: "زون 17 حیاط عمران آذرستان",
+            svgFile: SVG_BASE_PATH + "Zone17.svg",
+          },
+          {
+            label: "زون 18 حیاط عمران آذرستان",
+            svgFile: SVG_BASE_PATH + "Zone18.svg",
+          },
+        ],
+        hayatRos: [
+          // For "حیاط رس"
+
+          { label: "زون 11 حیاط رس ", svgFile: SVG_BASE_PATH + "Zone11.svg" },
+          { label: "زون 12 حیاط رس", svgFile: SVG_BASE_PATH + "Zone12.svg" },
+          { label: "زون 13 حیاط رس", svgFile: SVG_BASE_PATH + "Zone13.svg" },
+          { label: "زون 14 حیاط رس", svgFile: SVG_BASE_PATH + "Zone14.svg" },
+        ],
+        // Add other regions and their respective zones here.
+        // Example for a region not in svgGroupConfig (if needed, but ensure consistency):
+        // "OtherRegion": [
+        //  { label: "Zone X", svgFile: "ZoneX.svg" }
+        // ]
+      };
+      // --- Sample Data Store for All Checklists ---
+      const panelChecklistDataStore = {
+        GFRC: {
+          // These are general static info, specific panel data is in 'panels'
+          // Some of these will be overridden by dynamic data
+          staticInfo: {
+            contractor: "شرکت ساختمانی آتیه نما (پیش‌فرض کلی)", // Default if not found dynamically
+            area: "محدوده پیش‌فرض کلی",
+            block: "بلوک پیش‌فرض کلی",
+            deliveryStatus: "نما تحویل نظارت گردیده است",
+            notes:
+              "×: عدم تطابق\nA: نوع ایراد استفاده از جوش به جای پیچ\nB: نوع ایراد برش نبشی\nC: استفاده اشتباه از کلمپ های با طول غیر یکسان\nاعداد کنار حروف انگلیسی: تعداد ایرادات مشاهده شده می باشد",
+          },
+          panels: {
+            "FF-01(AT)": {
+              panelType: "عمودی",
+              panelNumber: "1 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "6mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "6mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                { check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول", value: "" },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A7,C" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "×" },
+                { check: "اجرای کامل پیچ و مهره", value: "" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "×" },
+                { check: "پلیت اتصال تیر به ستون", value: "" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "" },
+                { check: "ضد زنگ زیرسازی", value: "" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "نیاز به بررسی مجدد" },
+              ],
+            },
+            "RF-01(AT)": {
+              panelType: "عمودی",
+              panelNumber: "1 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "6mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "6mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                { check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول", value: "" },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A7,C" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "×" },
+                { check: "اجرای کامل پیچ و مهره", value: "" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "×" },
+                { check: "پلیت اتصال تیر به ستون", value: "" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "" },
+                { check: "ضد زنگ زیرسازی", value: "" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "نیاز به بررسی مجدد" },
+              ],
+            },
+            "UL-01(AT)": {
+              panelType: "عمودی",
+              panelNumber: "1 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "6mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "6mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                { check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول", value: "" },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A7,C" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "×" },
+                { check: "اجرای کامل پیچ و مهره", value: "" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "×" },
+                { check: "پلیت اتصال تیر به ستون", value: "" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "" },
+                { check: "ضد زنگ زیرسازی", value: "" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "نیاز به بررسی مجدد" },
+              ],
+            },
+            "FL-01(AT)": {
+              panelType: "افقی",
+              panelNumber: "2 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "12mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "12mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                {
+                  check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                  value: "بررسی شده",
+                },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "مطابق" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A24,B7" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "" },
+                { check: "اجرای کامل پیچ و مهره", value: "×" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "" },
+                { check: "پلیت اتصال تیر به ستون", value: "×" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "×" },
+                { check: "ضد زنگ زیرسازی", value: "×" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "" },
+              ],
+            },
+            "FR-01(AT)": {
+              panelType: "افقی",
+              panelNumber: "2 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "12mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "12mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                {
+                  check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                  value: "بررسی شده",
+                },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "مطابق" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A24,B7" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "" },
+                { check: "اجرای کامل پیچ و مهره", value: "×" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "" },
+                { check: "پلیت اتصال تیر به ستون", value: "×" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "×" },
+                { check: "ضد زنگ زیرسازی", value: "×" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "" },
+              ],
+            },
+            "UR-01(AT)": {
+              panelType: "افقی",
+              panelNumber: "2 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "12mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "12mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                {
+                  check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                  value: "بررسی شده",
+                },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "مطابق" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A24,B7" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "" },
+                { check: "اجرای کامل پیچ و مهره", value: "×" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "" },
+                { check: "پلیت اتصال تیر به ستون", value: "×" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "×" },
+                { check: "ضد زنگ زیرسازی", value: "×" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "" },
+              ],
+            },
+            "DL-01": {
+              panelType: "افقی",
+              panelNumber: "2 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "12mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "12mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                {
+                  check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                  value: "بررسی شده",
+                },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "مطابق" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A24,B7" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "" },
+                { check: "اجرای کامل پیچ و مهره", value: "×" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "" },
+                { check: "پلیت اتصال تیر به ستون", value: "×" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "×" },
+                { check: "ضد زنگ زیرسازی", value: "×" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "" },
+              ],
+            },
+            "DR-01": {
+              panelType: "افقی",
+              panelNumber: "2 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "12mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "12mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                {
+                  check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                  value: "بررسی شده",
+                },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "مطابق" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A24,B7" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "" },
+                { check: "اجرای کامل پیچ و مهره", value: "×" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "" },
+                { check: "پلیت اتصال تیر به ستون", value: "×" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "×" },
+                { check: "ضد زنگ زیرسازی", value: "×" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "" },
+              ],
+            },
+            "F-Default-H": {
+              panelType: "بخش رویی (پیش‌فرض افقی)",
+              panelNumber: "پیش‌فرض - رویی افقی",
+              items: [
+                // Replace with actual default items
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "" },
+                { check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول", value: "" },
+                { check: "نصب کامل اتصالات کیل", value: "" },
+                { check: "ملاحظات دیگر برای بخش رویی", value: "" },
+              ],
+            },
+            "U-Default-H": {
+              panelType: "بخش بالایی (پیش‌فرض افقی)",
+              panelNumber: "پیش‌فرض - بالایی افقی",
+              items: [
+                // Replace with actual default items
+                { check: "اتصال بخش بالایی به سازه", value: "" },
+                { check: "آب‌بندی درز بالایی", value: "" },
+                { check: "ملاحظات دیگر برای بخش بالایی", value: "" },
+              ],
+            },
+            "D-Default-H": {
+              panelType: "بخش پایینی (پیش‌فرض افقی)",
+              panelNumber: "پیش‌فرض - پایینی افقی",
+              items: [
+                // Replace with actual default items
+                { check: "اتصال بخش پایینی به سازه", value: "" },
+                { check: "آب‌بندی درز پایینی", value: "" },
+                { check: "ملاحظات دیگر برای بخش پایینی", value: "" },
+              ],
+            },
+            "F-Default-V": {
+              panelType: "بخش رویی (پیش‌فرض عمودی)",
+              panelNumber: "پیش‌فرض - رویی عمودی",
+              items: [
+                // Replace with actual default items
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "",
+                },
+                { check: "ملاحظات دیگر برای بخش رویی", value: "" },
+              ],
+            },
+            "L-Default-V": {
+              panelType: "بخش چپی (پیش‌فرض عمودی)",
+              panelNumber: "پیش‌فرض - چپی عمودی",
+              items: [
+                // Replace with actual default items
+                { check: "اتصال بخش چپی به سازه/پنل مجاور", value: "" },
+                { check: "آب‌بندی درز چپی", value: "" },
+                { check: "ملاحظات دیگر برای بخش چپی", value: "" },
+              ],
+            },
+            "R-Default-V": {
+              panelType: "بخش راستی (پیش‌فرض عمودی)",
+              panelNumber: "پیش‌فرض - راستی عمودی",
+              items: [
+                // Replace with actual default items
+                { check: "اتصال بخش راستی به سازه/پنل مجاور", value: "" },
+                { check: "آب‌بندی درز راستی", value: "" },
+                { check: "ملاحظات دیگر برای بخش راستی", value: "" },
+              ],
+            },
+            "Default-Panel-Unknown": {
+              panelType: "پنل پیش‌فرض (جهت نامشخص)",
+              panelNumber: "پیش‌فرض - نامشخص",
+              items: [
+                // Replace with actual default items
+                { check: "بررسی کلی پنل", value: "" },
+                { check: "اتصالات عمومی", value: "" },
+              ],
+            },
+          },
+        },
+
+        "GFRC-Part_4": {
+          // These are general static info, specific panel data is in 'panels'
+          // Some of these will be overridden by dynamic data
+          staticInfo: {
+            contractor: "شرکت ساختمانی آتیه نما (پیش‌فرض کلی)", // Default if not found dynamically
+            area: "محدوده پیش‌فرض کلی",
+            block: "بلوک پیش‌فرض کلی",
+            deliveryStatus: "نما تحویل نظارت گردیده است",
+            notes:
+              "×: عدم تطابق\nA: نوع ایراد استفاده از جوش به جای پیچ\nB: نوع ایراد برش نبشی\nC: استفاده اشتباه از کلمپ های با طول غیر یکسان\nاعداد کنار حروف انگلیسی: تعداد ایرادات مشاهده شده می باشد",
+          },
+          panels: {
+            "FF-01(AT)": {
+              panelType: "عمودی",
+              panelNumber: "1 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "6mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "6mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                { check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول", value: "" },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A7,C" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "×" },
+                { check: "اجرای کامل پیچ و مهره", value: "" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "×" },
+                { check: "پلیت اتصال تیر به ستون", value: "" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "" },
+                { check: "ضد زنگ زیرسازی", value: "" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "نیاز به بررسی مجدد" },
+              ],
+            },
+            "RF-01(AT)": {
+              panelType: "عمودی",
+              panelNumber: "1 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "6mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "6mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                { check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول", value: "" },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A7,C" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "×" },
+                { check: "اجرای کامل پیچ و مهره", value: "" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "×" },
+                { check: "پلیت اتصال تیر به ستون", value: "" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "" },
+                { check: "ضد زنگ زیرسازی", value: "" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "نیاز به بررسی مجدد" },
+              ],
+            },
+            "UL-01(AT)": {
+              panelType: "عمودی",
+              panelNumber: "1 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "6mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "6mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                { check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول", value: "" },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A7,C" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "×" },
+                { check: "اجرای کامل پیچ و مهره", value: "" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "×" },
+                { check: "پلیت اتصال تیر به ستون", value: "" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "" },
+                { check: "ضد زنگ زیرسازی", value: "" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "نیاز به بررسی مجدد" },
+              ],
+            },
+            "FL-01(AT)": {
+              panelType: "افقی",
+              panelNumber: "2 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "12mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "12mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                {
+                  check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                  value: "بررسی شده",
+                },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "مطابق" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A24,B7" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "" },
+                { check: "اجرای کامل پیچ و مهره", value: "×" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "" },
+                { check: "پلیت اتصال تیر به ستون", value: "×" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "×" },
+                { check: "ضد زنگ زیرسازی", value: "×" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "" },
+              ],
+            },
+            "UL-01(AT)": {
+              panelType: "افقی",
+              panelNumber: "2 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "12mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "12mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                {
+                  check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                  value: "بررسی شده",
+                },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "مطابق" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A24,B7" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "" },
+                { check: "اجرای کامل پیچ و مهره", value: "×" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "" },
+                { check: "پلیت اتصال تیر به ستون", value: "×" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "×" },
+                { check: "ضد زنگ زیرسازی", value: "×" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "" },
+              ],
+            },
+            "DL-01": {
+              panelType: "افقی",
+              panelNumber: "2 ",
+              items: [
+                { check: "مطابقت فیس نمای نصب شده با شاپ", value: "12mm" },
+                {
+                  check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                  value: "12mm",
+                },
+                { check: "مطابقت موقعیت نبشی زیرسازی با شاپ", value: "×" },
+                {
+                  check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                  value: "بررسی شده",
+                },
+                { check: "نصب کامل اتصالات کیل", value: "×" },
+                { check: "فلزی بودن اتصالات کیل", value: "مطابق" },
+                { check: "لاستیک پشت اتصالات کیل", value: "×" },
+                { check: "دفرمگی اتصالات کیل", value: "" },
+                { check: "انطباق با جزئیات مصوب", value: "A24,B7" },
+                { check: "اجرای صحیح پلیتهای کاشته شده", value: "" },
+                { check: "اجرای کامل پیچ و مهره", value: "×" },
+                { check: "جوشکاری اتصالات زیرسازی", value: "" },
+                { check: "پلیت اتصال تیر به ستون", value: "×" },
+                { check: "دفرمگی نبشی های زیرسازی", value: "×" },
+                { check: "ضد زنگ زیرسازی", value: "×" },
+                { check: "وضعیت ورق گالوانیزه", value: "" },
+                { check: "وضعیت پشم سنگ", value: "" },
+                { check: "وضعیت درزبندی", value: "" },
+                { check: "ملاحظات دیگر", value: "" },
+              ],
+            },
+          },
+        },
+        Zirsazi: {
+          staticInfo: {
+            contractor: "شرکت زیرسازی پیشرفته",
+            area: "زون 3 ضلع شمالی",
+            notes: "بررسی زیرسازی و اتصالات",
+          },
+          panels: {
+            zirsazi_default: {
+              elementType: "زیرسازی فلزی",
+              elementNumber: "Z-001",
+              items: [
+                { check: "کیفیت جوشکاری", value: "مطابق" },
+                { check: "تراز بودن سطح", value: "مطابق" },
+                { check: "اتصالات", value: "بررسی شده" },
+                { check: "ضد زنگ بودن", value: "مطابق" },
+                { check: "ابعاد مطابق نقشه", value: "مطابق" },
+              ],
+            },
+          },
+        },
+        STONE: {
+          staticInfo: {
+            contractor: "شرکت سنگ‌کاری نمونه",
+            area: "زون 5 ضلع غربی",
+            notes: "بررسی کیفیت سنگ و نصب آن",
+          },
+          panels: {
+            stone_default: {
+              stoneType: "سنگ تراورتن",
+              elementNumber: "S-001",
+              items: [
+                { check: "کیفیت سنگ", value: "مطابق استاندارد" },
+                { check: "نصب صحیح", value: "بررسی شده" },
+                { check: "درزبندی", value: "×" },
+                { check: "تراز بودن سطح", value: "مطابق" },
+                { check: "عدم شکستگی", value: "مطابق" },
+              ],
+            },
+          },
+        },
+        Glass: {
+          staticInfo: {
+            contractor: "شرکت شیشه سازی نوین",
+            area: "زون 9 ضلع شرقی",
+            notes: "بررسی کیفیت شیشه و نصب آن",
+          },
+          panels: {
+            glass_default: {
+              glassType: "شیشه دوجداره",
+              elementNumber: "G-001",
+              items: [
+                { check: "کیفیت شیشه", value: "مطابق استاندارد" },
+                { check: "نصب صحیح", value: "بررسی شده" },
+                { check: "درزبندی", value: "×" },
+                { check: "تمیزی سطح", value: "مطابق" },
+                { check: "عدم خراش", value: "مطابق" },
+              ],
+            },
+          },
+        },
+        Mullion: {
+          staticInfo: {
+            contractor: "شرکت آلومینیوم سازی مدرن",
+            area: "کل پروژه",
+            notes: "بررسی مولیون و ترنزوم ها",
+          },
+          panels: {
+            mullion_default: {
+              elementType: "مولیون آلومینیومی",
+              elementNumber: "M-001",
+              items: [
+                { check: "راستای نصب", value: "مطابق" },
+                { check: "اتصالات", value: "×" },
+                { check: "ضدزنگ", value: "مطابق" },
+                { check: "ابعاد", value: "مطابق نقشه" },
+              ],
+            },
+          },
+        },
+        Bazshow: {
+          staticInfo: {
+            contractor: "پیمانکار بازشو",
+            area: "زون مربوطه",
+            notes: "بررسی جزئیات بازشوها",
+          },
+          panels: {
+            Bazshow_default: {
+              elementNumber: "BZ-001",
+              items: [
+                { check: "عملکرد صحیح باز و بست", value: "مطابق" },
+                { check: "یراق آلات", value: "بررسی شده" },
+                { check: "درزبندی و هوابندی", value: "×" },
+                { check: "شیشه (در صورت وجود)", value: "مطابق" },
+              ],
+            },
+          },
+        },
+      };
+
+      const planNavigationMappings = [
+        {
+          type: "textAndCircle",
+          regex: /^(\d+|[A-Za-z]+[\d-]*)\s+Zone$/i,
+          numberGroupIndex: 1,
+          svgFilePattern: SVG_BASE_PATH + "Zone{NUMBER}.svg", // Prefixed
+          labelPattern: "Zone {NUMBER}",
+          defaultContractor: "پیمانکار پیش‌فرض زون عمومی",
+          defaultBlock: "بلوک پیش‌فرض زون عمومی",
+        },
+        {
+          svgFile: SVG_BASE_PATH + "Zone09.svg", // Prefixed
+          label: "Zone 09",
+          defaultContractor: "شرکت آتیه نما زون 09 ",
+          defaultBlock: "بلوکA  زون 9 ",
+        },
+        {
+          svgFile: SVG_BASE_PATH + "Plan.svg", // Prefixed
+          label: "Plan اصلی",
+          defaultContractor: "مدیر پیمان ",
+          defaultBlock: "پروژه بیمارستان قم ",
+        },
+        // Add other specific ID-based or regex mappings for zones as needed, all prefixed
+      ];
+      const NAV_CIRCLE_PROXIMITY_THRESHOLD = 25;
+      const NAV_CIRCLE_DEFAULT_FILL = "rgba(0, 123, 255, 0.4)";
+      const NAV_CIRCLE_DEFAULT_STROKE = "rgba(0, 80, 180, 0.7)";
+      const NAV_CIRCLE_DEFAULT_STROKE_WIDTH = "1.5px";
+      const NAV_CIRCLE_HOVER_STROKE_WIDTH = "3px";
+      const NAV_CIRCLE_HOVER_FILL_OPACITY = "0.6";
+
+      function openGlassChecklistForm(elementId, groupId, dynamicContext) {
+        // Added dynamicContext
+        const staticData = panelChecklistDataStore.Glass.staticInfo;
+        const panelData =
+          panelChecklistDataStore.Glass.panels[elementId] ||
+          panelChecklistDataStore.Glass.panels["glass_default"];
+
+        document.getElementById(
+          "glassFormTitle"
+        ).textContent = `چک لیست کنترل کیفی - شیشه - المان: ${elementId}`;
+        document.getElementById("glassContractor").textContent =
+          dynamicContext.contractor || staticData.contractor || "تعیین نشده";
+        document.getElementById("glassArea").textContent =
+          dynamicContext.areaString || staticData.area || "تعیین نشده"; // Use dynamic area
+        document.getElementById("glassType").textContent =
+          panelData.glassType || "تعیین نشده";
+        document.getElementById("glassNumber").textContent =
+          panelData.elementNumber || elementId;
+
+        const checklistBody = document.getElementById("glassChecklistBody");
+        checklistBody.innerHTML = "";
+        panelData.items.forEach((item) => {
+          const row = checklistBody.insertRow();
+          const cellCheck = row.insertCell();
+          const cellValue = row.insertCell();
+          cellCheck.textContent = item.check;
+          cellValue.textContent = item.value || "-";
+          if (
+            item.value &&
+            (item.value.includes("×") || item.value.match(/[A-Z]\d+/))
+          ) {
+            cellValue.classList.add("highlight-issue");
+          }
+        });
+
+        document.getElementById("glassNotes").textContent =
+          dynamicContext.notes || staticData.notes || "";
+        document.getElementById("glassChecklistForm").style.display = "block";
+      }
+
+      function openZirsaziChecklistForm(elementId, groupId, dynamicContext) {
+    const staticData = panelChecklistDataStore.Zirsazi.staticInfo;
+    // For Zirsazi, elements will typically use a default checklist structure.
+    // The elementId passed will be the SVG element's ID or a generated ID.
+    const panelData = panelChecklistDataStore.Zirsazi.panels["zirsazi_default"];
+
+    if (!panelData || !panelData.items) {
+        alert(`داده‌های چک لیست پیش‌فرض برای زیرسازی یافت نشد.`);
+        console.error("Default Zirsazi checklist data not found or invalid.");
+        return;
+    }
+
+    const groupConfigLabel = svgGroupConfig[groupId]?.label; // Get friendly label from svgGroupConfig
+
+    document.getElementById("zirsaziFormTitle").textContent = `چک لیست کنترل کیفی - زیرسازی - المان: ${elementId}`;
+    document.getElementById("zirsaziContractor").textContent = dynamicContext.contractor || staticData.contractor || "تعیین نشده";
+    document.getElementById("zirsaziArea").textContent = dynamicContext.areaString || staticData.area || "تعیین نشده";
+    document.getElementById("zirsaziBlock").textContent = dynamicContext.block || "نامشخص";
+    // Prefer specific elementType from data, fallback to group label, then generic
+    document.getElementById("zirsaziElementType").textContent = panelData.elementType || groupConfigLabel || "زیرسازی عمومی";
+    document.getElementById("zirsaziElementNumber").textContent = elementId; // Use the actual element's ID
+
+    const checklistBody = document.getElementById("zirsaziChecklistBody");
+    checklistBody.innerHTML = "";
+    panelData.items.forEach((item) => {
+        const row = checklistBody.insertRow();
+        const cellCheck = row.insertCell();
+        const cellValue = row.insertCell();
+        cellCheck.textContent = item.check;
+        cellValue.textContent = item.value || "-";
+        if (item.value && (item.value.includes("×") || item.value.match(/[A-Z]\d+/))) {
+            cellValue.classList.add("highlight-issue");
+        }
+    });
+
+    document.getElementById("zirsaziNotes").textContent = dynamicContext.notes || staticData.notes || "";
+    document.getElementById("zirsaziChecklistForm").style.display = "block";
+}
+      
+      function openBazshowChecklistForm(elementId, groupId, dynamicContext) {
+        // Added dynamicContext
+        const staticData = panelChecklistDataStore.Bazshow.staticInfo;
+        const panelData =
+          panelChecklistDataStore.Bazshow.panels[elementId] ||
+          panelChecklistDataStore.Bazshow.panels["Bazshow_default"];
+
+        document.getElementById(
+          "bazshowFormTitle"
+        ).textContent = `چک لیست کنترل کیفی - بازشو - المان: ${elementId}`;
+        document.getElementById("bazshowContractor").textContent =
+          dynamicContext.contractor || staticData.contractor || "تعیین نشده";
+        document.getElementById("bazshowArea").textContent =
+          dynamicContext.areaString || staticData.area || "تعیین نشده"; // Use dynamic area
+        document.getElementById("bazshowElementNumber").textContent =
+          panelData.elementNumber || elementId;
+
+        const checklistBody = document.getElementById("bazshowChecklistBody");
+        checklistBody.innerHTML = "";
+        if (panelData && panelData.items) {
+          panelData.items.forEach((item) => {
+            const row = checklistBody.insertRow();
+            const cellCheck = row.insertCell();
+            const cellValue = row.insertCell();
+            cellCheck.textContent = item.check;
+            cellValue.textContent = item.value || "-";
+            if (
+              item.value &&
+              (item.value.includes("×") || item.value.match(/[A-Z]\d+/))
+            ) {
+              cellValue.classList.add("highlight-issue");
+            }
+          });
+        } else {
+          checklistBody.innerHTML =
+            "<tr><td colspan='2'>اطلاعاتی برای این بازشو یافت نشد.</td></tr>";
+        }
+
+        document.getElementById("bazshowNotes").textContent =
+          dynamicContext.notes || staticData.notes || "";
+        document.getElementById("bazshowChecklistForm").style.display = "block";
+      }
+
+      function openMullionChecklistForm(elementId, groupId, dynamicContext) {
+        // Added dynamicContext
+        const staticData = panelChecklistDataStore.Mullion.staticInfo;
+        const panelData =
+          panelChecklistDataStore.Mullion.panels[elementId] ||
+          panelChecklistDataStore.Mullion.panels["mullion_default"];
+
+        document.getElementById(
+          "mullionFormTitle"
+        ).textContent = `چک لیست کنترل کیفی - ${groupId} - المان: ${elementId}`;
+        document.getElementById("mullionContractor").textContent =
+          dynamicContext.contractor || staticData.contractor || "تعیین نشده";
+        document.getElementById("mullionArea").textContent =
+          dynamicContext.areaString || staticData.area || "تعیین نشده"; // Use dynamic area
+        document.getElementById("mullionType").textContent =
+          panelData.elementType || groupId || "تعیین نشده";
+        document.getElementById("mullionNumber").textContent =
+          panelData.elementNumber || elementId;
+
+        const checklistBody = document.getElementById("mullionChecklistBody");
+        checklistBody.innerHTML = "";
+        panelData.items.forEach((item) => {
+          const row = checklistBody.insertRow();
+          const cellCheck = row.insertCell();
+          const cellValue = row.insertCell();
+          cellCheck.textContent = item.check;
+          cellValue.textContent = item.value || "-";
+          if (
+            item.value &&
+            (item.value.includes("×") || item.value.match(/[A-Z]\d+/))
+          ) {
+            cellValue.classList.add("highlight-issue");
+          }
+        });
+
+        document.getElementById("mullionNotes").textContent =
+          dynamicContext.notes || staticData.notes || "";
+        document.getElementById("mullionChecklistForm").style.display = "block";
+      }
+      function showGfrcSubPanelMenu(
+        clickedElement,
+        subPanelIds,
+        dynamicContextForMenu
+      ) {
+        closeGfrcSubPanelMenu(); // Close any existing menu
+
+        if (!subPanelIds || subPanelIds.length === 0) {
+          // If no sub-panels, maybe open a default checklist or show a message
+          // For now, let's try to open with the main element's ID if it was a GFRC click
+          const panelIdForChecklist =
+            clickedElement.dataset.uniquePanelId ||
+            clickedElement.dataset.generatedId;
+          let checklistPanelData =
+            panelChecklistDataStore.GFRC.panels[panelIdForChecklist] ||
+            panelChecklistDataStore.GFRC.panels["-G40"];
+          if (checklistPanelData) {
+            openGfrcChecklistForm(
+              panelIdForChecklist,
+              checklistPanelData,
+              dynamicContextForMenu
+            );
+          } else {
+            alert("اطلاعاتی برای این پنل GFRC یافت نشد.");
+          }
+          return;
+        }
+
+        const menu = document.createElement("div");
+        menu.id = "gfrcSubPanelMenu";
+        menu.style.position = "absolute";
+        menu.style.background = "white";
+        menu.style.border = "1px solid #ccc";
+        menu.style.padding = "5px";
+        menu.style.zIndex = "1001"; // Above forms
+        menu.style.boxShadow = "2px 2px 5px rgba(0,0,0,0.2)";
+        menu.style.minWidth = "150px";
+
+        subPanelIds.forEach((panelId) => {
+          const menuItem = document.createElement("button");
+          menuItem.textContent = `چک لیست: ${panelId}`;
+          menuItem.style.display = "block";
+          menuItem.style.width = "100%";
+          menuItem.style.marginBottom = "3px";
+          menuItem.style.textAlign = "right";
+          menuItem.style.padding = "5px";
+          menuItem.onclick = (e) => {
+            e.stopPropagation();
+            let checklistPanelData =
+              panelChecklistDataStore.GFRC.panels[panelId] ||
+              panelChecklistDataStore.GFRC.panels["-G40"]; // Fallback
+            if (checklistPanelData) {
+              // Update the dynamic context's panelOrientation if it's different for sub-panels (if known)
+              const updatedDynamicContext = { ...dynamicContextForMenu }; // Create a copy
+              // If sub-panel implies orientation, update it. E.g. RF/LF are part of Vertical. UL/DL part of Horizontal.
+              if (
+                panelId.startsWith("RF-") ||
+                panelId.startsWith("LF-") ||
+                panelId.startsWith("FF-")
+              ) {
+                updatedDynamicContext.panelOrientation = "عمودی";
+              } else if (
+                panelId.startsWith("UL-") ||
+                panelId.startsWith("DL-") ||
+                panelId.startsWith("FL-") ||
+                panelId.startsWith("UR-") ||
+                panelId.startsWith("DR-") ||
+                panelId.startsWith("FR-")
+              ) {
+                updatedDynamicContext.panelOrientation = "افقی";
+              }
+              openGfrcChecklistForm(
+                panelId,
+                checklistPanelData,
+                updatedDynamicContext
+              );
+            } else {
+              alert(`اطلاعات چک لیست برای ${panelId} یافت نشد.`);
+            }
+            closeGfrcSubPanelMenu();
+          };
+          menu.appendChild(menuItem);
+        });
+
+        const closeButton = document.createElement("button");
+        closeButton.textContent = "بستن منو";
+        closeButton.style.display = "block";
+        closeButton.style.width = "100%";
+        closeButton.style.marginTop = "5px";
+        closeButton.style.padding = "5px";
+        closeButton.style.background = "#f0f0f0";
+        closeButton.onclick = (e) => {
+          e.stopPropagation();
+          closeGfrcSubPanelMenu();
+        };
+        menu.appendChild(closeButton);
+
+        document.body.appendChild(menu);
+
+        // Position menu near the clicked element
+        const rect = clickedElement.getBoundingClientRect(); // SVG element's screen position
+        const svgContainerRect = document
+          .getElementById("svgContainer")
+          .getBoundingClientRect();
+
+        // Adjust for scroll and SVG container offset
+        let top = rect.bottom + window.scrollY;
+        let left = rect.left + window.scrollX;
+
+        // Ensure menu stays within viewport
+        if (left + menu.offsetWidth > window.innerWidth) {
+          left = window.innerWidth - menu.offsetWidth - 10;
+        }
+        if (top + menu.offsetHeight > window.innerHeight) {
+          top = window.innerHeight - menu.offsetHeight - 10;
+        }
+        if (left < 0) left = 10;
+        if (top < 0) top = 10;
+
+        menu.style.top = `${top}px`;
+        menu.style.left = `${left}px`;
+
+        // Close menu if clicking outside
+        setTimeout(() => {
+          // Use timeout to avoid immediate close due to event propagation
+          document.addEventListener("click", closeGfrcMenuOnClickOutside, {
+            once: true,
+            capture: true,
+          });
+        }, 0);
+      }
+
+      function closeGfrcSubPanelMenu() {
+        const menu = document.getElementById("gfrcSubPanelMenu");
+        if (menu) {
+          menu.remove();
+        }
+        document.removeEventListener("click", closeGfrcMenuOnClickOutside, {
+          capture: true,
+        });
+      }
+      function closeGfrcMenuOnClickOutside(event) {
+        const menu = document.getElementById("gfrcSubPanelMenu");
+        if (
+          menu &&
+          !menu.contains(event.target) &&
+          event.target.id !== "gfrcSubPanelMenu"
+        ) {
+          closeGfrcSubPanelMenu();
+        } else if (menu) {
+          // If click was inside, re-attach listener for next outside click
+          document.addEventListener("click", closeGfrcMenuOnClickOutside, {
+            once: true,
+            capture: true,
+          });
+        }
+      }
+
+      function makeElementInteractive(element, groupId, elementId) {
+        element.classList.add("interactive-element");
+        const elementType = svgGroupConfig[groupId]?.elementType || "Generic";
+
+        // --- DETAILED LOGGING FOR DATASET VALUES ---
+        const elementIdentifierForMakeInteractive =
+          element.id ||
+          element.dataset.generatedId ||
+          "UnidentifiedElementInMakeInteractive";
+        /*  console.log(
+          `--- makeElementInteractive for: ${elementIdentifierForMakeInteractive} (Type: ${elementType}) ---`
+        );
+        console.log(
+          `   Raw element.dataset.axisSpan: `,
+          element.dataset.axisSpan
+        );
+        console.log(
+          `   Raw element.dataset.floorLevel: `,
+          element.dataset.floorLevel
+        );
+        console.log(
+          `   Raw element.dataset.contractor: `,
+          element.dataset.contractor
+        );
+        console.log(`   Raw element.dataset.block: `, element.dataset.block);
+        console.log(
+          `   Raw element.dataset.panelOrientation: `,
+          element.dataset.panelOrientation
+        );
+        console.log(
+          `   Raw element.dataset.uniquePanelId: `,
+          element.dataset.uniquePanelId
+        );
+        console.log(
+          `   Raw element.dataset.allSubPanelIds: `,
+          element.dataset.allSubPanelIds
+        ); */
+        // --- END DETAILED LOGGING ---
+
+        const contractor =
+          element.dataset.contractor || currentPlanDefaultContractor;
+        const block = element.dataset.block || currentPlanDefaultBlock;
+        const axisSpan = element.dataset.axisSpan || "نامشخص (از dataset)"; // Add fallback trace
+        const floorLevel = element.dataset.floorLevel || "نامشخص (از dataset)"; // Add fallback trace
+
+        const areaString = `زون ${
+          currentPlanZoneName || "نامشخص"
+        }، بین محورهای ${axisSpan}، طبقه ${floorLevel.replace(/(\d+)(?:th|rd|nd|ST|st)?\s*FLOOR/i, "$1")-1}`;
+        console.log(`   Constructed areaString: ${areaString}`);
+
+        const dynamicContext = {
+          contractor: contractor,
+          block: block,
+          areaString: areaString,
+          panelOrientation:
+            element.dataset.panelOrientation || "نامشخص (از dataset)",
+          deliveryStatus:
+            panelChecklistDataStore[elementType === "GFRC" ? "GFRC" : "Glass"]
+              ?.staticInfo?.deliveryStatus || "تعیین نشده",
+          notes:
+            panelChecklistDataStore[elementType === "GFRC" ? "GFRC" : "Glass"]
+              ?.staticInfo?.notes || "",
+        };
+        console.log(
+          `   DynamicContext prepared:`,
+          JSON.stringify(dynamicContext)
+        );
+        const clickHandler = (event) => {
+          event.stopPropagation();
+          clearActiveSvgElementHighlight(); // Clear highlight from any previously active element
+          closeAllForms(); // Close any other open forms first
+          element.classList.add('svg-element-active');
+          currentlyActiveSvgElement = element; // Store reference to the new active element
+
+          if (elementType === "GFRC") {
+            const allSubPanelIdsString = element.dataset.allSubPanelIds;
+            let subPanelIds = [];
+            try {
+              if (allSubPanelIdsString)
+                subPanelIds = JSON.parse(allSubPanelIdsString);
+            } catch (e) {
+              console.error("Error parsing GFRC sub-panel IDs:", e);
+            }
+            // Pass 'element' (the GFRC path/shape) to showGfrcSubPanelMenu
+            showGfrcSubPanelMenu(element, subPanelIds, dynamicContext);
+          } else if (elementType === "Glass") {
+            const panelIdForChecklist =
+              element.dataset.uniquePanelId || elementId;
+            openGlassChecklistForm(
+              panelIdForChecklist,
+              groupId,
+              dynamicContext
+            );
+          } else if (elementType === "Mullion" || elementType === "Transom") {
+            const panelIdForChecklist =
+              element.dataset.uniquePanelId || elementId;
+            openMullionChecklistForm(
+              panelIdForChecklist,
+              groupId,
+              dynamicContext
+            );
+          } else if (elementType === "Bazshow") {
+            const panelIdForChecklist =
+              element.dataset.uniquePanelId || elementId;
+            openBazshowChecklistForm(
+              panelIdForChecklist,
+              groupId,
+              dynamicContext
+            );
+          } else if (elementType === "Zirsazi") {
+            const panelIdForChecklist = element.dataset.uniquePanelId || elementId;
+            openZirsaziChecklistForm(panelIdForChecklist, groupId, dynamicContext);
+          }
+          // Note: The specific open...Form functions do not need to handle the class directly
+          // as it's managed here before they are called.
+        };
+        element.addEventListener("click", clickHandler);
+        addTouchClickSupport(element, clickHandler);
+        // console.log(
+        //   `--- End makeElementInteractive for: ${elementIdentifierForMakeInteractive} ---`
+        // );
+      }
+
+      function getElementCenter(element) {
+        if (!element) return null;
+        try {
+          const bbox = element.getBBox();
+          if (
+            element.tagName.toLowerCase() === "text" &&
+            bbox.width === 0 &&
+            bbox.height === 0 &&
+            !element.textContent.trim()
+          ) {
+            return null;
+          }
+          if (
+            bbox.width === 0 &&
+            bbox.height === 0 &&
+            (!element.hasChildNodes() || element.childNodes.length === 0)
+          ) {
+            if (element.tagName.toLowerCase() === "text") {
+              const x = parseFloat(element.getAttribute("x"));
+              const y = parseFloat(element.getAttribute("y"));
+              const fontSize =
+                parseFloat(element.getAttribute("font-size")) || 10;
+              if (!isNaN(x) && !isNaN(y)) {
+                return { x: x, y: y - fontSize / 3, width: 1, height: 1 };
+              }
+            }
+            return null;
+          }
+          return {
+            x: bbox.x + bbox.width / 2,
+            y: bbox.y + bbox.height / 2,
+            width: bbox.width,
+            height: bbox.height,
+          };
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function findNearbyCircle(textCenter, allCircles) {
+        let closestCircle = null;
+        let minDistance = NAV_CIRCLE_PROXIMITY_THRESHOLD;
+        if (!textCenter) return null;
+
+        allCircles.forEach((circle) => {
+          const circleCx = parseFloat(circle.getAttribute("cx"));
+          const circleCy = parseFloat(circle.getAttribute("cy"));
+          if (isNaN(circleCx) || isNaN(circleCy)) return;
+
+          const distance = Math.sqrt(
+            Math.pow(textCenter.x - circleCx, 2) +
+              Math.pow(textCenter.y - circleCy, 2)
+          );
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestCircle = circle;
+          }
+        });
+        return closestCircle;
+      }
+      function makeCircleNavigable(circle, svgFile, description) {
+        if (!circle) return;
+        if (!circle.parentNode) {
+          console.warn(
+            `Circle for "${description}" has no parentNode. Skipping DOM manipulations.`
+          );
+        }
+
+        circle.style.fill = NAV_CIRCLE_DEFAULT_FILL;
+        circle.style.stroke = NAV_CIRCLE_DEFAULT_STROKE;
+        circle.style.strokeWidth = NAV_CIRCLE_DEFAULT_STROKE_WIDTH;
+        circle.style.cursor = "pointer";
+        circle.style.pointerEvents = "all";
+
+        let currentCircleForEvents = circle;
+        if (circle.parentNode) {
+          circle.parentNode.appendChild(circle); // Bring to front
+          const newCircle = circle.cloneNode(true);
+          try {
+            circle.parentNode.replaceChild(newCircle, circle);
+            currentCircleForEvents = newCircle;
+          } catch (e) {
+            console.error(`Error replacing circle for "${description}":`, e);
+          }
+        }
+
+        // Re-apply styles to ensure they are on the event target
+        currentCircleForEvents.style.fill = NAV_CIRCLE_DEFAULT_FILL;
+        currentCircleForEvents.style.stroke = NAV_CIRCLE_DEFAULT_STROKE;
+        currentCircleForEvents.style.strokeWidth =
+          NAV_CIRCLE_DEFAULT_STROKE_WIDTH;
+        currentCircleForEvents.style.cursor = "pointer";
+        currentCircleForEvents.style.pointerEvents = "all";
+
+        const originalFill = currentCircleForEvents.style.fill;
+        const originalStrokeWidth = currentCircleForEvents.style.strokeWidth;
+
+        const clickListener = (event) => {
+          event.stopPropagation();
+          loadAndDisplaySVG(svgFile);
+        };
+
+        const mouseEnterListener = () => {
+          currentCircleForEvents.style.fillOpacity =
+            NAV_CIRCLE_HOVER_FILL_OPACITY;
+          currentCircleForEvents.style.strokeWidth =
+            NAV_CIRCLE_HOVER_STROKE_WIDTH;
+        };
+
+        const mouseLeaveListener = () => {
+          currentCircleForEvents.style.fill = originalFill; // Revert to original fill, not just opacity
+          currentCircleForEvents.style.fillOpacity = "1"; // Assuming default opacity if not set
+          currentCircleForEvents.style.strokeWidth = originalStrokeWidth;
+        };
+
+        currentCircleForEvents.addEventListener("click", clickListener);
+        currentCircleForEvents.addEventListener(
+          "mouseenter",
+          mouseEnterListener
+        );
+        currentCircleForEvents.addEventListener(
+          "mouseleave",
+          mouseLeaveListener
+        );
+
+        let touchStartTime, touchMoved, touchStartX, touchStartY;
+        currentCircleForEvents.addEventListener(
+          "touchstart",
+          (e) => {
+            if (e.touches.length === 1) {
+              const touch = e.touches[0];
+              touchStartTime = Date.now();
+              touchStartX = touch.clientX;
+              touchStartY = touch.clientY;
+              touchMoved = false;
+            }
+          },
+          { passive: false }
+        );
+        currentCircleForEvents.addEventListener(
+          "touchmove",
+          (e) => {
+            if (e.touches.length === 1) {
+              const touch = e.touches[0];
+              if (
+                Math.abs(touch.clientX - touchStartX) > 10 ||
+                Math.abs(touch.clientY - touchStartY) > 10
+              ) {
+                touchMoved = true;
+              }
+            }
+          },
+          { passive: true }
+        );
+        currentCircleForEvents.addEventListener("touchend", (e) => {
+          if (
+            e.changedTouches.length === 1 &&
+            !touchMoved &&
+            Date.now() - touchStartTime < 400
+          ) {
+            e.preventDefault();
+            e.stopPropagation();
+            clickListener(e);
+          }
+        });
+      }
+
+      function setupPlanNavigationLinks(planSvgElement) {
+        const allTextElements = Array.from(
+          planSvgElement.querySelectorAll("text")
+        );
+        const allCircleElements = Array.from(
+          planSvgElement.querySelectorAll("circle")
+        );
+
+        if (allCircleElements.length === 0) {
+          console.warn(
+            "No circle elements found in Plan.svg to make navigable."
+          );
+          return;
+        }
+
+        planNavigationMappings.forEach((mapping) => {
+          allTextElements.forEach((textEl) => {
+            const textContent = textEl.textContent
+              ? textEl.textContent.trim()
+              : "";
+            if (!textContent) return;
+
+            let zoneNumber = null;
+            let svgFile = mapping.svgFile;
+            let label = mapping.label;
+
+            if (mapping.regex && textContent.match(mapping.regex)) {
+              const match = textContent.match(mapping.regex);
+              if (mapping.numberGroupIndex && match[mapping.numberGroupIndex]) {
+                zoneNumber = match[mapping.numberGroupIndex];
+                if (mapping.svgFilePattern)
+                  svgFile = mapping.svgFilePattern.replace(
+                    "{NUMBER}",
+                    zoneNumber
+                  );
+                if (mapping.labelPattern)
+                  label = mapping.labelPattern.replace("{NUMBER}", zoneNumber);
+              }
+              if (!svgFile && mapping.svgFile) svgFile = mapping.svgFile;
+              if (!label && mapping.label) label = mapping.label;
+            } else if (mapping.ids && mapping.ids.includes(textEl.id)) {
+              // This part handles ID-based mappings. It might need adjustment
+              // if multiple text elements contribute to one navigation link.
+              // For now, assume one text ID directly maps.
+              svgFile = mapping.svgFile;
+              label = mapping.label;
+            }
+
+            if (svgFile && label) {
+              const textCenter = getElementCenter(textEl);
+              if (textCenter) {
+                const nearbyCircle = findNearbyCircle(
+                  textCenter,
+                  allCircleElements
+                );
+                if (nearbyCircle) {
+                  makeCircleNavigable(nearbyCircle, svgFile, label);
+                }
+              }
+            }
+          });
+
+          // Handle mappings based on ID lists specifically, as they might not involve text content regex
+          if (
+            mapping.type === "idList" &&
+            mapping.ids &&
+            mapping.ids.length > 0
+          ) {
+            // Find one of the text elements to get a general position
+            const primaryTextEl = planSvgElement.getElementById(mapping.ids[0]);
+            if (primaryTextEl) {
+              const textCenter = getElementCenter(primaryTextEl);
+              if (textCenter) {
+                const nearbyCircle = findNearbyCircle(
+                  textCenter,
+                  allCircleElements
+                );
+                if (nearbyCircle) {
+                  makeCircleNavigable(
+                    nearbyCircle,
+                    mapping.svgFile,
+                    mapping.label
+                  );
+                } else {
+                  console.log(
+                    `No circle found near elements for ID-based mapping: "${mapping.label}"`
+                  );
+                }
+              } else {
+                console.log(
+                  `Could not get center for primary text element of ID-based mapping: "${mapping.label}"`
+                );
+              }
+            } else {
+              console.log(
+                `Primary text element ID not found for ID-based mapping: "${mapping.label}" (ID: ${mapping.ids[0]})`
+              );
+            }
+          }
+        });
+      }
+      document.addEventListener("DOMContentLoaded", () => {
+        const svgContainer = document.getElementById("svgContainer");
+        const backToPlanBtn = document.getElementById("backToPlanBtn");
+
+        backToPlanBtn.addEventListener("click", () => {
+          loadAndDisplaySVG(SVG_BASE_PATH + "Plan.svg"); // Prefixed
+        });
+        loadAndDisplaySVG(SVG_BASE_PATH + "Plan.svg"); // Initial load - Prefixed
+      });
+      function applyGroupStylesAndControls(svgElement) {
+        const layerControlsContainer = document.getElementById(
+          "layerControlsContainer"
+        );
+        layerControlsContainer.innerHTML = "";
+
+        for (const groupId in svgGroupConfig) {
+          const config = svgGroupConfig[groupId];
+          const groupElement = svgElement.getElementById(groupId);
+          config.elementRef = groupElement; // Store ref
+
+          if (groupElement) {
+            // <<< KEY CHANGE: Only proceed if the group exists in the SVG
+            // Group exists, so create a button and apply styles/interactivity
+
+            if (config.color && groupId !== "GFRC") {
+              // GFRC has special coloring logic in initializeInteractiveGFRCPanels
+              const elementsToColor = groupElement.querySelectorAll(
+                config.isTextGroup
+                  ? "text, tspan"
+                  : "path, rect, circle, polygon, polyline, line, ellipse"
+              );
+              elementsToColor.forEach((el) => {
+                if (config.isTextGroup) {
+                  el.style.fill = config.color;
+                  el.style.stroke = "none"; // Often good for text layers
+                } else {
+                  // Special handling for Bazshow to color stroke instead of fill
+                  if (
+                    groupId === "Bazshow" &&
+                    el.tagName.toLowerCase() === "path"
+                  ) {
+                    el.style.stroke = config.color;
+                    if (!el.style.strokeWidth) el.style.strokeWidth = "2px"; // Make sure stroke is visible
+                    // el.style.fill = "none"; // Ensure fill remains none if that's intended
+                  } else {
+                    el.style.fill = config.color;
+                  }
+                }
+              });
+            }
+            groupElement.style.display = config.defaultVisible ? "" : "none";
+            if (config.interactive && config.elementType) {
+              console.log(
+                `Initializing elements for group: ${groupId}, type: ${config.elementType}`
+              );
+              initializeElementsByType(
+                groupElement,
+                config.elementType,
+                groupId
+              );
+            }
+            if (config.interactive) {
+              const interactiveElements = groupElement.querySelectorAll(
+                "path, rect, circle, polygon, polyline, line, ellipse"
+              );
+              interactiveElements.forEach((el, index) => {
+                const elementIdForInteractivity =
+                  el.id || `${groupId}_interactive_${index}`;
+                // Avoid making navigation circles (already handled) interactive for forms
+                if (
+                  el.tagName.toLowerCase() === "circle" &&
+                  el.style.cursor === "pointer" &&
+                  el.style.pointerEvents === "all"
+                ) {
+                  // This is likely a navigation circle, skip
+                } else {
+                  // Pass groupId and a unique ID for this specific element for interactivity setup
+                  makeElementInteractive(
+                    el,
+                    groupId,
+                    elementIdForInteractivity
+                  );
+                }
+              });
+            }
+
+            const button = document.createElement("button");
+            button.textContent = config.label;
+            button.className = config.defaultVisible ? "active" : "inactive";
+            button.addEventListener("click", () => {
+              const isVisible = groupElement.style.display !== "none";
+              groupElement.style.display = isVisible ? "none" : "";
+              button.className = !isVisible ? "active" : "inactive";
+            });
+            layerControlsContainer.appendChild(button);
+          } else {
+            // Group defined in config but NOT found in the current SVG.
+            // Do NOT create a button for it.
+            // console.log(`Layer group '${groupId}' (label: '${config.label}') not found in the current SVG. No button created.`);
+          }
+        }
+      }
+      function initializeElementsByType(groupElement, elementType, groupId) {
+        const interactiveElements = groupElement.querySelectorAll(
+          "path, rect, circle, polygon, polyline, line, ellipse"
+        );
+        const allTextsInOwningSvg = groupElement.ownerSVGElement
+          ? Array.from(groupElement.ownerSVGElement.querySelectorAll("text"))
+          : [];
+        interactiveElements.forEach((el, index) => {
+          const elementId = el.id || `${groupId}_${index}`;
+          el.dataset.generatedId = elementId; // Store a general ID
+
+          // 1. Contractor & Block (applies to all types)
+          let elContractor = currentPlanDefaultContractor;
+          let elBlock = currentPlanDefaultBlock;
+          const closestGroupWithId = el.closest("g[id]");
+          if (closestGroupWithId && closestGroupWithId.id) {
+            const parentGroupId = closestGroupWithId.id;
+            if (svgGroupConfig[parentGroupId]) {
+              if (svgGroupConfig[parentGroupId].contractor)
+                elContractor = svgGroupConfig[parentGroupId].contractor;
+              if (svgGroupConfig[parentGroupId].block)
+                elBlock = svgGroupConfig[parentGroupId].block;
+            }
+          }
+          el.dataset.contractor = elContractor;
+          el.dataset.block = elBlock;
+
+          // 2. Spatial Context (Axis Span, Floor Level)
+          const spatialCtx = getElementSpatialContext(el);
+          el.dataset.axisSpan = spatialCtx.axisSpan;
+          el.dataset.floorLevel = spatialCtx.floorLevel;
+          // Default uniquePanelId, will be overridden by GFRC logic if specific texts are found or defaults applied
+          el.dataset.uniquePanelId =
+            el.id || spatialCtx.derivedId || `${groupId}_elem_${index}`;
+
+          // 3. Type-Specific Initializations
+          if (elementType === "GFRC") {
+            const dims = getRectangleDimensions(el.getAttribute("d"));
+            let orientation = "نامشخص"; // Default orientation
+
+            if (dims) {
+              orientation = dims.width > dims.height ? "افقی" : "عمودی";
+              el.dataset.panelOrientation = orientation;
+              if (dims.width > dims.height)
+                el.style.fill = "rgba(255, 160, 122, 0.7)";
+              else if (dims.height > dims.width)
+                el.style.fill = "rgba(32, 178, 170, 0.7)";
+              else el.style.fill = "rgba(211, 211, 211, 0.7)";
+            }
+
+            let gfrcSubPanelTexts = [];
+            let primarySubPanelIdForGfrc = el.dataset.uniquePanelId; // Keep existing unique ID as a base
+
+            try {
+              const pathBBox = el.getBBox();
+              for (const textEl of allTextsInOwningSvg) {
+                // Still iterates all, but we can add proximity break
+                const content = textEl.textContent.trim();
+                if (
+                  content.match(
+                    /^(FF|RF|LF|UL|FL|DL|UR|FR|DR)-\d+(\([A-Z0-9]+\))?/i
+                  )
+                ) {
+                  try {
+                    const textBBox = textEl.getBBox();
+                    const textCenterX = textBBox.x + textBBox.width / 2;
+                    const textCenterY = textBBox.y + textBBox.height / 2;
+                    const padding =
+                      Math.min(pathBBox.width, pathBBox.height) * 0.2;
+                    if (
+                      textCenterX >= pathBBox.x - padding &&
+                      textCenterX <= pathBBox.x + pathBBox.width + padding &&
+                      textCenterY >= pathBBox.y - padding &&
+                      textCenterY <= pathBBox.y + pathBBox.height + padding
+                    ) {
+                      gfrcSubPanelTexts.push(content);
+                    }
+                  } catch (e) {
+                    /* text BBox error */
+                  }
+                }
+              }
+
+              if (gfrcSubPanelTexts.length > 0) {
+                primarySubPanelIdForGfrc =
+                  gfrcSubPanelTexts.find(
+                    (t) =>
+                      t.toUpperCase().startsWith("FF-") ||
+                      t.toUpperCase().startsWith("FL-")
+                  ) || gfrcSubPanelTexts[0];
+                el.dataset.uniquePanelId = primarySubPanelIdForGfrc; // This ID is for the "main" panel if texts are found
+                el.dataset.allSubPanelIds = JSON.stringify(gfrcSubPanelTexts);
+              } else {
+                // NO TEXTS FOUND - APPLY DEFAULT SUB-PANELS
+                let defaultSubPanelIds = [];
+                if (orientation === "افقی") {
+                  defaultSubPanelIds = [
+                    "F-Default-H",
+                    "U-Default-H",
+                    "D-Default-H",
+                  ];
+                  el.dataset.uniquePanelId = `H-Panel-${elementId}`; // More unique default ID
+                } else if (orientation === "عمودی") {
+                  defaultSubPanelIds = [
+                    "F-Default-V",
+                    "L-Default-V",
+                    "R-Default-V",
+                  ];
+                  el.dataset.uniquePanelId = `V-Panel-${elementId}`; // More unique default ID
+                } else {
+                  defaultSubPanelIds = ["Default-Panel-Unknown"];
+                  el.dataset.uniquePanelId = `Unknown-Panel-${elementId}`;
+                }
+                el.dataset.allSubPanelIds = JSON.stringify(defaultSubPanelIds);
+                console.log(
+                  `Applied default GFRC sub-panel IDs for element ${el.dataset.uniquePanelId}: ${el.dataset.allSubPanelIds}`
+                );
+              }
+            } catch (e) {
+              // BBox error for path, or other errors in text processing
+              console.warn(
+                `Error processing GFRC sub-panels for ${elementId}:`,
+                e
+              );
+              // Fallback if BBox or text processing fails entirely for GFRC
+              let defaultSubPanelIds = [];
+              if (orientation === "افقی") {
+                defaultSubPanelIds = [
+                  "F-Default-H",
+                  "U-Default-H",
+                  "D-Default-H",
+                ];
+                el.dataset.uniquePanelId = `H-Panel-${elementId}-fallback`;
+              } else if (orientation === "عمودی") {
+                defaultSubPanelIds = [
+                  "F-Default-V",
+                  "L-Default-V",
+                  "R-Default-V",
+                ];
+                el.dataset.uniquePanelId = `V-Panel-${elementId}-fallback`;
+              } else {
+                defaultSubPanelIds = ["Default-Panel-Unknown"];
+                el.dataset.uniquePanelId = `Unknown-Panel-${elementId}-fallback`;
+              }
+              el.dataset.allSubPanelIds = JSON.stringify(defaultSubPanelIds);
+            }
+          }
+          // Add initializations for Glass, Mullion etc. if they need specific dataset attributes
+
+          makeElementInteractive(
+            el,
+            groupId,
+            el.dataset.uniquePanelId || elementId
+          ); // Use the potentially updated uniquePanelId
+        });
+      }
+
+      function extractAllAxisMarkers(svgElement) {
+        currentSvgAxisMarkersX = [];
+        currentSvgAxisMarkersY = [];
+        if (!svgElement) {
+          console.error("extractAllAxisMarkers: svgElement is null!");
+          return;
+        }
+        const allTextsInSvg = Array.from(svgElement.querySelectorAll("text"));
+
+        // Make thresholds less aggressive initially for debugging
+        const AXIS_LABEL_Y_THRESHOLD_TOP = currentSvgHeight * 0.25; // top 25%
+        const AXIS_LABEL_Y_THRESHOLD_BOTTOM = currentSvgHeight * 0.75; // bottom 25% (i.e. > 75% from top)
+        const AXIS_LABEL_X_THRESHOLD_LEFT = currentSvgWidth * 0.25; // left 25%
+        const AXIS_LABEL_X_THRESHOLD_RIGHT = currentSvgWidth * 0.75; // right 25% (i.e. > 75% from left)
+
+        console.log(
+          `Axis Thresholds: TopY=${AXIS_LABEL_Y_THRESHOLD_TOP}, BottomY=${AXIS_LABEL_Y_THRESHOLD_BOTTOM}, LeftX=${AXIS_LABEL_X_THRESHOLD_LEFT}, RightX=${AXIS_LABEL_X_THRESHOLD_RIGHT}`
+        );
+
+        allTextsInSvg.forEach((textEl) => {
+          const textContent = textEl.textContent.trim();
+          if (!textContent) return;
+          try {
+            const bbox = textEl.getBBox();
+            if (bbox.width === 0 && bbox.height === 0 && !textContent.trim())
+              return; // Skip empty or invisible
+
+            const centerX = bbox.x + bbox.width / 2;
+            const centerY = bbox.y + bbox.height / 2;
+
+            // Debug individual text elements:
+            // if (textContent.match(/^[A-Z]$/i) || textContent.toLowerCase().includes("floor") || textContent.includes("±") || textContent.match(/^\+\d+\.\d+$/)) {
+            //     console.log(`Checking text: "${textContent}" at X:${centerX.toFixed(2)}, Y:${centerY.toFixed(2)}`);
+            // }
+
+            // X-Axis Markers (Single uppercase letters, near top or bottom)
+            if (
+              (textContent.match(/^[A-Z]$/)||textContent.match(/^[0-9]$/)) &&
+              (centerY < AXIS_LABEL_Y_THRESHOLD_TOP ||
+                centerY > AXIS_LABEL_Y_THRESHOLD_BOTTOM)
+            ) {
+              if (!isNaN(centerX) && !isNaN(centerY)) {
+                // console.log(`  -> X-AXIS ADDED: ${textContent}`);
+                currentSvgAxisMarkersX.push({
+                  text: textContent,
+                  x: centerX,
+                  y: centerY,
+                });
+              }
+            }
+            // Y-Axis / Floor Markers
+            if (
+              textContent.toLowerCase().includes("floor") ||
+
+              textContent.match(/^\d+(th|rd|nd)\s*FLOOR$/i)
+            ) {
+              if (!isNaN(centerX) && !isNaN(centerY)) {
+                // console.log(`  -> FLOOR ADDED: ${textContent}`);
+                currentSvgAxisMarkersY.push({
+                  text: textContent,
+                  x: centerX,
+                  y: centerY,
+                  type: "floor",
+                });
+              }
+            } else if (
+              textContent.match(/^[A-Z0-9]+$/i) &&
+              (centerX < AXIS_LABEL_X_THRESHOLD_LEFT ||
+                centerX > AXIS_LABEL_X_THRESHOLD_RIGHT)
+            ) {
+              if (!isNaN(centerX) && !isNaN(centerY)) {
+                // console.log(`  -> Y-GRID ADDED: ${textContent}`);
+                currentSvgAxisMarkersY.push({
+                  text: textContent,
+                  x: centerX,
+                  y: centerY,
+                  type: "grid",
+                });
+              }
+            }
+          } catch (e) {
+            console.warn("BBox error for text:", textContent, e);
+          }
+        });
+        currentSvgAxisMarkersX.sort((a, b) => a.x - b.x);
+        currentSvgAxisMarkersY.sort((a, b) => a.y - b.y);
+      }
+
+      // --- CORRECTED getElementSpatialContext function ---
+
+      function getElementSpatialContext(element) {
+        let axisSpan = "نامشخص (اولیه)";
+        let floorLevel = "نامشخص (اولیه)";
+        let derivedId = null;
+
+        if (!element) {
+          console.error("getElementSpatialContext called with null element");
+          return { axisSpan, floorLevel, derivedId };
+        }
+
+        const elementIdentifier =
+          element.id || element.dataset.generatedId || "UnidentifiedElement"; // Get identifier early for logging
+
+        try {
+          const elBBox = element.getBBox(); // This is one BBox call per element, necessary
+          const elCenterX = elBBox.x + elBBox.width / 2;
+          const elCenterY = elBBox.y + elBBox.height / 2;
+
+          // --- DETAILED LOGGING ---
+          console.log(`--- Spatial Context for: ${elementIdentifier} ---`);
+          console.log(
+            `   Element Center: X=${elCenterX.toFixed(
+              2
+            )}, Y=${elCenterY.toFixed(2)}`
+          );
+          /*  console.log(
+            `   Available X-Markers (${currentSvgAxisMarkersX.length}):`,
+            JSON.stringify(
+              currentSvgAxisMarkersX.map((m) => `${m.text} (${m.x.toFixed(0)})`)
+            )
+          );
+          console.log(
+            `   Available Floor-Markers (${
+              currentSvgAxisMarkersY.filter((m) => m.type === "floor").length
+            }):`,
+            JSON.stringify(
+              currentSvgAxisMarkersY
+                .filter((m) => m.type === "floor")
+                .map((m) => `${m.text} (${m.y.toFixed(0)})`)
+            )
+          ); */
+          // --- END DETAILED LOGGING ---
+
+          // --- X-Axis Span Logic ---
+          if (currentSvgAxisMarkersX.length > 0) {
+            let leftMarker = null;
+            let rightMarker = null;
+
+            currentSvgAxisMarkersX.forEach((marker) => {
+              if (marker.x <= elCenterX) {
+                if (!leftMarker || marker.x > leftMarker.x) {
+                  leftMarker = marker;
+                }
+              }
+              if (marker.x >= elCenterX) {
+                if (!rightMarker || marker.x < rightMarker.x) {
+                  rightMarker = marker;
+                }
+              }
+            });
+
+            if (leftMarker && rightMarker) {
+              if (
+                leftMarker === rightMarker ||
+                Math.abs(leftMarker.x - rightMarker.x) < 1
+              ) {
+                axisSpan = `روی محور ${leftMarker.text}`;
+              } else {
+                axisSpan = `${leftMarker.text}-${rightMarker.text}`;
+              }
+            } else if (leftMarker) {
+              axisSpan = `>${leftMarker.text}`;
+            } else if (rightMarker) {
+              axisSpan = `<${rightMarker.text}`;
+            } else {
+              axisSpan = "خارج محدوده X";
+            }
+          } else {
+            axisSpan = "بدون نشانگر X";
+          }
+
+          // --- Floor Level Logic ---
+          const floorMarkers = currentSvgAxisMarkersY.filter(
+            (m) => m.type === "floor"
+          );
+          if (floorMarkers.length > 0) {
+            let bestMatchFloor = null;
+            for (const marker of floorMarkers) {
+              if (marker.y <= elCenterY) {
+                if (!bestMatchFloor || marker.y > bestMatchFloor.y) {
+                  bestMatchFloor = marker;
+                }
+              }
+            }
+
+            if (bestMatchFloor) {
+              floorLevel = bestMatchFloor.text;
+            } else {
+              floorLevel = `< ${floorMarkers[0].text}`;
+            }
+          } else {
+            floorLevel = "بدون نشانگر طبقه";
+          }
+
+          // --- Derived ID Logic (Now correctly inside the main try block) ---
+          if (
+            currentSvgElement &&
+            (!element.id || element.id.startsWith("gfrc_path_"))
+          ) {
+            // Heuristic: only search if ID is generic
+            // Try to find text elements near or within the current element.
+            // This is still a heuristic. A better way is if text is a child/sibling.
+            const MAX_TEXT_SEARCH_RADIUS =
+              Math.max(elBBox.width, elBBox.height) * 1.5; // Search in a radius around the element
+
+            const potentialTexts = [];
+            if (element.parentNode) {
+              // Check siblings and children first
+              const siblingsAndChildren = Array.from(
+                element.parentNode.children
+              );
+              siblingsAndChildren.forEach((child) => {
+                if (child.tagName.toLowerCase() === "text") {
+                  potentialTexts.push(child);
+                }
+                if (child !== element) {
+                  // Avoid re-adding element itself if it's a group
+                  Array.from(child.querySelectorAll("text")).forEach((t) =>
+                    potentialTexts.push(t)
+                  );
+                }
+              });
+            }
+
+            // If not found among siblings/children, expand search slightly (can be costly)
+            // For now, let's restrict to a simpler proximity check from all texts if the above fails.
+            // This is where the major cost was.
+            // We can limit how many texts we check from the global list or be smarter.
+
+            let bestTextMatch = null;
+            let minDistanceToText = Infinity;
+
+            // Iterate through *all* texts (this was the slow part).
+            // We should try to make this more targeted or limit it.
+            // For now, let's keep it but be aware this is a performance bottleneck.
+            const allTextsInSvg = Array.from(
+              currentSvgElement.querySelectorAll("text")
+            );
+            for (const textEl of allTextsInSvg) {
+              try {
+                const textBBox = textEl.getBBox();
+                if (
+                  textBBox.width === 0 &&
+                  textBBox.height === 0 &&
+                  !textEl.textContent.trim()
+                )
+                  continue;
+
+                const textCenterX = textBBox.x + textBBox.width / 2;
+                const textCenterY = textBBox.y + textBBox.height / 2;
+
+                // Check if text is within the element's bounding box (good for labels inside)
+                const isInside =
+                  textCenterX >= elBBox.x &&
+                  textCenterX <= elBBox.x + elBBox.width &&
+                  textCenterY >= elBBox.y &&
+                  textCenterY <= elBBox.y + elBBox.height;
+
+                // Or if text is very close to the element's center (good for labels next to small elements)
+                const distance = Math.sqrt(
+                  Math.pow(textCenterX - elCenterX, 2) +
+                    Math.pow(textCenterY - elCenterY, 2)
+                );
+
+                if (isInside || distance < MAX_TEXT_SEARCH_RADIUS * 0.5) {
+                  // Prioritize inside or very close
+                  const content = textEl.textContent.trim();
+                  if (content && !content.match(/^[A-Z]$/)) {
+                    // Not a single letter axis
+                    if (content.match(/^(FF|RF|LF|UL|FL|DL|UR|FR|DR)-\d+/i)) {
+                      // Specific panel ID
+                      derivedId = content;
+                      break; // Found a good specific ID, stop searching
+                    }
+                    // If not a specific panel ID, consider it if it's the closest so far
+                    if (distance < minDistanceToText) {
+                      minDistanceToText = distance;
+                      bestTextMatch = content;
+                    }
+                  }
+                }
+              } catch (e) {
+                /* ignore text BBox error */
+              }
+            }
+
+            if (!derivedId && bestTextMatch) {
+              // If no specific ID found, use the closest text match
+              derivedId = bestTextMatch.replace(/[\s\(\)]/g, "_");
+            }
+          }
+          // If derivedId is still null, and uniquePanelId from dataset (set by GFRC logic) isn't available,
+          // it will fall back to generatedId in initializeElementsByType.
+          // --- End OPTIMIZED Derived ID Logic ---
+          // End of the main try block
+        } catch (e) {
+          console.warn(
+            `Error in getElementSpatialContext for ${elementIdentifier}:`,
+            e
+          );
+          // Ensure defaults are returned even if main BBox fails
+          axisSpan = "خطا در BBox اصلی";
+          floorLevel = "خطا در BBox اصلی";
+        }
+
+        console.log(
+          `   Final Context for ${elementIdentifier}: Axis='${axisSpan}', Floor='${floorLevel}', DerivedID='${derivedId}'`
+        );
+        console.log(`--- End Spatial Context for: ${elementIdentifier} ---`);
+        return { axisSpan, floorLevel, derivedId };
+      }
+
+      function closeAllForms() {
+        document.getElementById("gfrcChecklistForm").style.display = "none";
+        document.getElementById("glassChecklistForm").style.display = "none";
+        document.getElementById("mullionChecklistForm").style.display = "none";
+        document.getElementById("bazshowChecklistForm").style.display = "none";
+        document.getElementById("zirsaziChecklistForm").style.display = "none";
+      }
+
+      let regionNavInitialized = false;
+      function getRegionAndZoneInfoForFile(svgFullFilename) {
+        for (const regionKey in regionToZoneMap) {
+          if (regionToZoneMap.hasOwnProperty(regionKey)) {
+            const zonesInRegion = regionToZoneMap[regionKey]; // This is the array of zone objects
+
+            const foundZone = zonesInRegion.find(
+              (zone) =>
+                zone.svgFile.toLowerCase() === svgFullFilename.toLowerCase()
+            );
+            if (foundZone) {
+              const regionConfig = svgGroupConfig[regionKey];
+              return {
+                regionKey: regionKey, // e.g., "Atieh", "AranB"
+                zoneLabel: foundZone.label, // e.g., "زون 1 (آتیه نما)"
+                contractor: regionConfig?.contractor, // From svgGroupConfig using the regionKey
+                block: regionConfig?.block, // From svgGroupConfig using the regionKey
+              };
+            }
+          }
+        }
+        return null; // SVG file not found in any defined region in regionToZoneMap
+      }
+      function setupRegionZoneNavigationIfNeeded() {
+        if (regionNavInitialized) return;
+
+        const regionSelect = document.getElementById("regionSelect");
+        const zoneButtonsContainer = document.getElementById(
+          "zoneButtonsContainer"
+        );
+
+        if (!regionSelect || !zoneButtonsContainer) {
+          console.error("Region/Zone navigation elements not found in DOM.");
+          return;
+        }
+
+        // Populate regions dropdown
+        // Ensure svgGroupConfig is available here
+        for (const regionKey in regionToZoneMap) {
+          if (regionToZoneMap.hasOwnProperty(regionKey)) {
+            const option = document.createElement("option");
+            option.value = regionKey;
+            // Try to get a more descriptive label from svgGroupConfig if the regionKey exists there
+            option.textContent =
+              svgGroupConfig[regionKey] && svgGroupConfig[regionKey].label
+                ? svgGroupConfig[regionKey].label
+                : regionKey;
+            regionSelect.appendChild(option);
+          }
+        }
+
+        regionSelect.addEventListener("change", function () {
+          zoneButtonsContainer.innerHTML = ""; // Clear previous zone buttons
+          const selectedRegionKey = this.value;
+          if (selectedRegionKey && regionToZoneMap[selectedRegionKey]) {
+            const zones = regionToZoneMap[selectedRegionKey];
+            zones.forEach((zone) => {
+              const button = document.createElement("button");
+              button.textContent = zone.label;
+              // Reuse styles from your existing .navigation-controls button
+              button.className = "navigation-controls button"; // This applies multiple classes if 'button' is a separate class
+              // If 'button' is a tag selector in .navigation-controls button, this is fine.
+              // Or use:
+              // button.classList.add('some-base-button-class', 'zone-specific-style');
+              // Let's assume your .navigation-controls button style is sufficient:
+              // To apply the specific style of buttons inside .navigation-controls:
+              // We'll add fixed styling to match, or you can create a generic button class.
+              button.style.padding = "8px 12px";
+              button.style.borderRadius = "4px";
+              button.style.border = "1px solid #007bff";
+              button.style.backgroundColor = "#007bff";
+              button.style.color = "white";
+              button.style.cursor = "pointer";
+              button.style.fontFamily = "inherit";
+              button.style.margin = "4px"; // Add some spacing for multiple buttons
+
+              button.addEventListener("click", () => {
+                loadAndDisplaySVG(zone.svgFile);
+              });
+              zoneButtonsContainer.appendChild(button);
+            });
+          }
+        });
+
+        regionNavInitialized = true;
+      }
+
+      function loadAndDisplaySVG(svgFullFilename) {
+        const svgContainer = document.getElementById("svgContainer");
+        clearActiveSvgElementHighlight();
+        svgContainer.innerHTML = "";
+        svgContainer.classList.add("loading");
+        closeAllForms();
+        closeGfrcSubPanelMenu();
+
+        const regionZoneNavContainer = document.getElementById(
+          "regionZoneNavContainer"
+        );
+        const currentZoneInfoContainer =
+          document.getElementById("currentZoneInfo");
+        const zoneNameDisplay = document.getElementById("zoneNameDisplay");
+        const zoneContractorDisplay = document.getElementById(
+          "zoneContractorDisplay"
+        );
+        const zoneBlockDisplay = document.getElementById("zoneBlockDisplay");
+
+        const baseFilename = svgFullFilename.substring(
+          svgFullFilename.lastIndexOf("/") + 1
+        );
+
+        if (regionZoneNavContainer) {
+          if (baseFilename.toLowerCase() === "plan.svg") {
+            regionZoneNavContainer.style.display = "flex";
+            setupRegionZoneNavigationIfNeeded();
+          } else {
+            regionZoneNavContainer.style.display = "none";
+          }
+        }
+
+        currentPlanFileName = svgFullFilename;
+        // currentPlanZoneName is used for the "AreaString" in forms, so it should be the specific zone name
+        // It gets updated more accurately below if it's a known zone.
+        let tempZoneNameForDisplay = baseFilename.replace(/\.svg$/i, ""); // Generic name like "Zone01"
+
+        console.log(
+          `Loading SVG: ${svgFullFilename}, Base Filename: ${baseFilename}`
+        );
+
+        // Reset to most general defaults first, these will be overridden if specific info is found
+        currentPlanDefaultContractor = "پیمانکار عمومی ";
+        currentPlanDefaultBlock = "بلوک عمومی ";
+
+        if (baseFilename.toLowerCase() === "plan.svg") {
+          const planMapping = planNavigationMappings.find(
+            (m) =>
+              m.svgFile &&
+              m.svgFile.toLowerCase() === svgFullFilename.toLowerCase()
+          );
+          if (planMapping) {
+            currentPlanDefaultContractor =
+              planMapping.defaultContractor || currentPlanDefaultContractor;
+            currentPlanDefaultBlock =
+              planMapping.defaultBlock || currentPlanDefaultBlock;
+            tempZoneNameForDisplay =
+              planMapping.label || tempZoneNameForDisplay; // Use label from mapping for Plan
+          }
+          currentPlanZoneName = tempZoneNameForDisplay; // For Plan.svg, its name is "Plan اصلی" or similar
+
+          if (
+            currentZoneInfoContainer &&
+            zoneNameDisplay &&
+            zoneContractorDisplay &&
+            zoneBlockDisplay
+          ) {
+            zoneNameDisplay.textContent = `${currentPlanZoneName}`;
+            zoneContractorDisplay.textContent = `${currentPlanDefaultContractor}`;
+            zoneBlockDisplay.textContent = `${currentPlanDefaultBlock}`;
+            currentZoneInfoContainer.style.display = "block";
+          }
+        } else {
+          // This is a Zone SVG
+          const zoneInfo = getRegionAndZoneInfoForFile(svgFullFilename);
+          if (zoneInfo) {
+            currentPlanDefaultContractor =
+              zoneInfo.contractor || currentPlanDefaultContractor;
+            currentPlanDefaultBlock = zoneInfo.block || currentPlanDefaultBlock;
+            currentPlanZoneName = zoneInfo.zoneLabel || tempZoneNameForDisplay; // Use specific label from regionToZoneMap for areaString
+
+            if (
+              currentZoneInfoContainer &&
+              zoneNameDisplay &&
+              zoneContractorDisplay &&
+              zoneBlockDisplay
+            ) {
+              zoneNameDisplay.textContent = `${currentPlanZoneName}`;
+              zoneContractorDisplay.textContent = `${currentPlanDefaultContractor}`;
+              zoneBlockDisplay.textContent = `${currentPlanDefaultBlock}`;
+              currentZoneInfoContainer.style.display = "block";
+            }
+          } else {
+            // Fallback for zones not explicitly in regionToZoneMap but perhaps in planNavigationMappings (e.g. a zone directly mapped)
+            const directZoneMapping = planNavigationMappings.find(
+              (m) =>
+                m.svgFile &&
+                m.svgFile.toLowerCase() === svgFullFilename.toLowerCase()
+            );
+            if (directZoneMapping) {
+              currentPlanDefaultContractor =
+                directZoneMapping.defaultContractor ||
+                currentPlanDefaultContractor;
+              currentPlanDefaultBlock =
+                directZoneMapping.defaultBlock || currentPlanDefaultBlock;
+              currentPlanZoneName =
+                directZoneMapping.label || tempZoneNameForDisplay;
+            } else {
+              currentPlanZoneName = tempZoneNameForDisplay; // Use generic if no specific label found
+            }
+
+            if (
+              currentZoneInfoContainer &&
+              zoneNameDisplay &&
+              zoneContractorDisplay &&
+              zoneBlockDisplay
+            ) {
+              zoneNameDisplay.textContent = `${currentPlanZoneName}`;
+              zoneContractorDisplay.textContent = `${currentPlanDefaultContractor}`;
+              zoneBlockDisplay.textContent = `${currentPlanDefaultBlock}`;
+              currentZoneInfoContainer.style.display = "block";
+            }
+            console.warn(
+              `Zone ${svgFullFilename} not found in regionToZoneMap or direct planNavigationMappings for specific contractor/block. Using derived/fallback defaults.`
+            );
+          }
+        }
+        console.log(
+          `Context for ${svgFullFilename}: Name='${currentPlanZoneName}', Contractor='${currentPlanDefaultContractor}', Block='${currentPlanDefaultBlock}'`
+        );
+
+        fetch(svgFullFilename)
+          .then((response) => {
+            svgContainer.classList.remove("loading");
+            if (!response.ok)
+              throw new Error(
+                `Failed to load ${svgFullFilename}: ${response.status}`
+              );
+            return response.text();
+          })
+          .then((svgData) => {
+            svgContainer.innerHTML = svgData;
+            const zoomControlsHtml = `<div class="zoom-controls"><button id="zoomInBtn">+</button><button id="zoomOutBtn">-</button><button id="zoomResetBtn">⌂</button></div>`;
+            svgContainer.insertAdjacentHTML("afterbegin", zoomControlsHtml);
+
+            setTimeout(() => {
+              const svgElement = svgContainer.querySelector("svg");
+              if (svgElement) {
+                svgElement.style.width = "100%";
+                svgElement.style.height = "100%";
+                currentSvgElement = svgElement;
+                currentZoom = 1;
+                panX = 0;
+                panY = 0;
+                updateTransform();
+                setupZoomControls();
+
+                currentSvgHeight = svgElement.viewBox.baseVal
+                  ? svgElement.viewBox.baseVal.height
+                  : svgElement.height.baseVal
+                  ? svgElement.height.baseVal.value
+                  : 2200;
+                currentSvgWidth = svgElement.viewBox.baseVal
+                  ? svgElement.viewBox.baseVal.width
+                  : svgElement.width.baseVal
+                  ? svgElement.width.baseVal.value
+                  : 3000;
+                console.log(
+                  `SVG Dimensions: Width=${currentSvgWidth}, Height=${currentSvgHeight}`
+                );
+
+                extractAllAxisMarkers(svgElement);
+                // console.log("Extracted X Markers:", JSON.stringify(currentSvgAxisMarkersX));
+                // console.log("Extracted Y Markers (Floors):", JSON.stringify(currentSvgAxisMarkersY.filter((m) => m.type === "floor")));
+
+                applyGroupStylesAndControls(svgElement);
+
+                if (baseFilename.toLowerCase() === "plan.svg") {
+                  setupPlanNavigationLinks(svgElement);
+                }
+              } else {
+                console.error("SVG element not found after loading.");
+              }
+            }, 0);
+          })
+          .catch((error) => {
+            svgContainer.classList.remove("loading");
+            console.error(`Error loading/parsing ${svgFullFilename}:`, error);
+            svgContainer.textContent = `نقشه هنوز بارگزاری نشده.`;
+            if (currentZoneInfoContainer)
+              currentZoneInfoContainer.style.display = "none";
+          });
+      }
+
+      function setupZoomControls() {
+        const zoomInBtn = document.getElementById("zoomInBtn");
+        const zoomOutBtn = document.getElementById("zoomOutBtn");
+        const zoomResetBtn = document.getElementById("zoomResetBtn");
+        const svgContainer = document.getElementById("svgContainer");
+
+        if (!zoomInBtn || !zoomOutBtn || !zoomResetBtn || !svgContainer) {
+          console.error("Zoom controls or SVG container not found!");
+          return;
+        }
+
+        zoomInBtn.addEventListener("click", () =>
+          zoomSvg(currentZoom + zoomStep)
+        );
+        zoomOutBtn.addEventListener("click", () =>
+          zoomSvg(currentZoom - zoomStep)
+        );
+        zoomResetBtn.addEventListener("click", resetZoomAndPan);
+        svgContainer.addEventListener("wheel", handleWheelZoom, {
+          passive: false,
+        });
+        svgContainer.addEventListener("mousedown", handleMouseDown);
+        svgContainer.addEventListener("mousemove", handleMouseMove);
+        document.addEventListener("mouseup", handleMouseUp);
+        svgContainer.addEventListener("mouseleave", handleMouseUp);
+        svgContainer.addEventListener("touchstart", handleTouchStart, {
+          passive: false,
+        });
+        svgContainer.addEventListener("touchmove", handleTouchMove, {
+          passive: false,
+        });
+        document.addEventListener("touchend", handleTouchEnd, {
+          passive: false,
+        });
+      }
+
+      function handleWheelZoom(e) {
+        e.preventDefault();
+        const svgContainerRect = e.currentTarget.getBoundingClientRect();
+        const svgX = (e.clientX - svgContainerRect.left - panX) / currentZoom;
+        const svgY = (e.clientY - svgContainerRect.top - panY) / currentZoom;
+        const delta = e.deltaY < 0 ? zoomStep : -zoomStep;
+        const newZoom = Math.max(
+          minZoom,
+          Math.min(maxZoom, currentZoom * (1 + delta))
+        );
+        panX -= svgX * (newZoom - currentZoom);
+        panY -= svgY * (newZoom - currentZoom);
+        currentZoom = newZoom;
+        updateTransform();
+        updateZoomButtonStates();
+      }
+      function handleMouseDown(e) {
+        if (
+          e.target.closest(".zoom-controls") ||
+          e.target.style.cursor === "pointer" ||
+          e.target.closest(".interactive-element")
+        )
+          return;
+        isPanning = true;
+        panStartX = e.clientX - panX;
+        panStartY = e.clientY - panY;
+        svgContainer.classList.add("dragging");
+      }
+      function handleMouseMove(e) {
+        if (!isPanning) return;
+        e.preventDefault();
+        panX = e.clientX - panStartX;
+        panY = e.clientY - panStartY;
+        updateTransform();
+      }
+      function handleMouseUp() {
+        if (isPanning) {
+          isPanning = false;
+          svgContainer.classList.remove("dragging");
+        }
+      }
+      function handleTouchStart(e) {
+        const targetIsControl = e.target.closest(".zoom-controls");
+        const targetIsClickable = e.target.closest(
+          '[style*="cursor: pointer"], .interactive-element'
+        );
+
+        if (targetIsControl) return;
+
+        window.touchStartOnInteractive = !!targetIsClickable;
+
+        if (e.touches.length === 1) {
+          isPanning = true;
+          const touch = e.touches[0];
+          panStartX = touch.clientX - panX;
+          panStartY = touch.clientY - panY;
+          window.touchStartX = touch.clientX;
+          window.touchStartY = touch.clientY;
+          window.touchStartTime = Date.now();
+          window.hasMoved = false;
+        } else if (e.touches.length === 2) {
+          isPanning = false;
+          const touch1 = e.touches[0];
+          const touch2 = e.touches[1];
+          lastTouchDistance = Math.sqrt(
+            Math.pow(touch2.clientX - touch1.clientX, 2) +
+              Math.pow(touch2.clientY - touch1.clientY, 2)
+          );
+        }
+      }
+      function handleTouchMove(e) {
+        if (e.touches.length === 1 && isPanning) {
+          // Only preventDefault if we are actually panning,
+          // to allow scrolling if the touch started on an interactive element but then moved off.
+          if (!window.touchStartOnInteractive || window.hasMoved) {
+            e.preventDefault();
+          }
+          const touch = e.touches[0];
+          panX = touch.clientX - panStartX;
+          panY = touch.clientY - panStartY;
+          updateTransform();
+          if (window.touchStartX !== undefined) {
+            if (
+              Math.abs(touch.clientX - window.touchStartX) > 10 ||
+              Math.abs(touch.clientY - window.touchStartY) > 10
+            ) {
+              window.hasMoved = true;
+            }
+          }
+        } else if (e.touches.length === 2) {
+          e.preventDefault();
+          isPanning = false;
+          const touch1 = e.touches[0];
+          const touch2 = e.touches[1];
+          const currentDistance = Math.sqrt(
+            Math.pow(touch2.clientX - touch1.clientX, 2) +
+              Math.pow(touch2.clientY - touch1.clientY, 2)
+          );
+          if (lastTouchDistance > 0) {
+            const scaleChange = currentDistance / lastTouchDistance;
+            const newZoom = Math.max(
+              minZoom,
+              Math.min(maxZoom, currentZoom * scaleChange)
+            );
+            const midX = (touch1.clientX + touch2.clientX) / 2;
+            const midY = (touch1.clientY + touch2.clientY) / 2;
+            const svgContainerRect = svgContainer.getBoundingClientRect();
+            const svgX = (midX - svgContainerRect.left - panX) / currentZoom;
+            const svgY = (midY - svgContainerRect.top - panY) / currentZoom;
+            panX -= svgX * (newZoom - currentZoom);
+            panY -= svgY * (newZoom - currentZoom);
+            currentZoom = newZoom;
+            updateTransform();
+            updateZoomButtonStates();
+          }
+          lastTouchDistance = currentDistance;
+        }
+      }
+      function handleTouchEnd(e) {
+        if (e.touches.length < 2) isPanning = false;
+        if (e.touches.length === 0) lastTouchDistance = 0;
+
+        // Check for tap on an interactive element that wasn't handled by its own touchend
+        // This is a bit tricky as interactive elements have their own touchend
+        // The main purpose here is to correctly reset panning state.
+
+        // The addTouchClickSupport handles taps on interactive elements.
+        // This global touchend mainly resets pan/zoom states.
+
+        window.touchStartX = undefined;
+        window.touchStartY = undefined;
+        window.touchStartTime = undefined;
+        window.hasMoved = false;
+        window.touchStartOnInteractive = false;
+      }
+
+      function addTouchClickSupport(element, clickHandler) {
+        let touchStartTime, touchStartX, touchStartY, touchMoved;
+        element.addEventListener(
+          "touchstart",
+          function (e) {
+            if (e.touches.length === 1) {
+              const touch = e.touches[0];
+              touchStartTime = Date.now();
+              touchStartX = touch.clientX;
+              touchStartY = touch.clientY;
+              touchMoved = false;
+              e.stopPropagation(); // Prevent container pan/zoom from starting on this element
+            }
+          },
+          { passive: false }
+        );
+
+        element.addEventListener(
+          "touchmove",
+          function (e) {
+            if (touchStartTime === undefined || e.touches.length !== 1) return;
+            const touch = e.touches[0];
+            if (
+              Math.abs(touch.clientX - touchStartX) > 10 ||
+              Math.abs(touch.clientY - touchStartY) > 10
+            ) {
+              touchMoved = true;
+            }
+          },
+          { passive: true }
+        );
+
+        element.addEventListener("touchend", function (e) {
+          if (touchStartTime === undefined || e.changedTouches.length !== 1)
+            return;
+          if (!touchMoved && Date.now() - touchStartTime < 400) {
+            e.preventDefault();
+            e.stopPropagation();
+            clickHandler(e);
+          }
+          touchStartTime = undefined;
+        });
+      }
+
+      function zoomSvg(newZoomFactor) {
+        if (!currentSvgElement) return;
+        const svgContainerRect = svgContainer.getBoundingClientRect();
+        const centerX = svgContainerRect.width / 2;
+        const centerY = svgContainerRect.height / 2;
+        const svgX = (centerX - panX) / currentZoom;
+        const svgY = (centerY - panY) / currentZoom;
+        const newZoom = Math.max(minZoom, Math.min(maxZoom, newZoomFactor));
+        panX -= svgX * (newZoom - currentZoom);
+        panY -= svgY * (newZoom - currentZoom);
+        currentZoom = newZoom;
+        updateTransform();
+        updateZoomButtonStates();
+      }
+      function updateTransform() {
+        if (!currentSvgElement) return;
+        currentSvgElement.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
+        currentSvgElement.style.transformOrigin = `0 0`;
+      }
+      function resetZoomAndPan() {
+        currentZoom = 1;
+        panX = 0;
+        panY = 0;
+        updateTransform();
+        updateZoomButtonStates();
+      }
+      function updateZoomButtonStates() {
+        const zoomInBtn = document.getElementById("zoomInBtn");
+        const zoomOutBtn = document.getElementById("zoomOutBtn");
+        if (zoomInBtn && zoomOutBtn) {
+          zoomInBtn.disabled = currentZoom >= maxZoom;
+          zoomOutBtn.disabled = currentZoom <= minZoom;
+        }
+      }
+
+      function initializeInteractiveGFRCPanels(svg) {
+        const gfrcConfig = svgGroupConfig["GFRC"];
+        if (
+          !gfrcConfig ||
+          !svg.getElementById(
+            gfrcConfig.elementRef ? gfrcConfig.elementRef.id : "GFRC"
+          )
+        ) {
+          // If GFRC group itself isn't found, try to get its reference from svgGroupConfig if already populated
+          const gfrcGroup = svg.getElementById("GFRC");
+          if (!gfrcGroup) {
+            // console.log("GFRC group not found in this SVG. Skipping GFRC panel initialization.");
+            return;
+          }
+          gfrcConfig.elementRef = gfrcGroup; // Assign if found now
+        }
+        const gfrcGroupElement = gfrcConfig.elementRef;
+        if (!gfrcGroupElement) return;
+
+        const allPathsInGfrc = gfrcGroupElement.querySelectorAll("path");
+        const allTextsInSvg = Array.from(svg.querySelectorAll("text")); // All texts in the SVG
+
+        // --- Axis Marker Extraction ---
+        let xAxisMarkers = [],
+          yAxisMarkers = []; // Changed from yFloorMarkers to generic yAxisMarkers
+        const AXIS_LABEL_Y_THRESHOLD_TOP = 300; // Text elements with y < this might be top X-axis labels
+        const AXIS_LABEL_Y_THRESHOLD_BOTTOM_FACTOR = 0.8; // Text elements with y > (SVGHeight * factor) might be bottom X-axis labels
+        const AXIS_LABEL_X_THRESHOLD_LEFT = 300; // Text elements with x < this might be left Y-axis labels
+        const AXIS_LABEL_X_THRESHOLD_RIGHT_FACTOR = 0.8; // Text elements with x > (SVGWidth * factor) might be right Y-axis labels
+
+        let svgHeight = svg.viewBox.baseVal
+          ? svg.viewBox.baseVal.height
+          : svg.height.baseVal
+          ? svg.height.baseVal.value
+          : 2200;
+        let svgWidth = svg.viewBox.baseVal
+          ? svg.viewBox.baseVal.width
+          : svg.width.baseVal
+          ? svg.width.baseVal.value
+          : 3000;
+
+        allTextsInSvg.forEach((textEl) => {
+          const textContent = textEl.textContent.trim();
+          if (!textContent) return;
+          try {
+            const bbox = textEl.getBBox();
+            const centerX = bbox.x + bbox.width / 2;
+            const centerY = bbox.y + bbox.height / 2;
+
+            // Basic X-axis detection (typically horizontal text, near top/bottom)
+            // Your example shows single capital letters for axes.
+            if (
+              textContent.match(/^[A-Z]$/i) &&
+              (centerY < AXIS_LABEL_Y_THRESHOLD_TOP ||
+                centerY > svgHeight * AXIS_LABEL_Y_THRESHOLD_BOTTOM_FACTOR)
+            ) {
+              if (!isNaN(centerX) && !isNaN(centerY)) {
+                xAxisMarkers.push({
+                  text: textContent,
+                  x: centerX,
+                  y: centerY,
+                });
+              }
+            }
+            // Basic Y-axis detection (typically vertical text, near left/right, or horizontal for floor levels)
+            // For floor levels:
+            if (
+              textContent.toLowerCase().includes("floor") ||
+              textContent.includes("±") ||
+              textContent.match(/^\+\d+\.\d+$/)
+            ) {
+              if (!isNaN(centerX) && !isNaN(centerY)) {
+                yAxisMarkers.push({
+                  text: textContent,
+                  x: centerX,
+                  y: centerY,
+                  type: "floor",
+                });
+              }
+            }
+            // For Y-axis grid lines (if they are also single letters and positioned vertically)
+            else if (
+              textContent.match(/^[A-Z]$/i) &&
+              (centerX < AXIS_LABEL_X_THRESHOLD_LEFT ||
+                centerX > svgWidth * AXIS_LABEL_X_THRESHOLD_RIGHT_FACTOR)
+            ) {
+              if (!isNaN(centerX) && !isNaN(centerY)) {
+                yAxisMarkers.push({
+                  text: textContent,
+                  x: centerX,
+                  y: centerY,
+                  type: "grid",
+                });
+              }
+            }
+          } catch (e) {
+            /* ignore BBox error */
+          }
+        });
+
+        xAxisMarkers.sort((a, b) => a.x - b.x);
+        yAxisMarkers.sort((a, b) => a.y - b.y); // Sort Y markers by their Y position
+
+        function getXAxisSpan(rectCenterX) {
+          if (xAxisMarkers.length < 2) return textContent || "نامشخص";
+          for (let i = 0; i < xAxisMarkers.length - 1; i++) {
+            // Check if center is between the midpoints of current axis and next axis text
+            // Or simply if it's between the x-positions of two adjacent axis markers
+            if (
+              rectCenterX >= xAxisMarkers[i].x &&
+              rectCenterX <= xAxisMarkers[i + 1].x
+            ) {
+              return `${xAxisMarkers[i].text}-${xAxisMarkers[i + 1].text}`;
+            }
+          }
+          if (xAxisMarkers.length > 0) {
+            if (rectCenterX < xAxisMarkers[0].x)
+              return `<${xAxisMarkers[0].text}`;
+            if (rectCenterX > xAxisMarkers[xAxisMarkers.length - 1].x)
+              return `>${xAxisMarkers[xAxisMarkers.length - 1].text}`;
+          }
+          return "X-نامشخص";
+        }
+
+        function getFloorLevel(rectCenterY) {
+          const floorMarkers = yAxisMarkers.filter((m) => m.type === "floor");
+          if (floorMarkers.length === 0) return "طبقه نامشخص";
+
+          for (let i = 0; i < floorMarkers.length; i++) {
+            const currentFloor = floorMarkers[i];
+            const nextFloor = floorMarkers[i + 1];
+            if (nextFloor) {
+              if (rectCenterY >= currentFloor.y && rectCenterY < nextFloor.y) {
+                return currentFloor.text;
+              }
+            } else {
+              // Last floor marker
+              if (rectCenterY >= currentFloor.y) {
+                return currentFloor.text;
+              }
+            }
+          }
+          if (rectCenterY < floorMarkers[0].y)
+            return `<${floorMarkers[0].text}`; // Below the lowest floor marker
+          return "F-نامشخص";
+        }
+
+        allPathsInGfrc.forEach((path, index) => {
+          path.dataset.generatedId = `gfrc_path_${index + 1}`;
+          const dAttr = path.getAttribute("d");
+          if (!dAttr) return;
+          const dims = getRectangleDimensions(dAttr);
+          if (dims) {
+            // 4- Panel Type (Orientation)
+            path.dataset.panelOrientation =
+              dims.width > dims.height ? "افقی" : "عمودی";
+            if (dims.width > dims.height)
+              path.style.fill = "rgba(255, 160, 122, 0.7)";
+            else if (dims.height > dims.width)
+              path.style.fill = "rgba(32, 178, 170, 0.7)";
+            else path.style.fill = "rgba(211, 211, 211, 0.7)";
+
+            // 5- Panel ID (FF-01(AT), etc.)
+            let gfrcSubPanelTexts = [];
+            let primarySubPanelId = path.dataset.generatedId; // Fallback
+            try {
+              const pathBBox = path.getBBox();
+              allTextsInSvg.forEach((textEl) => {
+                const content = textEl.textContent.trim();
+                // Regex for FF-01(AT), RF-01, UL-01(ANYTHING), etc.
+                if (
+                  content.match(
+                    /^(FF|RF|LF|UL|FL|DL|UR|FR|DR)-\d+(\([A-Z0-9]+\))?/i
+                  )
+                ) {
+                  try {
+                    const textBBox = textEl.getBBox();
+                    const textCenterX = textBBox.x + textBBox.width / 2;
+                    const textCenterY = textBBox.y + textBBox.height / 2;
+                    if (
+                      textCenterX >= pathBBox.x &&
+                      textCenterX <= pathBBox.x + pathBBox.width &&
+                      textCenterY >= pathBBox.y &&
+                      textCenterY <= pathBBox.y + pathBBox.height
+                    ) {
+                      gfrcSubPanelTexts.push(content);
+                    }
+                  } catch (e) {
+                    /* BBox error for text */
+                  }
+                }
+              });
+              if (gfrcSubPanelTexts.length > 0) {
+                primarySubPanelId =
+                  gfrcSubPanelTexts.find(
+                    (t) => t.startsWith("FF") || t.startsWith("FL")
+                  ) || gfrcSubPanelTexts[0];
+              }
+            } catch (e) {
+              /* BBox error for path */
+            }
+            path.dataset.uniquePanelId = primarySubPanelId;
+            // path.dataset.allSubPanelIds = JSON.stringify(gfrcSubPanelTexts); // If needed later
+
+            // 2- Axis Span
+            const rectCenterX = dims.x + dims.width / 2;
+            const rectCenterY = dims.y + dims.height / 2;
+            path.dataset.axisSpan = getXAxisSpan(rectCenterX);
+            path.dataset.floorLevel = getFloorLevel(rectCenterY);
+
+            // 1 & 3- Contractor and Block
+            let panelContractor = currentPlanDefaultContractor;
+            let panelBlock = currentPlanDefaultBlock;
+            const closestGroupWithId = path.closest("g[id]");
+            if (closestGroupWithId && closestGroupWithId.id) {
+              const groupId = closestGroupWithId.id;
+              if (svgGroupConfig[groupId]) {
+                if (svgGroupConfig[groupId].contractor)
+                  panelContractor = svgGroupConfig[groupId].contractor;
+                if (svgGroupConfig[groupId].block)
+                  panelBlock = svgGroupConfig[groupId].block;
+              }
+            }
+            path.dataset.contractor = panelContractor;
+            path.dataset.block = panelBlock;
+
+            // Interactivity is added by makeElementInteractive via applyGroupStylesAndControls
+          }
+        });
+      }
+      function getRectangleDimensions(dAttribute) {
+        const commands = dAttribute
+          .trim()
+          .toUpperCase()
+          .split(/(?=[LMCZHV])/);
+        let points = [];
+        let currentX = 0,
+          currentY = 0;
+        commands.forEach((commandStr) => {
+          const type = commandStr.charAt(0);
+          const rawArgs = commandStr.substring(1).trim();
+          let args = rawArgs ? rawArgs.split(/[\s,]+/).map(Number) : [];
+          let i = 0;
+          switch (type) {
+            case "M":
+              currentX = args[i++];
+              currentY = args[i++];
+              points.push({ x: currentX, y: currentY });
+              while (i < args.length) {
+                currentX = args[i++];
+                currentY = args[i++];
+                points.push({ x: currentX, y: currentY });
+              }
+              break;
+            case "L":
+              while (i < args.length) {
+                currentX = args[i++];
+                currentY = args[i++];
+                points.push({ x: currentX, y: currentY });
+              }
+              break;
+            case "H":
+              while (i < args.length) {
+                currentX = args[i++];
+                points.push({ x: currentX, y: currentY });
+              }
+              break;
+            case "V":
+              while (i < args.length) {
+                currentY = args[i++];
+                points.push({ x: currentX, y: currentY });
+              }
+              break;
+            case "Z":
+              break;
+          }
+        });
+        if (points.length < 3) return null;
+        const xValues = points.map((p) => p.x),
+          yValues = points.map((p) => p.y);
+        const minX = Math.min(...xValues),
+          maxX = Math.max(...xValues);
+        const minY = Math.min(...yValues),
+          maxY = Math.max(...yValues);
+        const width = maxX - minX,
+          height = maxY - minY;
+        if (width <= 0 || height <= 0) return null;
+        return { x: minX, y: minY, width, height, points };
+      }
+
+      function openGfrcChecklistForm(panelId, panelData, dynamicContext) {
+        if (!panelData || !panelData.items) {
+          console.warn(
+            `Data for GFRC panel '${panelId}' not found or invalid. Using default GFRC structure if available.`
+          );
+          // Attempt to use a fallback structure if panelData.items is the issue
+          const defaultPanelStructure =
+            panelChecklistDataStore.GFRC.panels["-G40"];
+          if (defaultPanelStructure && defaultPanelStructure.items) {
+            panelData = { ...defaultPanelStructure, ...panelData }; // Merge, keeping specific panelId data if some exists
+            if (!panelData.items) panelData.items = defaultPanelStructure.items; // Ensure items exist
+          } else {
+            alert(
+              `داده‌های چک لیست GFRC برای پنل '${panelId}' یافت نشد و ساختار پیش‌فرض نیز موجود نیست.`
+            );
+            return;
+          }
+        }
+
+        document.getElementById(
+          "gfrcFormTitle"
+        ).textContent = `چک لیست کنترل کیفی - GFRC - پنل: ${panelId}`;
+        document.getElementById("gfrcContractor").textContent =
+          dynamicContext.contractor || "تعیین نشده";
+        document.getElementById("gfrcArea").textContent =
+          dynamicContext.areaString || "تعیین نشده";
+        document.getElementById("gfrcBlock").textContent =
+          dynamicContext.block || "تعیین نشده";
+        document.getElementById("gfrcDeliveryStatus").textContent =
+          dynamicContext.deliveryStatus || "تعیین نشده";
+        document.getElementById("gfrcPanelType").textContent =
+          dynamicContext.panelOrientation || "تعیین نشده";
+        document.getElementById("gfrcPanelNumber").textContent = panelId; // This is the specific ID like FF-01(AT)
+
+        const checklistBody = document.getElementById("gfrcChecklistBody");
+        checklistBody.innerHTML = "";
+        panelData.items.forEach((item) => {
+          const row = checklistBody.insertRow();
+          row.insertCell().textContent = item.check;
+          const cellValue = row.insertCell();
+          cellValue.textContent = item.value || "-";
+          if (
+            item.value &&
+            (item.value.includes("×") || item.value.match(/[A-Z]\d+/))
+          )
+            cellValue.classList.add("highlight-issue");
+        });
+        document.getElementById("gfrcNotes").textContent =
+          dynamicContext.notes || "";
+        document.getElementById("gfrcChecklistForm").style.display = "block";
+      }
+      function closeForm(formId) {
+        document.getElementById(formId).style.display = "none";
+        // --- ADD THIS LINE ---
+        clearActiveSvgElementHighlight(); // Remove highlight when a form is closed
+      }
+    </script>
+  </body>
+</html>
+and want if user select the element for opening form the forms connect to db and from there it be open.
+i make some sample for it too before make it visual and forms should be like this for users:
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>موکاپ بازرسی نما</title>
+    <link rel="stylesheet" href="assets/css/jalalidatepicker.min.css" />
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/@majidh1/jalalidatepicker/dist/jalalidatepicker.min.js"
+    ></script>
+
+    <style>
+      @font-face {
+        font-family: "Samim";
+        src: url("assets//fonts/Samim-FD.woff2") format("woff2"),
+          url("assets/fonts/Samim-FD.woff") format("woff"),
+          url("assets/fonts/Samim-FD.ttf") format("truetype");
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Samim";
+        background-color: #f5f5f5;
+        direction: rtl;
+      }
+
+      .container {
+        display: flex;
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        width: 250px;
+        background-color: #2c3e50;
+        color: white;
+        padding: 20px 0;
+      }
+
+      .logo {
+        text-align: center;
+        padding: 20px;
+        border-bottom: 1px solid #34495e;
+      }
+
+      .logo h2 {
+        color: #ecf0f1;
+      }
+
+      .menu ul {
+        list-style: none;
+        padding: 20px 0;
+      }
+
+      .menu ul li {
+        margin: 5px 0;
+      }
+
+      .menu ul li a {
+        display: block;
+        color: #bdc3c7;
+        text-decoration: none;
+        padding: 15px 25px;
+        transition: all 0.3s;
+      }
+
+      .menu ul li a:hover,
+      .menu ul li a.active {
+        background-color: #3498db;
+        color: white;
+      }
+
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .main-header {
+        background-color: white;
+        padding: 15px 30px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+
+      .user-profile {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #3498db;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+      }
+
+      #page-content {
+        padding: 30px;
+        flex: 1;
+        background-color: white;
+        margin: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .grid-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+      }
+
+      .card {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        border: 1px solid #e9ecef;
+      }
+
+      .card h3 {
+        color: #2c3e50;
+        margin-bottom: 10px;
+      }
+
+      .card p {
+        font-size: 24px;
+        font-weight: bold;
+        color: #3498db;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+
+      table th,
+      table td {
+        padding: 12px;
+        text-align: right;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      table th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+        color: #2c3e50;
+      }
+
+      table tr:hover {
+        background-color: #f8f9fa;
+      }
+
+      .btn {
+        background-color: #3498db;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        margin: 10px 0;
+        transition: background-color 0.3s;
+      }
+
+      .btn:hover {
+        background-color: #2980b9;
+      }
+
+      .form-group {
+        margin: 15px 0;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        color: #2c3e50;
+        font-weight: bold;
+      }
+
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-family: inherit;
+      }
+
+      .form-group textarea {
+        height: 100px;
+        resize: vertical;
+      }
+
+      .form-group input[type="checkbox"] {
+        width: auto;
+        margin-left: 8px;
+      }
+
+      .login-page {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 80vh;
+      }
+
+      .login-form {
+        background-color: white;
+        padding: 40px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 400px;
+      }
+
+      .login-form h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        color: #2c3e50;
+      }
+
+      a {
+        color: #3498db;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      h1 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+      }
+
+      h2 {
+        color: #2c3e50;
+        margin: 20px 0 10px 0;
+      }
+      .jdp-container {
+        /* Replace with actual class */
+        border: 2px solid #3498db; /* Example: Blue border */
+      }
+
+      /* Example: Change header background and text color */
+      /* Common selectors might be .jdp-header, .jdp-month, .jdp-year */
+      .jdp-header {
+        /* Replace with actual class */
+        background-color: #1a1b1b !important; /* Dark blue background */
+        color: #ecf0f1 !important; /* Light text color */
+      }
+
+      /* Example: Change selected day style */
+      .jdp-day.jdp-selected {
+        /* Replace with actual classes */
+        background-color: #0b3653 !important; /* Blue selected day */
+        color: white !important;
+        border-radius: 50% !important;
+      }
+
+      /* Example: Change today's day style (if different from selected) */
+      .jdp-day.jdp-today {
+        /* Replace with actual classes */
+        border: 1px solid #3498db !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <aside class="sidebar">
+        <div class="logo">
+          <h2>بازرس نما</h2>
+        </div>
+        <nav class="menu">
+          <ul>
+            <li>
+              <a href="#" onclick="showPage('dashboard')">داشبورد</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('elements')">المان‌های نما</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('inspections')">بازرسی‌ها</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('new_inspection')">بازرسی جدید</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('checklists')">مدیریت چک‌لیست</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('users')">مدیریت کاربران</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('settings')">تنظیمات</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('login')">خروج (صفحه ورود)</a>
+            </li>
+          </ul>
+        </nav>
+      </aside>
+      <main class="main-content">
+        <header class="main-header">
+          <div class="user-profile">
+            <span>کاربر: مشاور نما (نمونه)</span>
+            <div class="avatar">ک</div>
+          </div>
+        </header>
+        <div id="page-content">
+          <!-- Content will be loaded here by JavaScript -->
+        </div>
+      </main>
+    </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // Load initial page (dashboard)
+        showPage("dashboard");
+      });
+
+      function showPage(pageId) {
+        const pageContent = document.getElementById("page-content");
+        const menuLinks = document.querySelectorAll(".menu ul li a");
+
+        // Remove active class from all menu links
+        menuLinks.forEach((link) => link.classList.remove("active"));
+
+        // Add active class to the current menu link
+        const currentLink = document.querySelector(
+          `.menu ul li a[onclick="showPage('${pageId}')"]`
+        );
+        if (currentLink) {
+          currentLink.classList.add("active");
+        }
+
+        let content = "<h1>صفحه مورد نظر یافت نشد</h1>";
+
+        if (pageId === "dashboard") {
+          content = `
+                  <h1>داشبورد مدیریتی</h1>
+                  <div class="grid-container">
+                      <div class="card">
+                          <h3>تعداد کل پنل‌ها</h3>
+                          <p>۱۲۰۰</p>
+                      </div>
+                      <div class="card">
+                          <h3>پنل‌های بازرسی شده</h3>
+                          <p>۷۵۰ (۶۲.۵%)</p>
+                      </div>
+                      <div class="card">
+                          <h3>پنل‌های دارای ایراد</h3>
+                          <p>۱۲۰</p>
+                      </div>
+                      <div class="card">
+                          <h3>ایرادات اصلاح شده</h3>
+                          <p>۸۵</p>
+                      </div>
+                  </div>
+                  <h2>آخرین فعالیت‌ها</h2>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>شرح فعالیت</th>
+                              <th>کاربر</th>
+                              <th>تاریخ</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>بازرسی پنل GFRC-Z7-A-001</td>
+                              <td>مشاور نما ۱</td>
+                              <td>۱۴۰۳/۰۲/۲۵</td>
+                          </tr>
+                          <tr>
+                              <td>ثبت ایراد برای CW-A-L2-005</td>
+                              <td>مشاور نوی ۱</td>
+                              <td>۱۴۰۳/۰۲/۲۴</td>
+                          </tr>
+                          <tr>
+                              <td>اصلاح ایراد پنل GFRC-Z7-B-010</td>
+                              <td>پیمانکار ۱</td>
+                              <td>۱۴۰۳/۰۲/۲۳</td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "elements") {
+          content = `
+                  <h1>مدیریت المان‌های نما</h1>
+                  <button class="btn" onclick="alert('افزودن المان جدید')">افزودن المان جدید</button>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>کد المان</th>
+                              <th>نوع نما</th>
+                              <th>زون</th>
+                              <th>محور</th>
+                              <th>وضعیت</th>
+                              <th>عملیات</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>GFRC-Z7-A-001</td>
+                              <td>GFRC</td>
+                              <td>۷</td>
+                              <td>A</td>
+                              <td>بازرسی شده - سالم</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a></td>
+                          </tr>
+                          <tr>
+                              <td>CW-A-L2-005</td>
+                              <td>کرتین وال</td>
+                              <td>A</td>
+                              <td>L2</td>
+                              <td>دارای ایراد</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a></td>
+                          </tr>
+                          <tr>
+                              <td>WW-B-03-012</td>
+                              <td>ویندو وال</td>
+                              <td>B</td>
+                              <td>۰۳</td>
+                              <td>منتظر بازرسی</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "inspections") {
+          content = `
+                  <h1>لیست بازرسی‌ها</h1>
+                  <button class="btn" onclick="showPage('new_inspection')">شروع بازرسی جدید</button>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>کد المان</th>
+                              <th>تاریخ بازرسی</th>
+                              <th>بازرس (نما)</th>
+                              <th>بازرس (نوی)</th>
+                              <th>وضعیت کلی</th>
+                              <th>عملیات</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>GFRC-Z7-A-001</td>
+                              <td>۱۴۰۳/۰۲/۲۵</td>
+                              <td>مشاور نما ۱</td>
+                              <td>مشاور نوی ۲</td>
+                              <td>سالم</td>
+                              <td><a href="#">مشاهده جزئیات</a></td>
+                          </tr>
+                          <tr>
+                              <td>CW-A-L2-005</td>
+                              <td>۱۴۰۳/۰۲/۲۴</td>
+                              <td>مشاور نما ۲</td>
+                              <td>مشاور نوی ۱</td>
+                              <td>دارای ایراد</td>
+                              <td><a href="#">مشاهده جزئیات</a></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "new_inspection") {
+          content = `
+                  <h1>فرم بازرسی جدید / ویرایش بازرسی</h1>
+                  <form onsubmit="event.preventDefault(); alert('بازرسی ذخیره شد!');">
+                      <div class="form-group">
+                          <label for="element_code">کد المان</label>
+                          <select id="element_code" name="element_code">
+                              <option value="GFRC-Z7-A-001">GFRC-Z7-A-001</option>
+                              <option value="CW-A-L2-005">CW-A-L2-005</option>
+                              <option value="WW-B-03-012">WW-B-03-012</option>
+                          </select>
+                      </div>
+                      <div class="form-group">
+                          <label for="inspection_date">تاریخ بازرسی</label>
+                          <input type="text" id="inspection_date" name="inspection_date" data-jdp readonly>
+                      </div>
+                      <div class="form-group">
+                          <label>چک لیست (نمونه آیتم‌ها - GFRC)</label>
+                          <div><input type="checkbox" id="item1" name="item1"><label for="item1">بررسی مختصات و موقعیت</label></div>
+                          <div><input type="checkbox" id="item2" name="item2"><label for="item2">بررسی اتصالات کیل</label></div>
+                          <div><input type="checkbox" id="item3" name="item3"><label for="item3">بررسی زیرسازی فلزی</label></div>
+                          <div><label for="item4_consultant1">نظر مشاور نما برای آیتم ۱:</label><input type="text" id="item4_consultant1"></div>
+                          <div><label for="item4_consultant2">نظر مشاور نوی برای آیتم ۱:</label><input type="text" id="item4_consultant2"></div>
+                      </div>
+                      <div class="form-group">
+                          <label for="remarks">ملاحظات کلی</label>
+                          <textarea id="remarks" name="remarks"></textarea>
+                      </div>
+                      <div class="form-group">
+                          <label for="image_upload">پیوست تصویر</label>
+                          <input type="file" id="image_upload" name="image_upload">
+                      </div>
+                      <button type="submit" class="btn">ذخیره بازرسی</button>
+                  </form>
+              `;
+        } else if (pageId === "checklists") {
+          content = `
+                  <h1>مدیریت قالب‌های چک‌لیست</h1>
+                  <button class="btn" onclick="alert('ایجاد قالب جدید')">ایجاد قالب جدید</button>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>نام قالب</th>
+                              <th>نوع نما مرتبط</th>
+                              <th>تعداد آیتم‌ها</th>
+                              <th>عملیات</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>چک‌لیست نمای GFRC - نسخه ۱</td>
+                              <td>GFRC</td>
+                              <td>۱۵</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a> | <a href="#">کپی</a></td>
+                          </tr>
+                          <tr>
+                              <td>چک‌لیست کرتین وال - نسخه ۲.۱</td>
+                              <td>کرتین وال</td>
+                              <td>۲۲</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a> | <a href="#">کپی</a></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "users") {
+          content = `
+                  <h1>مدیریت کاربران</h1>
+                  <button class="btn" onclick="alert('افزودن کاربر جدید')">افزودن کاربر جدید</button>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>نام کامل</th>
+                              <th>نام کاربری</th>
+                              <th>نقش</th>
+                              <th>ایمیل</th>
+                              <th>عملیات</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>کاربر ادمین</td>
+                              <td>admin</td>
+                              <td>ادمین</td>
+                              <td>admin@example.com</td>
+                              <td><a href="#">ویرایش</a> | <a href="#">تغییر رمز</a></td>
+                          </tr>
+                          <tr>
+                              <td>مشاور نمونه ۱</td>
+                              <td>consultant1</td>
+                              <td>مشاور نما</td>
+                              <td>consultant1@example.com</td>
+                              <td><a href="#">ویرایش</a> | <a href="#">تغییر رمز</a></td>
+                          </tr>
+                          <tr>
+                              <td>پیمانکار نمونه ۱</td>
+                              <td>contractor1</td>
+                              <td>پیمانکار</td>
+                              <td>contractor1@example.com</td>
+                              <td><a href="#">ویرایش</a> | <a href="#">تغییر رمز</a></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "settings") {
+          content = `
+                  <h1>تنظیمات سیستم</h1>
+                  <form onsubmit="event.preventDefault(); alert('تنظیمات ذخیره شد!');">
+                      <div class="form-group">
+                          <label for="system_name">نام سامانه</label>
+                          <input type="text" id="system_name" value="سامانه بازرسی نما بیمارستان خاتم">
+                      </div>
+                      <div class="form-group">
+                          <label for="notification_email">ایمیل اطلاع‌رسانی‌ها</label>
+                          <input type="email" id="notification_email" value="notify@example.com">
+                      </div>
+                      <button type="submit" class="btn">ذخیره تنظیمات</button>
+                  </form>
+              `;
+        } else if (pageId === "login") {
+          content = `
+                  <div class="login-page">
+                      <div class="login-form">
+                          <h1>ورود به سامانه بازرس نما</h1>
+                          <form onsubmit="event.preventDefault(); showPage('dashboard');">
+                              <div class="form-group">
+                                  <label for="username">نام کاربری</label>
+                                  <input type="text" id="username" name="username" required value="consultant_user">
+                              </div>
+                              <div class="form-group">
+                                  <label for="password">رمز عبور</label>
+                                  <input type="password" id="password" name="password" required value="password123">
+                              </div>
+                              <button type="submit" class="btn">ورود</button>
+                          </form>
+                      </div>
+                  </div>
+              `;
+        }
+        pageContent.innerHTML = content;
+
+        // Initialize Persian datepicker after content is loaded
+        if (pageId === "new_inspection") {
+          // Using setTimeout to ensure the DOM is updated before startWatch is called.
+          // jalaliDatepicker.startWatch() will scan the document for `data-jdp` attributes.
+          setTimeout(() => {
+            jalaliDatepicker.startWatch({
+              // You can add options here if needed, e.g.:
+              // minDate: "today",
+              // maxDate: "1403/12/29",
+              //节日
+              holidays: [
+                { day: 1, month: 1, title: "سال نو" },
+                { day: 12, month: 1, title: "روز جمهوری اسلامی" },
+              ],
+              //回调函数
+              // onSelect: function(element, date){
+              //    console.log("Date selected:", date, "for element:", element);
+              // }
+            });
+          }, 0); // A 0ms timeout defers execution until the browser has finished other processing.
+        }
+      }
+    </script>
+  </body>
+</html>
+
+i make this now:
+-- Main table for each inspectable element on the SVG maps
+CREATE TABLE `elements` (
+    `element_id` VARCHAR(100) NOT NULL,
+    `element_type` VARCHAR(50) NOT NULL COMMENT 'e.g., GFRC, Glass, Mullion',
+    `zone_name` VARCHAR(100) NULL,
+    `axis_span` VARCHAR(50) NULL,
+    `floor_level` VARCHAR(50) NULL,
+    `contractor` VARCHAR(255) NULL,
+    `block` VARCHAR(50) NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`element_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+-- Stores the structure of each type of checklist
+CREATE TABLE `checklist_templates` (
+    `template_id` INT AUTO_INCREMENT PRIMARY KEY,
+    `template_name` VARCHAR(255) NOT NULL,
+    `element_type` VARCHAR(50) NOT NULL,
+    `is_active` BOOLEAN NOT NULL DEFAULT TRUE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+-- Stores the individual line items (questions) for each checklist template
+CREATE TABLE `checklist_items` (
+    `item_id` INT AUTO_INCREMENT PRIMARY KEY,
+    `template_id` INT NOT NULL,
+    `item_text` VARCHAR(512) NOT NULL,
+    `item_order` INT NOT NULL DEFAULT 0,
+    FOREIGN KEY (`template_id`) REFERENCES `checklist_templates`(`template_id`) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+-- A record for every inspection performed by a user on an element
+CREATE TABLE `inspections` (
+    `inspection_id` INT AUTO_INCREMENT PRIMARY KEY,
+    `element_id` VARCHAR(100) NOT NULL,
+    `user_id` INT NOT NULL,
+    `inspection_date` DATETIME NOT NULL,
+    `notes` TEXT NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY `element_id_idx` (`element_id`),
+    FOREIGN KEY (`element_id`) REFERENCES `elements`(`element_id`) ON DELETE CASCADE -- You can add a FOREIGN KEY to your common users table if you wish
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+-- Stores the actual data/answers for each item in a completed inspection
+CREATE TABLE `inspection_data` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `inspection_id` INT NOT NULL,
+    `item_id` INT NOT NULL,
+    `item_value` VARCHAR(1024) NULL,
+    FOREIGN KEY (`inspection_id`) REFERENCES `inspections`(`inspection_id`) ON DELETE CASCADE,
+    FOREIGN KEY (`item_id`) REFERENCES `checklist_items`(`item_id`) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+and this:
+<?php
+// public_html/ghom/index.php
+
+// Include the central bootstrap file
+require_once __DIR__ . '/../../sercon/bootstrap.php';
+
+// Secure the session (starts or resumes and applies security checks)
+secureSession();
+
+// --- Authorization & Project Context Check ---
+
+// 1. Check if user is logged in at all
+if (!isLoggedIn()) {
+    header('Location: /login.php?msg=login_required');
+    exit();
+}
+
+// 2. Define the expected project for this page
+$expected_project_key = 'ghom';
+
+// 3. Check if the user has selected a project and if it's the correct one
+if (!isset($_SESSION['current_project_config_key']) || $_SESSION['current_project_config_key'] !== $expected_project_key) {
+    // Log the attempt for security auditing
+    logError("User ID " . ($_SESSION['user_id'] ?? 'N/A') . " tried to access Ghom project page without correct session context.");
+    // Redirect them to the project selection page with an error
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+$pageTitle = "پروژه بیمارستان هزار تخت خوابی قم";
+require_once __DIR__ . '/header_ghom.php';
+// If all checks pass, the script continues and will render the HTML below.
+?>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <style>
+        @font-face {
+            font-family: "Samim";
+            src: url("ghom/assets/fonts/Samim-FD.woff2") format("woff2"),
+                url("ghom/assets/fonts/Samim-FD.woff") format("woff"),
+                url("ghom/assets/fonts/Samim-FD.ttf") format("truetype");
+        }
+
+        body {
+            font-family: "Samim", "Tahoma", sans-serif;
+            /* Ensure Samim is primary */
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0;
+            /* Remove body padding, header/footer will manage their own */
+            box-sizing: border-box;
+            text-align: right;
+            background-color: #f4f7f6;
+            /* A light background for the whole page */
+            min-height: 100vh;
+            /* Ensure footer stays at bottom on short pages */
+        }
+
+        header {
+            background-color: #0056b3;
+            /* A slightly darker blue, or your brand color */
+            color: white;
+            padding: 15px 20px;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            /* Center content by default */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            /* Added for better content alignment */
+            justify-content: center;
+            /* Center .header-content */
+            align-items: center;
+        }
+
+        .header-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            align-items: center;
+            max-width: 1200px;
+            width: 100%;
+            gap: 0;
+        }
+
+        .header-content .logo-left,
+        .header-content .logo-right {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 50px;
+        }
+
+        .header-content .logo-left img,
+        .header-content .logo-right img {
+            height: 50px;
+            width: 50%;
+        }
+
+        .header-content .logo-left {
+            justify-content: flex-start;
+        }
+
+        .header-content .logo-right {
+            justify-content: flex-end;
+        }
+
+        .header-content h1 {
+            margin: 0;
+            font-size: 1.8em;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        #currentZoneInfo {
+            margin-top: 20px;
+            text-align: center;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: none;
+            font-size: 0.9em;
+        }
+
+        #zoneNameDisplay {
+            margin-left: 15px;
+        }
+
+        #zoneContractorDisplay {
+            margin-left: 15px;
+        }
+
+        #regionZoneNavContainer {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 80%;
+            max-width: 600px;
+            background-color: #f8f9fa;
+
+        }
+
+        footer {
+            background-color: #343a40;
+            /* Dark grey or your brand's secondary color */
+            color: #f8f9fa;
+            /* Light text color */
+            text-align: center;
+            padding: 20px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: auto;
+            /* Pushes footer to the bottom if content is short */
+            font-size: 0.9em;
+        }
+
+        footer p {
+            margin: 0;
+        }
+
+        .navigation-controls {
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .navigation-controls button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #007bff;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .navigation-controls button:hover {
+            background-color: #0056b3;
+        }
+
+        .layer-controls {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .layer-controls button {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .layer-controls button.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .layer-controls button.inactive {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+
+        h1,
+        p.description {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        #svgContainer {
+            width: 90vw;
+            height: 65vh;
+            max-width: 1200px;
+            border: 1px solid #007bff;
+            background-color: #e9ecef;
+            overflow: hidden;
+            margin: 10px auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+            position: relative;
+        }
+
+        #svgContainer.dragging {
+            cursor: grabbing;
+        }
+
+        #svgContainer.loading::before {
+            content: "در حال بارگذاری SVG...";
+            font-style: italic;
+            color: #666;
+        }
+
+        #svgContainer svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .interactive-element {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .interactive-element:hover {
+            filter: brightness(1.1);
+            /* Simpler hover */
+        }
+
+        .form-popup {
+            display: none;
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            border: 2px solid #555;
+            z-index: 10;
+            background-color: #f9f9f9;
+            padding: 15px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            max-width: 95vw;
+            max-height: 80vh;
+            overflow: auto;
+        }
+
+        .form-popup h3 {
+            margin-top: 0;
+            text-align: center;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+
+        .form-popup table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .form-popup th,
+        .form-popup td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: right;
+            vertical-align: middle;
+        }
+
+        .form-popup th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        .form-popup .notes {
+            margin-top: 15px;
+            font-size: 0.8em;
+            white-space: pre-line;
+        }
+
+        .form-popup .btn-container {
+            text-align: left;
+            margin-top: 15px;
+        }
+
+        .form-popup .btn {
+            padding: 8px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 3px;
+        }
+
+        .form-popup .btn.cancel {
+            background-color: #dc3545;
+        }
+
+        .form-popup .btn:hover {
+            opacity: 0.9;
+        }
+
+        .highlight-issue {
+            background-color: #fff3cd;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .zoom-controls button {
+            padding: 8px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .zoom-controls button:hover {
+            background-color: #0056b3;
+        }
+
+        .zoom-controls button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .region-zone-nav-title {
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .region-zone-nav-select-row {
+            margin-bottom: 10px;
+            width: 100%;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .region-zone-nav-label {
+            margin-left: 5px;
+            font-weight: bold;
+        }
+
+        .region-zone-nav-select {
+            padding: 5px;
+            border-radius: 3px;
+            border: 1px solid #ccc;
+            min-width: 200px;
+            font-family: inherit;
+        }
+
+        #regionZoneNavContainer .region-zone-nav-zone-buttons,
+        .region-zone-nav-zone-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 5px;
+        }
+
+        .region-zone-nav-zone-buttons button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #007bff;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-family: inherit;
+            margin: 4px;
+            transition: background 0.2s;
+        }
+
+        .region-zone-nav-zone-buttons button:hover {
+            background-color: #0056b3;
+        }
+
+        .footer-text {
+            text-align: center;
+        }
+
+        .footer-ltr {
+            direction: ltr;
+            unicode-bidi: embed;
+        }
+
+        .svg-element-active {
+            stroke: #ff3333 !important;
+            /* A distinct, bright red color for the stroke */
+            stroke-width: 3px !important;
+            /* Make the stroke thicker */
+            transition: stroke 0.1s ease-in-out, stroke-width 0.1s ease-in-out;
+            /* Smooth transition */
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div
+        id="currentZoneInfo">
+        <strong>نقشه فعلی:</strong>
+        <span id="zoneNameDisplay"></span>
+        <strong>پیمانکار محدوده:</strong>
+        <span id="zoneContractorDisplay"></span>
+        <strong>بلوک:</strong> <span id="zoneBlockDisplay"></span>
+    </div>
+    <div class="layer-controls" id="layerControlsContainer">
+        <!-- Layer toggle buttons will be added here by JavaScript -->
+    </div>
+
+    <div class="navigation-controls">
+        <button id="backToPlanBtn">بازگشت به پلن اصلی</button>
+    </div>
+    <div
+        id="regionZoneNavContainer">
+        <h3 class="region-zone-nav-title">ناوبری سریع به زون‌ها</h3>
+        <div class="region-zone-nav-select-row">
+            <label for="regionSelect" class="region-zone-nav-label">انتخاب محدوده (بلاک):</label>
+            <select id="regionSelect" class="region-zone-nav-select">
+                <option value="">-- ابتدا یک محدوده انتخاب کنید --</option>
+            </select>
+        </div>
+        <div id="zoneButtonsContainer" class="region-zone-nav-zone-buttons"></div>
+
+        <!-- Zone buttons will be dynamically added here by JavaScript -->
+    </div>
+    </div>
+    <p class="description">
+        برای مشاهده چک لیست، روی المان مربوطه در نقشه کلیک کنید. اگر در پلن اصلی
+        هستید، روی نام زون کلیک کنید تا نقشه آن بارگذاری شود.
+    </p>
+    <div id="svgContainer"></div>
+
+    <!-- GFRC Form -->
+    <div class="form-popup" id="gfrcChecklistForm">
+        <!-- Wrap content in a form tag -->
+        <form id="gfrc-form-element">
+            <h3 id="gfrcFormTitle">چک لیست کنترل کیفی - GFRC</h3>
+            <div id="gfrcStaticData">
+                <!-- Static data fields remain the same -->
+                <p><strong>پیمانکار:</strong> <span id="gfrcContractor"></span></p>
+                <p><strong>محدوده:</strong> <span id="gfrcArea"></span></p>
+                <p><strong>بلوک:</strong> <span id="gfrcBlock"></span></p>
+                <p><strong>وضع تحویل:</strong> <span id="gfrcDeliveryStatus"></span></p>
+                <p><strong>نوع پنل:</strong> <span id="gfrcPanelType"></span></p>
+                <p>
+                    <strong>شماره پنل بازگشایی شده:</strong>
+                    <span id="gfrcPanelNumber"></span>
+                </p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>شرح بررسی</th>
+                        <th>وضعیت / مقدار</th>
+                    </tr>
+                </thead>
+                <tbody id="gfrcChecklistBody">
+                    <!-- Body will be populated by JavaScript -->
+                </tbody>
+            </table>
+            <div class="notes" id="gfrcNotes"></div>
+
+            <div class="btn-container">
+                <!-- Add a Save button with type="submit" -->
+                <button type="submit" class="btn">ذخیره</button>
+                <button type="button" class="btn cancel" onclick="closeForm('gfrcChecklistForm')">بستن</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Glass Form -->
+    <div class="form-popup" id="glassChecklistForm">
+        <h3 id="glassFormTitle">چک لیست کنترل کیفی - شیشه</h3>
+        <div id="glassStaticData">
+            <p><strong>پیمانکار:</strong> <span id="glassContractor"></span></p>
+            <p><strong>محدوده:</strong> <span id="glassArea"></span></p>
+            <p><strong>نوع شیشه:</strong> <span id="glassType"></span></p>
+            <p><strong>شماره المان:</strong> <span id="glassNumber"></span></p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>شرح بررسی</th>
+                    <th>وضعیت / مقدار</th>
+                </tr>
+            </thead>
+            <tbody id="glassChecklistBody"></tbody>
+        </table>
+        <div class="notes" id="glassNotes"></div>
+        <div class="btn-container">
+            <button
+                type="button"
+                class="btn cancel"
+                onclick="closeForm('glassChecklistForm')">
+                بستن
+            </button>
+        </div>
+    </div>
+
+    <!-- Mullion/Transom Form -->
+    <div class="form-popup" id="mullionChecklistForm">
+        <h3 id="mullionFormTitle">چک لیست کنترل کیفی - مولیون/ترنزوم</h3>
+        <div id="mullionStaticData">
+            <p><strong>پیمانکار:</strong> <span id="mullionContractor"></span></p>
+            <p><strong>محدوده:</strong> <span id="mullionArea"></span></p>
+            <p><strong>نوع المان:</strong> <span id="mullionType"></span></p>
+            <p><strong>شماره المان:</strong> <span id="mullionNumber"></span></p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>شرح بررسی</th>
+                    <th>وضعیت / مقدار</th>
+                </tr>
+            </thead>
+            <tbody id="mullionChecklistBody"></tbody>
+        </table>
+        <div class="notes" id="mullionNotes"></div>
+        <div class="btn-container">
+            <button
+                type="button"
+                class="btn cancel"
+                onclick="closeForm('mullionChecklistForm')">
+                بستن
+            </button>
+        </div>
+    </div>
+    <div class="form-popup" id="bazshowChecklistForm">
+        <h3 id="bazshowFormTitle">چک لیست کنترل کیفی - بازشو</h3>
+        <div id="bazshowStaticData">
+            <p><strong>پیمانکار:</strong> <span id="bazshowContractor"></span></p>
+            <p><strong>محدوده:</strong> <span id="bazshowArea"></span></p>
+            <p>
+                <strong>شماره المان:</strong> <span id="bazshowElementNumber"></span>
+            </p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>شرح بررسی</th>
+                    <th>وضعیت / مقدار</th>
+                </tr>
+            </thead>
+            <tbody id="bazshowChecklistBody"></tbody>
+        </table>
+        <div class="notes" id="bazshowNotes"></div>
+        <div class="btn-container">
+            <button
+                type="button"
+                class="btn cancel"
+                <p class="footer-text">
+                <span class="footer-ltr">@1404-1405</span>
+                شرکت آلومنیوم شیشه تهران. تمامی حقوق محفوظ است.
+                </p>
+        </div>
+    </div>
+    <div class="form-popup" id="zirsaziChecklistForm">
+        <h3 id="zirsaziFormTitle">چک لیست کنترل کیفی - زیرسازی</h3>
+        <div id="zirsaziStaticData">
+            <p><strong>پیمانکار:</strong> <span id="zirsaziContractor"></span></p>
+            <p><strong>محدوده:</strong> <span id="zirsaziArea"></span></p>
+            <p><strong>بلوک:</strong> <span id="zirsaziBlock"></span></p>
+            <p><strong>نوع المان:</strong> <span id="zirsaziElementType"></span></p>
+            <p><strong>شماره المان:</strong> <span id="zirsaziElementNumber"></span></p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>شرح بررسی</th>
+                    <th>وضعیت / مقدار</th>
+                </tr>
+            </thead>
+            <tbody id="zirsaziChecklistBody"></tbody>
+        </table>
+        <div class="notes" id="zirsaziNotes"></div>
+        <div class="btn-container">
+            <button
+                type="button"
+                class="btn cancel"
+                onclick="closeForm('zirsaziChecklistForm')">
+                بستن
+            </button>
+        </div>
+    </div>
+    <footer>
+        <p style="text-align: center;">
+            <span>@1404-1405</span>
+            شرکت آلومنیوم شیشه تهران. تمامی حقوق محفوظ است.
+        </p>
+        </p>
+    </footer>
+    <script>
+        let currentZoom = 1;
+        const zoomStep = 0.2;
+        const minZoom = 0.5;
+        const maxZoom = 40;
+        let currentSvgElement = null;
+        let currentHoveredElement = null;
+
+        //pan variables
+        let isPanning = false;
+        let panStartX = 0;
+        let panStartY = 0;
+        let panX = 0;
+        let panY = 0;
+        let lastTouchDistance = 0;
+        // --- Global context for the current plan ---
+        let currentPlanFileName = "Plan.svg"; // To help find current plan's defaults
+        let currentPlanZoneName = "نامشخص";
+        let currentPlanDefaultContractor = "پیمانکار عمومی";
+        let currentPlanDefaultBlock = "بلوک عمومی";
+        let currentSvgAxisMarkersX = [];
+        let currentSvgAxisMarkersY = [];
+        let currentSvgHeight = 2200; // Default, will be updated
+        let currentSvgWidth = 3000; // Default, will be updated
+        let currentlyActiveSvgElement = null;
+
+        function clearActiveSvgElementHighlight() {
+            if (currentlyActiveSvgElement) {
+                currentlyActiveSvgElement.classList.remove('svg-element-active');
+                currentlyActiveSvgElement = null;
+            }
+        }
+        const SVG_BASE_PATH = "ghom/";
+        // --- Configuration for SVG Groups ---
+        const svgGroupConfig = {
+            GFRC: {
+                label: "GFRC",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "GFRC", // For generic processing
+            },
+            Box_40x80x4: {
+                label: "Box_40x80x4",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi", // For generic processing
+            },
+            Box_40x20: {
+                label: "Box_40x20",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi", // For generic processing
+            },
+            tasme: {
+                label: "تسمه",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi", // For generic processing
+            },
+            nabshi_tooli: {
+                label: "نبشی طولی",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi", // For generic processing
+            },
+            Gasket: {
+                label: "Gasket",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi", // For generic processing
+            },
+            SPACER: {
+                label: "فاصله گذار",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi", // For generic processing
+            },
+            Smoke_Barrier: {
+                label: "دودبند",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi", // For generic processing
+            },
+            uchanel: {
+                label: "یو چنل",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi", // For generic processing
+            },
+            unolite: {
+                label: "یونولیت",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi", // For generic processing
+            },
+            "GFRC-Part6": {
+                label: "GFRC - قسمت 6",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "GFRC", // For generic processing
+            },
+            "GFRC-Part_4": {
+                label: "GFRC - قسمت 4",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "GFRC", // For generic processing
+            },
+            Atieh: {
+                label: "بلوک A- آتیه نما",
+                color: "#0de16d",
+                defaultVisible: true,
+                interactive: true,
+                contractor: "شرکت آتیه نما",
+                block: "A",
+                elementType: "Region",
+            },
+            org: {
+                label: "بلوک - اورژانس A- آتیه نما",
+                color: "#ebb00d",
+                defaultVisible: true,
+                interactive: true,
+                contractor: "شرکت آتیه نما",
+                block: "A - اورژانس",
+                elementType: "Region",
+            },
+            AranB: {
+                label: "بلوک B-آرانسج",
+                color: "#38abee",
+                defaultVisible: true,
+                interactive: true,
+                contractor: "شرکت آرانسج",
+                block: "B",
+                elementType: "Region",
+            },
+            AranC: {
+                label: "بلوک C-آرانسج",
+                color: "#ee3838",
+                defaultVisible: true,
+                interactive: true,
+                contractor: "شرکت آرانسج",
+                block: "C",
+                elementType: "Region",
+            },
+            hayatOmran: {
+                label: " حیاط عمران آذرستان",
+                color: "#eef595da",
+                defaultVisible: true,
+                interactive: true,
+                contractor: "شرکت عمران آذرستان",
+                block: "حیاط",
+                elementType: "Region",
+            },
+            hayatRos: {
+                label: " حیاط رس",
+                color: "#eb0de7da",
+                defaultVisible: true,
+                interactive: true,
+                contractor: "شرکت ساختمانی رس",
+                block: "حیاط",
+                elementType: "Region",
+            },
+            handrail: {
+                label: "نقشه ندارد",
+                color: "rgba(238, 56, 56, 0.3)", // semi-transparent red
+                defaultVisible: true,
+                interactive: true,
+            },
+            "glass_40%": {
+                label: "شیشه 40%",
+                color: "rgba(173, 216, 230, 0.7)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Glass",
+            },
+            "glass_30%": {
+                label: "شیشه 30%",
+                color: "rgba(173, 216, 230, 0.7)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Glass",
+            },
+            "glass_50%": {
+                label: "شیشه 50%",
+                color: "rgba(173, 216, 230, 0.7)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Glass",
+            },
+            glass_opaque: {
+                label: "شیشه مات",
+                color: "rgba(144, 238, 144, 0.7)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Glass",
+            },
+            "glass_80%": {
+                label: "شیشه 80%",
+                color: "rgba(255, 255, 102, 0.7)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Glass",
+            },
+            Mullion: {
+                label: "مولیون",
+                color: "rgba(128, 128, 128, 0.9)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Mullion",
+            },
+            Transom: {
+                label: "ترنزوم",
+                color: "rgba(169, 169, 169, 0.9)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Transom",
+            },
+            Bazshow: {
+                label: "بازشو",
+                color: "rgba(169, 169, 169, 0.9)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Bazshow",
+            },
+            GLASS: {
+                label: "شیشه",
+                color: "#eef595da",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Glass",
+            },
+            STONE: {
+                label: "سنگ",
+                color: "#4c28a1",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "STONE",
+            },
+            Zirsazi: {
+                label: "زیرسازی",
+                color: "#2464ee",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi",
+            },
+        };
+        const regionToZoneMap = {
+            Atieh: [
+                // Key should match a key in svgGroupConfig, e.g., for "بلوک A- آتیه نما"
+                {
+                    label: "زون 1 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone01.svg"
+                },
+                {
+                    label: "زون 2 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone02.svg"
+                },
+                {
+                    label: "زون 3 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone03.svg"
+                },
+                {
+                    label: "زون 4 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone04.svg"
+                },
+                {
+                    label: "زون 5 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone05.svg"
+                },
+                {
+                    label: "زون 6 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone06.svg"
+                },
+                {
+                    label: "زون 7 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone07.svg"
+                },
+                {
+                    label: "زون 8 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone08.svg"
+                },
+                {
+                    label: "زون 9 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone09.svg"
+                },
+                {
+                    label: "زون 10 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone10.svg",
+                },
+                {
+                    label: "زون 15 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone15.svg",
+                },
+                {
+                    label: "زون 16 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone16.svg",
+                },
+                {
+                    label: "زون 17 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone17.svg",
+                },
+                {
+                    label: "زون 18 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone18.svg",
+                },
+                {
+                    label: "زون 19 (آتیه نما)",
+                    svgFile: SVG_BASE_PATH + "Zone19.svg",
+                },
+            ],
+            org: [
+                // For "بلوک - اورژانس A- آتیه نما"
+                {
+                    label: "زون اورژانس ",
+                    svgFile: SVG_BASE_PATH + "ZoneEmergency.svg",
+                }, // Ensure this SVG file exists
+            ],
+            AranB: [
+                // For "بلوک B-آرانسج"
+                {
+                    label: "زون 1 (آرانسج B)",
+                    svgFile: SVG_BASE_PATH + "Zone01.svg"
+                },
+                {
+                    label: "زون 2 (آرانسج B)",
+                    svgFile: SVG_BASE_PATH + "Zone02.svg"
+                },
+                {
+                    label: "زون 3 (آرانسج B)",
+                    svgFile: SVG_BASE_PATH + "Zone03.svg"
+                },
+                {
+                    label: "زون 11 (آرانسج B)",
+                    svgFile: SVG_BASE_PATH + "Zone11.svg"
+                },
+                {
+                    label: "زون 12 (آرانسج B)",
+                    svgFile: SVG_BASE_PATH + "Zone12.svg"
+                },
+                {
+                    label: "زون 13 (آرانسج B)",
+                    svgFile: SVG_BASE_PATH + "Zone13.svg"
+                },
+                {
+                    label: "زون 14 (آرانسج B)",
+                    svgFile: SVG_BASE_PATH + "Zone14.svg"
+                },
+                {
+                    label: "زون 16 (آرانسج B)",
+                    svgFile: SVG_BASE_PATH + "Zone16.svg"
+                },
+                {
+                    label: "زون 19 (آرانسج B)",
+                    svgFile: SVG_BASE_PATH + "Zone19.svg"
+                },
+                {
+                    label: "زون 20 (آرانسج B)",
+                    svgFile: SVG_BASE_PATH + "Zone20.svg"
+                },
+                {
+                    label: "زون 21 (آرانسج B)",
+                    svgFile: SVG_BASE_PATH + "Zone21.svg"
+                },
+                {
+                    label: "زون 26 (آرانسج B)",
+                    svgFile: SVG_BASE_PATH + "Zone26.svg"
+                },
+            ],
+            AranC: [
+                // For "بلوک C-آرانسج"
+                {
+                    label: "زون 4 (آرانسج C)",
+                    svgFile: SVG_BASE_PATH + "Zone04.svg"
+                },
+                {
+                    label: "زون 5 (آرانسج C)",
+                    svgFile: SVG_BASE_PATH + "Zone05.svg"
+                },
+                {
+                    label: "زون 6 (آرانسج C)",
+                    svgFile: SVG_BASE_PATH + "Zone06.svg"
+                },
+                {
+                    label: "زون 7E (آرانسج C)",
+                    svgFile: SVG_BASE_PATH + "Zone07E.svg",
+                },
+                {
+                    label: "زون 7S (آرانسج C)",
+                    svgFile: SVG_BASE_PATH + "Zone07S.svg",
+                },
+                {
+                    label: "زون 7N (آرانسج C)",
+                    svgFile: SVG_BASE_PATH + "Zone07N.svg",
+                },
+                {
+                    label: "زون 8 (آرانسج C)",
+                    svgFile: SVG_BASE_PATH + "Zone08.svg"
+                },
+                {
+                    label: "زون 9 (آرانسج C)",
+                    svgFile: SVG_BASE_PATH + "Zone09.svg"
+                },
+                {
+                    label: "زون 10 (آرانسج C)",
+                    svgFile: SVG_BASE_PATH + "Zone10.svg"
+                },
+                {
+                    label: "زون 22 (آرانسج C)",
+                    svgFile: SVG_BASE_PATH + "Zone22.svg"
+                },
+                {
+                    label: "زون 23 (آرانسج C)",
+                    svgFile: SVG_BASE_PATH + "Zone23.svg"
+                },
+                {
+                    label: "زون 24 (آرانسج C)",
+                    svgFile: SVG_BASE_PATH + "Zone24.svg"
+                },
+            ],
+            hayatOmran: [
+                // For "حیاط عمران آذرستان"
+                {
+                    label: "زون 15 حیاط عمران آذرستان",
+                    svgFile: SVG_BASE_PATH + "Zone15.svg",
+                },
+                {
+                    label: "زون 16 حیاط عمران آذرستان",
+                    svgFile: SVG_BASE_PATH + "Zone16.svg",
+                },
+                {
+                    label: "زون 17 حیاط عمران آذرستان",
+                    svgFile: SVG_BASE_PATH + "Zone17.svg",
+                },
+                {
+                    label: "زون 18 حیاط عمران آذرستان",
+                    svgFile: SVG_BASE_PATH + "Zone18.svg",
+                },
+            ],
+            hayatRos: [
+                // For "حیاط رس"
+
+                {
+                    label: "زون 11 حیاط رس ",
+                    svgFile: SVG_BASE_PATH + "Zone11.svg"
+                },
+                {
+                    label: "زون 12 حیاط رس",
+                    svgFile: SVG_BASE_PATH + "Zone12.svg"
+                },
+                {
+                    label: "زون 13 حیاط رس",
+                    svgFile: SVG_BASE_PATH + "Zone13.svg"
+                },
+                {
+                    label: "زون 14 حیاط رس",
+                    svgFile: SVG_BASE_PATH + "Zone14.svg"
+                },
+            ],
+            // Add other regions and their respective zones here.
+            // Example for a region not in svgGroupConfig (if needed, but ensure consistency):
+            // "OtherRegion": [
+            //  { label: "Zone X", svgFile: "ZoneX.svg" }
+            // ]
+        };
+        // --- Sample Data Store for All Checklists ---
+        const panelChecklistDataStore = {
+            GFRC: {
+                // These are general static info, specific panel data is in 'panels'
+                // Some of these will be overridden by dynamic data
+                staticInfo: {
+                    contractor: "شرکت ساختمانی آتیه نما (پیش‌فرض کلی)", // Default if not found dynamically
+                    area: "محدوده پیش‌فرض کلی",
+                    block: "بلوک پیش‌فرض کلی",
+                    deliveryStatus: "نما تحویل نظارت گردیده است",
+                    notes: "×: عدم تطابق\nA: نوع ایراد استفاده از جوش به جای پیچ\nB: نوع ایراد برش نبشی\nC: استفاده اشتباه از کلمپ های با طول غیر یکسان\nاعداد کنار حروف انگلیسی: تعداد ایرادات مشاهده شده می باشد",
+                },
+                panels: {
+                    "FF-01(AT)": {
+                        panelType: "عمودی",
+                        panelNumber: "1 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "6mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "6mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: ""
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A7,C"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: "×"
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: ""
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: ""
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: "نیاز به بررسی مجدد"
+                            },
+                        ],
+                    },
+                    "RF-01(AT)": {
+                        panelType: "عمودی",
+                        panelNumber: "1 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "6mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "6mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: ""
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A7,C"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: "×"
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: ""
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: ""
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: "نیاز به بررسی مجدد"
+                            },
+                        ],
+                    },
+                    "UL-01(AT)": {
+                        panelType: "عمودی",
+                        panelNumber: "1 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "6mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "6mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: ""
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A7,C"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: "×"
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: ""
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: ""
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: "نیاز به بررسی مجدد"
+                            },
+                        ],
+                    },
+                    "FL-01(AT)": {
+                        panelType: "افقی",
+                        panelNumber: "2 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "12mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "12mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: "بررسی شده",
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A24,B7"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: ""
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: "×"
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "FR-01(AT)": {
+                        panelType: "افقی",
+                        panelNumber: "2 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "12mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "12mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: "بررسی شده",
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A24,B7"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: ""
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: "×"
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "UR-01(AT)": {
+                        panelType: "افقی",
+                        panelNumber: "2 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "12mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "12mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: "بررسی شده",
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A24,B7"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: ""
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: "×"
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "DL-01": {
+                        panelType: "افقی",
+                        panelNumber: "2 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "12mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "12mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: "بررسی شده",
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A24,B7"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: ""
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: "×"
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "DR-01": {
+                        panelType: "افقی",
+                        panelNumber: "2 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "12mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "12mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: "بررسی شده",
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A24,B7"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: ""
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: "×"
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "F-Default-H": {
+                        panelType: "بخش رویی (پیش‌فرض افقی)",
+                        panelNumber: "پیش‌فرض - رویی افقی",
+                        items: [
+                            // Replace with actual default items
+                            {
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: ""
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: ""
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: ""
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر برای بخش رویی",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "U-Default-H": {
+                        panelType: "بخش بالایی (پیش‌فرض افقی)",
+                        panelNumber: "پیش‌فرض - بالایی افقی",
+                        items: [
+                            // Replace with actual default items
+                            {
+                                check: "اتصال بخش بالایی به سازه",
+                                value: ""
+                            },
+                            {
+                                check: "آب‌بندی درز بالایی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر برای بخش بالایی",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "D-Default-H": {
+                        panelType: "بخش پایینی (پیش‌فرض افقی)",
+                        panelNumber: "پیش‌فرض - پایینی افقی",
+                        items: [
+                            // Replace with actual default items
+                            {
+                                check: "اتصال بخش پایینی به سازه",
+                                value: ""
+                            },
+                            {
+                                check: "آب‌بندی درز پایینی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر برای بخش پایینی",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "F-Default-V": {
+                        panelType: "بخش رویی (پیش‌فرض عمودی)",
+                        panelNumber: "پیش‌فرض - رویی عمودی",
+                        items: [
+                            // Replace with actual default items
+                            {
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: ""
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "",
+                            },
+                            {
+                                check: "ملاحظات دیگر برای بخش رویی",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "L-Default-V": {
+                        panelType: "بخش چپی (پیش‌فرض عمودی)",
+                        panelNumber: "پیش‌فرض - چپی عمودی",
+                        items: [
+                            // Replace with actual default items
+                            {
+                                check: "اتصال بخش چپی به سازه/پنل مجاور",
+                                value: ""
+                            },
+                            {
+                                check: "آب‌بندی درز چپی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر برای بخش چپی",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "R-Default-V": {
+                        panelType: "بخش راستی (پیش‌فرض عمودی)",
+                        panelNumber: "پیش‌فرض - راستی عمودی",
+                        items: [
+                            // Replace with actual default items
+                            {
+                                check: "اتصال بخش راستی به سازه/پنل مجاور",
+                                value: ""
+                            },
+                            {
+                                check: "آب‌بندی درز راستی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر برای بخش راستی",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "Default-Panel-Unknown": {
+                        panelType: "پنل پیش‌فرض (جهت نامشخص)",
+                        panelNumber: "پیش‌فرض - نامشخص",
+                        items: [
+                            // Replace with actual default items
+                            {
+                                check: "بررسی کلی پنل",
+                                value: ""
+                            },
+                            {
+                                check: "اتصالات عمومی",
+                                value: ""
+                            },
+                        ],
+                    },
+                },
+            },
+
+            "GFRC-Part_4": {
+                // These are general static info, specific panel data is in 'panels'
+                // Some of these will be overridden by dynamic data
+                staticInfo: {
+                    contractor: "شرکت ساختمانی آتیه نما (پیش‌فرض کلی)", // Default if not found dynamically
+                    area: "محدوده پیش‌فرض کلی",
+                    block: "بلوک پیش‌فرض کلی",
+                    deliveryStatus: "نما تحویل نظارت گردیده است",
+                    notes: "×: عدم تطابق\nA: نوع ایراد استفاده از جوش به جای پیچ\nB: نوع ایراد برش نبشی\nC: استفاده اشتباه از کلمپ های با طول غیر یکسان\nاعداد کنار حروف انگلیسی: تعداد ایرادات مشاهده شده می باشد",
+                },
+                panels: {
+                    "FF-01(AT)": {
+                        panelType: "عمودی",
+                        panelNumber: "1 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "6mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "6mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: ""
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A7,C"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: "×"
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: ""
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: ""
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: "نیاز به بررسی مجدد"
+                            },
+                        ],
+                    },
+                    "RF-01(AT)": {
+                        panelType: "عمودی",
+                        panelNumber: "1 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "6mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "6mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: ""
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A7,C"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: "×"
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: ""
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: ""
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: "نیاز به بررسی مجدد"
+                            },
+                        ],
+                    },
+                    "UL-01(AT)": {
+                        panelType: "عمودی",
+                        panelNumber: "1 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "6mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "6mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: ""
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A7,C"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: "×"
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: ""
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: ""
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: "نیاز به بررسی مجدد"
+                            },
+                        ],
+                    },
+                    "FL-01(AT)": {
+                        panelType: "افقی",
+                        panelNumber: "2 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "12mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "12mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: "بررسی شده",
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A24,B7"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: ""
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: "×"
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "UL-01(AT)": {
+                        panelType: "افقی",
+                        panelNumber: "2 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "12mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "12mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: "بررسی شده",
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A24,B7"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: ""
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: "×"
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: ""
+                            },
+                        ],
+                    },
+                    "DL-01": {
+                        panelType: "افقی",
+                        panelNumber: "2 ",
+                        items: [{
+                                check: "مطابقت فیس نمای نصب شده با شاپ",
+                                value: "12mm"
+                            },
+                            {
+                                check: "هم راستایی و موقعیت اتصال کیل پشت پنل GFRC",
+                                value: "12mm",
+                            },
+                            {
+                                check: "مطابقت موقعیت نبشی زیرسازی با شاپ",
+                                value: "×"
+                            },
+                            {
+                                check: "بررسی عملکرد پیچ ریگلاژ کیل ردیف اول",
+                                value: "بررسی شده",
+                            },
+                            {
+                                check: "نصب کامل اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "فلزی بودن اتصالات کیل",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "لاستیک پشت اتصالات کیل",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی اتصالات کیل",
+                                value: ""
+                            },
+                            {
+                                check: "انطباق با جزئیات مصوب",
+                                value: "A24,B7"
+                            },
+                            {
+                                check: "اجرای صحیح پلیتهای کاشته شده",
+                                value: ""
+                            },
+                            {
+                                check: "اجرای کامل پیچ و مهره",
+                                value: "×"
+                            },
+                            {
+                                check: "جوشکاری اتصالات زیرسازی",
+                                value: ""
+                            },
+                            {
+                                check: "پلیت اتصال تیر به ستون",
+                                value: "×"
+                            },
+                            {
+                                check: "دفرمگی نبشی های زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "ضد زنگ زیرسازی",
+                                value: "×"
+                            },
+                            {
+                                check: "وضعیت ورق گالوانیزه",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت پشم سنگ",
+                                value: ""
+                            },
+                            {
+                                check: "وضعیت درزبندی",
+                                value: ""
+                            },
+                            {
+                                check: "ملاحظات دیگر",
+                                value: ""
+                            },
+                        ],
+                    },
+                },
+            },
+            Zirsazi: {
+                staticInfo: {
+                    contractor: "شرکت زیرسازی پیشرفته",
+                    area: "زون 3 ضلع شمالی",
+                    notes: "بررسی زیرسازی و اتصالات",
+                },
+                panels: {
+                    zirsazi_default: {
+                        elementType: "زیرسازی فلزی",
+                        elementNumber: "Z-001",
+                        items: [{
+                                check: "کیفیت جوشکاری",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "تراز بودن سطح",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "اتصالات",
+                                value: "بررسی شده"
+                            },
+                            {
+                                check: "ضد زنگ بودن",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "ابعاد مطابق نقشه",
+                                value: "مطابق"
+                            },
+                        ],
+                    },
+                },
+            },
+            STONE: {
+                staticInfo: {
+                    contractor: "شرکت سنگ‌کاری نمونه",
+                    area: "زون 5 ضلع غربی",
+                    notes: "بررسی کیفیت سنگ و نصب آن",
+                },
+                panels: {
+                    stone_default: {
+                        stoneType: "سنگ تراورتن",
+                        elementNumber: "S-001",
+                        items: [{
+                                check: "کیفیت سنگ",
+                                value: "مطابق استاندارد"
+                            },
+                            {
+                                check: "نصب صحیح",
+                                value: "بررسی شده"
+                            },
+                            {
+                                check: "درزبندی",
+                                value: "×"
+                            },
+                            {
+                                check: "تراز بودن سطح",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "عدم شکستگی",
+                                value: "مطابق"
+                            },
+                        ],
+                    },
+                },
+            },
+            Glass: {
+                staticInfo: {
+                    contractor: "شرکت شیشه سازی نوین",
+                    area: "زون 9 ضلع شرقی",
+                    notes: "بررسی کیفیت شیشه و نصب آن",
+                },
+                panels: {
+                    glass_default: {
+                        glassType: "شیشه دوجداره",
+                        elementNumber: "G-001",
+                        items: [{
+                                check: "کیفیت شیشه",
+                                value: "مطابق استاندارد"
+                            },
+                            {
+                                check: "نصب صحیح",
+                                value: "بررسی شده"
+                            },
+                            {
+                                check: "درزبندی",
+                                value: "×"
+                            },
+                            {
+                                check: "تمیزی سطح",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "عدم خراش",
+                                value: "مطابق"
+                            },
+                        ],
+                    },
+                },
+            },
+            Mullion: {
+                staticInfo: {
+                    contractor: "شرکت آلومینیوم سازی مدرن",
+                    area: "کل پروژه",
+                    notes: "بررسی مولیون و ترنزوم ها",
+                },
+                panels: {
+                    mullion_default: {
+                        elementType: "مولیون آلومینیومی",
+                        elementNumber: "M-001",
+                        items: [{
+                                check: "راستای نصب",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "اتصالات",
+                                value: "×"
+                            },
+                            {
+                                check: "ضدزنگ",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "ابعاد",
+                                value: "مطابق نقشه"
+                            },
+                        ],
+                    },
+                },
+            },
+            Bazshow: {
+                staticInfo: {
+                    contractor: "پیمانکار بازشو",
+                    area: "زون مربوطه",
+                    notes: "بررسی جزئیات بازشوها",
+                },
+                panels: {
+                    Bazshow_default: {
+                        elementNumber: "BZ-001",
+                        items: [{
+                                check: "عملکرد صحیح باز و بست",
+                                value: "مطابق"
+                            },
+                            {
+                                check: "یراق آلات",
+                                value: "بررسی شده"
+                            },
+                            {
+                                check: "درزبندی و هوابندی",
+                                value: "×"
+                            },
+                            {
+                                check: "شیشه (در صورت وجود)",
+                                value: "مطابق"
+                            },
+                        ],
+                    },
+                },
+            },
+        };
+
+        const planNavigationMappings = [{
+                type: "textAndCircle",
+                regex: /^(\d+|[A-Za-z]+[\d-]*)\s+Zone$/i,
+                numberGroupIndex: 1,
+                svgFilePattern: SVG_BASE_PATH + "Zone{NUMBER}.svg", // Prefixed
+                labelPattern: "Zone {NUMBER}",
+                defaultContractor: "پیمانکار پیش‌فرض زون عمومی",
+                defaultBlock: "بلوک پیش‌فرض زون عمومی",
+            },
+            {
+                svgFile: SVG_BASE_PATH + "Zone09.svg", // Prefixed
+                label: "Zone 09",
+                defaultContractor: "شرکت آتیه نما زون 09 ",
+                defaultBlock: "بلوکA  زون 9 ",
+            },
+            {
+                svgFile: SVG_BASE_PATH + "Plan.svg", // Prefixed
+                label: "Plan اصلی",
+                defaultContractor: "مدیر پیمان ",
+                defaultBlock: "پروژه بیمارستان قم ",
+            },
+            // Add other specific ID-based or regex mappings for zones as needed, all prefixed
+        ];
+        const NAV_CIRCLE_PROXIMITY_THRESHOLD = 25;
+        const NAV_CIRCLE_DEFAULT_FILL = "rgba(0, 123, 255, 0.4)";
+        const NAV_CIRCLE_DEFAULT_STROKE = "rgba(0, 80, 180, 0.7)";
+        const NAV_CIRCLE_DEFAULT_STROKE_WIDTH = "1.5px";
+        const NAV_CIRCLE_HOVER_STROKE_WIDTH = "3px";
+        const NAV_CIRCLE_HOVER_FILL_OPACITY = "0.6";
+
+        function openGlassChecklistForm(elementId, groupId, dynamicContext) {
+            // Added dynamicContext
+            const staticData = panelChecklistDataStore.Glass.staticInfo;
+            const panelData =
+                panelChecklistDataStore.Glass.panels[elementId] ||
+                panelChecklistDataStore.Glass.panels["glass_default"];
+
+            document.getElementById(
+                "glassFormTitle"
+            ).textContent = `چک لیست کنترل کیفی - شیشه - المان: ${elementId}`;
+            document.getElementById("glassContractor").textContent =
+                dynamicContext.contractor || staticData.contractor || "تعیین نشده";
+            document.getElementById("glassArea").textContent =
+                dynamicContext.areaString || staticData.area || "تعیین نشده"; // Use dynamic area
+            document.getElementById("glassType").textContent =
+                panelData.glassType || "تعیین نشده";
+            document.getElementById("glassNumber").textContent =
+                panelData.elementNumber || elementId;
+
+            const checklistBody = document.getElementById("glassChecklistBody");
+            checklistBody.innerHTML = "";
+            panelData.items.forEach((item) => {
+                const row = checklistBody.insertRow();
+                const cellCheck = row.insertCell();
+                const cellValue = row.insertCell();
+                cellCheck.textContent = item.check;
+                cellValue.textContent = item.value || "-";
+                if (
+                    item.value &&
+                    (item.value.includes("×") || item.value.match(/[A-Z]\d+/))
+                ) {
+                    cellValue.classList.add("highlight-issue");
+                }
+            });
+
+            document.getElementById("glassNotes").textContent =
+                dynamicContext.notes || staticData.notes || "";
+            document.getElementById("glassChecklistForm").style.display = "block";
+        }
+
+        function openZirsaziChecklistForm(elementId, groupId, dynamicContext) {
+            const staticData = panelChecklistDataStore.Zirsazi.staticInfo;
+            // For Zirsazi, elements will typically use a default checklist structure.
+            // The elementId passed will be the SVG element's ID or a generated ID.
+            const panelData = panelChecklistDataStore.Zirsazi.panels["zirsazi_default"];
+
+            if (!panelData || !panelData.items) {
+                alert(`داده‌های چک لیست پیش‌فرض برای زیرسازی یافت نشد.`);
+                console.error("Default Zirsazi checklist data not found or invalid.");
+                return;
+            }
+
+            const groupConfigLabel = svgGroupConfig[groupId]?.label; // Get friendly label from svgGroupConfig
+
+            document.getElementById("zirsaziFormTitle").textContent = `چک لیست کنترل کیفی - زیرسازی - المان: ${elementId}`;
+            document.getElementById("zirsaziContractor").textContent = dynamicContext.contractor || staticData.contractor || "تعیین نشده";
+            document.getElementById("zirsaziArea").textContent = dynamicContext.areaString || staticData.area || "تعیین نشده";
+            document.getElementById("zirsaziBlock").textContent = dynamicContext.block || "نامشخص";
+            // Prefer specific elementType from data, fallback to group label, then generic
+            document.getElementById("zirsaziElementType").textContent = panelData.elementType || groupConfigLabel || "زیرسازی عمومی";
+            document.getElementById("zirsaziElementNumber").textContent = elementId; // Use the actual element's ID
+
+            const checklistBody = document.getElementById("zirsaziChecklistBody");
+            checklistBody.innerHTML = "";
+            panelData.items.forEach((item) => {
+                const row = checklistBody.insertRow();
+                const cellCheck = row.insertCell();
+                const cellValue = row.insertCell();
+                cellCheck.textContent = item.check;
+                cellValue.textContent = item.value || "-";
+                if (item.value && (item.value.includes("×") || item.value.match(/[A-Z]\d+/))) {
+                    cellValue.classList.add("highlight-issue");
+                }
+            });
+
+            document.getElementById("zirsaziNotes").textContent = dynamicContext.notes || staticData.notes || "";
+            document.getElementById("zirsaziChecklistForm").style.display = "block";
+        }
+
+        function openBazshowChecklistForm(elementId, groupId, dynamicContext) {
+            // Added dynamicContext
+            const staticData = panelChecklistDataStore.Bazshow.staticInfo;
+            const panelData =
+                panelChecklistDataStore.Bazshow.panels[elementId] ||
+                panelChecklistDataStore.Bazshow.panels["Bazshow_default"];
+
+            document.getElementById(
+                "bazshowFormTitle"
+            ).textContent = `چک لیست کنترل کیفی - بازشو - المان: ${elementId}`;
+            document.getElementById("bazshowContractor").textContent =
+                dynamicContext.contractor || staticData.contractor || "تعیین نشده";
+            document.getElementById("bazshowArea").textContent =
+                dynamicContext.areaString || staticData.area || "تعیین نشده"; // Use dynamic area
+            document.getElementById("bazshowElementNumber").textContent =
+                panelData.elementNumber || elementId;
+
+            const checklistBody = document.getElementById("bazshowChecklistBody");
+            checklistBody.innerHTML = "";
+            if (panelData && panelData.items) {
+                panelData.items.forEach((item) => {
+                    const row = checklistBody.insertRow();
+                    const cellCheck = row.insertCell();
+                    const cellValue = row.insertCell();
+                    cellCheck.textContent = item.check;
+                    cellValue.textContent = item.value || "-";
+                    if (
+                        item.value &&
+                        (item.value.includes("×") || item.value.match(/[A-Z]\d+/))
+                    ) {
+                        cellValue.classList.add("highlight-issue");
+                    }
+                });
+            } else {
+                checklistBody.innerHTML =
+                    "<tr><td colspan='2'>اطلاعاتی برای این بازشو یافت نشد.</td></tr>";
+            }
+
+            document.getElementById("bazshowNotes").textContent =
+                dynamicContext.notes || staticData.notes || "";
+            document.getElementById("bazshowChecklistForm").style.display = "block";
+        }
+
+        function openMullionChecklistForm(elementId, groupId, dynamicContext) {
+            // Added dynamicContext
+            const staticData = panelChecklistDataStore.Mullion.staticInfo;
+            const panelData =
+                panelChecklistDataStore.Mullion.panels[elementId] ||
+                panelChecklistDataStore.Mullion.panels["mullion_default"];
+
+            document.getElementById(
+                "mullionFormTitle"
+            ).textContent = `چک لیست کنترل کیفی - ${groupId} - المان: ${elementId}`;
+            document.getElementById("mullionContractor").textContent =
+                dynamicContext.contractor || staticData.contractor || "تعیین نشده";
+            document.getElementById("mullionArea").textContent =
+                dynamicContext.areaString || staticData.area || "تعیین نشده"; // Use dynamic area
+            document.getElementById("mullionType").textContent =
+                panelData.elementType || groupId || "تعیین نشده";
+            document.getElementById("mullionNumber").textContent =
+                panelData.elementNumber || elementId;
+
+            const checklistBody = document.getElementById("mullionChecklistBody");
+            checklistBody.innerHTML = "";
+            panelData.items.forEach((item) => {
+                const row = checklistBody.insertRow();
+                const cellCheck = row.insertCell();
+                const cellValue = row.insertCell();
+                cellCheck.textContent = item.check;
+                cellValue.textContent = item.value || "-";
+                if (
+                    item.value &&
+                    (item.value.includes("×") || item.value.match(/[A-Z]\d+/))
+                ) {
+                    cellValue.classList.add("highlight-issue");
+                }
+            });
+
+            document.getElementById("mullionNotes").textContent =
+                dynamicContext.notes || staticData.notes || "";
+            document.getElementById("mullionChecklistForm").style.display = "block";
+        }
+
+        function showGfrcSubPanelMenu(
+            clickedElement,
+            subPanelIds,
+            dynamicContextForMenu
+        ) {
+            closeGfrcSubPanelMenu(); // Close any existing menu
+
+            if (!subPanelIds || subPanelIds.length === 0) {
+                // If no sub-panels, maybe open a default checklist or show a message
+                // For now, let's try to open with the main element's ID if it was a GFRC click
+                const panelIdForChecklist =
+                    clickedElement.dataset.uniquePanelId ||
+                    clickedElement.dataset.generatedId;
+                let checklistPanelData =
+                    panelChecklistDataStore.GFRC.panels[panelIdForChecklist] ||
+                    panelChecklistDataStore.GFRC.panels["-G40"];
+                if (checklistPanelData) {
+                    openGfrcChecklistForm(
+                        panelIdForChecklist,
+                        checklistPanelData,
+                        dynamicContextForMenu
+                    );
+                } else {
+                    alert("اطلاعاتی برای این پنل GFRC یافت نشد.");
+                }
+                return;
+            }
+
+            const menu = document.createElement("div");
+            menu.id = "gfrcSubPanelMenu";
+            menu.style.position = "absolute";
+            menu.style.background = "white";
+            menu.style.border = "1px solid #ccc";
+            menu.style.padding = "5px";
+            menu.style.zIndex = "1001"; // Above forms
+            menu.style.boxShadow = "2px 2px 5px rgba(0,0,0,0.2)";
+            menu.style.minWidth = "150px";
+
+            subPanelIds.forEach((panelId) => {
+                const menuItem = document.createElement("button");
+                menuItem.textContent = `چک لیست: ${panelId}`;
+                menuItem.style.display = "block";
+                menuItem.style.width = "100%";
+                menuItem.style.marginBottom = "3px";
+                menuItem.style.textAlign = "right";
+                menuItem.style.padding = "5px";
+                menuItem.onclick = (e) => {
+                    e.stopPropagation();
+                    let checklistPanelData =
+                        panelChecklistDataStore.GFRC.panels[panelId] ||
+                        panelChecklistDataStore.GFRC.panels["-G40"]; // Fallback
+                    if (checklistPanelData) {
+                        // Update the dynamic context's panelOrientation if it's different for sub-panels (if known)
+                        const updatedDynamicContext = {
+                            ...dynamicContextForMenu
+                        }; // Create a copy
+                        // If sub-panel implies orientation, update it. E.g. RF/LF are part of Vertical. UL/DL part of Horizontal.
+                        if (
+                            panelId.startsWith("RF-") ||
+                            panelId.startsWith("LF-") ||
+                            panelId.startsWith("FF-")
+                        ) {
+                            updatedDynamicContext.panelOrientation = "عمودی";
+                        } else if (
+                            panelId.startsWith("UL-") ||
+                            panelId.startsWith("DL-") ||
+                            panelId.startsWith("FL-") ||
+                            panelId.startsWith("UR-") ||
+                            panelId.startsWith("DR-") ||
+                            panelId.startsWith("FR-")
+                        ) {
+                            updatedDynamicContext.panelOrientation = "افقی";
+                        }
+                        openGfrcChecklistForm(
+                            panelId,
+                            checklistPanelData,
+                            updatedDynamicContext
+                        );
+                    } else {
+                        alert(`اطلاعات چک لیست برای ${panelId} یافت نشد.`);
+                    }
+                    closeGfrcSubPanelMenu();
+                };
+                menu.appendChild(menuItem);
+            });
+
+            const closeButton = document.createElement("button");
+            closeButton.textContent = "بستن منو";
+            closeButton.style.display = "block";
+            closeButton.style.width = "100%";
+            closeButton.style.marginTop = "5px";
+            closeButton.style.padding = "5px";
+            closeButton.style.background = "#f0f0f0";
+            closeButton.onclick = (e) => {
+                e.stopPropagation();
+                closeGfrcSubPanelMenu();
+            };
+            menu.appendChild(closeButton);
+
+            document.body.appendChild(menu);
+
+            // Position menu near the clicked element
+            const rect = clickedElement.getBoundingClientRect(); // SVG element's screen position
+            const svgContainerRect = document
+                .getElementById("svgContainer")
+                .getBoundingClientRect();
+
+            // Adjust for scroll and SVG container offset
+            let top = rect.bottom + window.scrollY;
+            let left = rect.left + window.scrollX;
+
+            // Ensure menu stays within viewport
+            if (left + menu.offsetWidth > window.innerWidth) {
+                left = window.innerWidth - menu.offsetWidth - 10;
+            }
+            if (top + menu.offsetHeight > window.innerHeight) {
+                top = window.innerHeight - menu.offsetHeight - 10;
+            }
+            if (left < 0) left = 10;
+            if (top < 0) top = 10;
+
+            menu.style.top = `${top}px`;
+            menu.style.left = `${left}px`;
+
+            // Close menu if clicking outside
+            setTimeout(() => {
+                // Use timeout to avoid immediate close due to event propagation
+                document.addEventListener("click", closeGfrcMenuOnClickOutside, {
+                    once: true,
+                    capture: true,
+                });
+            }, 0);
+        }
+
+        function closeGfrcSubPanelMenu() {
+            const menu = document.getElementById("gfrcSubPanelMenu");
+            if (menu) {
+                menu.remove();
+            }
+            document.removeEventListener("click", closeGfrcMenuOnClickOutside, {
+                capture: true,
+            });
+        }
+
+        function closeGfrcMenuOnClickOutside(event) {
+            const menu = document.getElementById("gfrcSubPanelMenu");
+            if (
+                menu &&
+                !menu.contains(event.target) &&
+                event.target.id !== "gfrcSubPanelMenu"
+            ) {
+                closeGfrcSubPanelMenu();
+            } else if (menu) {
+                // If click was inside, re-attach listener for next outside click
+                document.addEventListener("click", closeGfrcMenuOnClickOutside, {
+                    once: true,
+                    capture: true,
+                });
+            }
+        }
+
+        function makeElementInteractive(element, groupId, elementId) {
+            element.classList.add("interactive-element");
+            const elementType = svgGroupConfig[groupId]?.elementType || "Generic";
+
+            // --- DETAILED LOGGING FOR DATASET VALUES ---
+            const elementIdentifierForMakeInteractive =
+                element.id ||
+                element.dataset.generatedId ||
+                "UnidentifiedElementInMakeInteractive";
+            /*  console.log(
+              `--- makeElementInteractive for: ${elementIdentifierForMakeInteractive} (Type: ${elementType}) ---`
+            );
+            console.log(
+              `   Raw element.dataset.axisSpan: `,
+              element.dataset.axisSpan
+            );
+            console.log(
+              `   Raw element.dataset.floorLevel: `,
+              element.dataset.floorLevel
+            );
+            console.log(
+              `   Raw element.dataset.contractor: `,
+              element.dataset.contractor
+            );
+            console.log(`   Raw element.dataset.block: `, element.dataset.block);
+            console.log(
+              `   Raw element.dataset.panelOrientation: `,
+              element.dataset.panelOrientation
+            );
+            console.log(
+              `   Raw element.dataset.uniquePanelId: `,
+              element.dataset.uniquePanelId
+            );
+            console.log(
+              `   Raw element.dataset.allSubPanelIds: `,
+              element.dataset.allSubPanelIds
+            ); */
+            // --- END DETAILED LOGGING ---
+
+            const contractor =
+                element.dataset.contractor || currentPlanDefaultContractor;
+            const block = element.dataset.block || currentPlanDefaultBlock;
+            const axisSpan = element.dataset.axisSpan || "نامشخص (از dataset)"; // Add fallback trace
+            const floorLevel = element.dataset.floorLevel || "نامشخص (از dataset)"; // Add fallback trace
+
+            const areaString = `زون ${
+          currentPlanZoneName || "نامشخص"
+        }، بین محورهای ${axisSpan}، طبقه ${floorLevel.replace(/(\d+)(?:th|rd|nd|ST|st)?\s*FLOOR/i, "$1")-1}`;
+            console.log(`   Constructed areaString: ${areaString}`);
+
+            const dynamicContext = {
+                contractor: contractor,
+                block: block,
+                areaString: areaString,
+                panelOrientation: element.dataset.panelOrientation || "نامشخص (از dataset)",
+                deliveryStatus: panelChecklistDataStore[elementType === "GFRC" ? "GFRC" : "Glass"]
+                    ?.staticInfo?.deliveryStatus || "تعیین نشده",
+                notes: panelChecklistDataStore[elementType === "GFRC" ? "GFRC" : "Glass"]
+                    ?.staticInfo?.notes || "",
+            };
+            console.log(
+                `   DynamicContext prepared:`,
+                JSON.stringify(dynamicContext)
+            );
+            const clickHandler = (event) => {
+                event.stopPropagation();
+                clearActiveSvgElementHighlight(); // Clear highlight from any previously active element
+                closeAllForms(); // Close any other open forms first
+                element.classList.add('svg-element-active');
+                currentlyActiveSvgElement = element; // Store reference to the new active element
+
+                if (elementType === "GFRC") {
+                    const allSubPanelIdsString = element.dataset.allSubPanelIds;
+                    let subPanelIds = [];
+                    try {
+                        if (allSubPanelIdsString)
+                            subPanelIds = JSON.parse(allSubPanelIdsString);
+                    } catch (e) {
+                        console.error("Error parsing GFRC sub-panel IDs:", e);
+                    }
+                    // Pass 'element' (the GFRC path/shape) to showGfrcSubPanelMenu
+                    showGfrcSubPanelMenu(element, subPanelIds, dynamicContext);
+                } else if (elementType === "Glass") {
+                    const panelIdForChecklist =
+                        element.dataset.uniquePanelId || elementId;
+                    openGlassChecklistForm(
+                        panelIdForChecklist,
+                        groupId,
+                        dynamicContext
+                    );
+                } else if (elementType === "Mullion" || elementType === "Transom") {
+                    const panelIdForChecklist =
+                        element.dataset.uniquePanelId || elementId;
+                    openMullionChecklistForm(
+                        panelIdForChecklist,
+                        groupId,
+                        dynamicContext
+                    );
+                } else if (elementType === "Bazshow") {
+                    const panelIdForChecklist =
+                        element.dataset.uniquePanelId || elementId;
+                    openBazshowChecklistForm(
+                        panelIdForChecklist,
+                        groupId,
+                        dynamicContext
+                    );
+                } else if (elementType === "Zirsazi") {
+                    const panelIdForChecklist = element.dataset.uniquePanelId || elementId;
+                    openZirsaziChecklistForm(panelIdForChecklist, groupId, dynamicContext);
+                }
+                // Note: The specific open...Form functions do not need to handle the class directly
+                // as it's managed here before they are called.
+            };
+            element.addEventListener("click", clickHandler);
+            addTouchClickSupport(element, clickHandler);
+            // console.log(
+            //   `--- End makeElementInteractive for: ${elementIdentifierForMakeInteractive} ---`
+            // );
+        }
+
+        function getElementCenter(element) {
+            if (!element) return null;
+            try {
+                const bbox = element.getBBox();
+                if (
+                    element.tagName.toLowerCase() === "text" &&
+                    bbox.width === 0 &&
+                    bbox.height === 0 &&
+                    !element.textContent.trim()
+                ) {
+                    return null;
+                }
+                if (
+                    bbox.width === 0 &&
+                    bbox.height === 0 &&
+                    (!element.hasChildNodes() || element.childNodes.length === 0)
+                ) {
+                    if (element.tagName.toLowerCase() === "text") {
+                        const x = parseFloat(element.getAttribute("x"));
+                        const y = parseFloat(element.getAttribute("y"));
+                        const fontSize =
+                            parseFloat(element.getAttribute("font-size")) || 10;
+                        if (!isNaN(x) && !isNaN(y)) {
+                            return {
+                                x: x,
+                                y: y - fontSize / 3,
+                                width: 1,
+                                height: 1
+                            };
+                        }
+                    }
+                    return null;
+                }
+                return {
+                    x: bbox.x + bbox.width / 2,
+                    y: bbox.y + bbox.height / 2,
+                    width: bbox.width,
+                    height: bbox.height,
+                };
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function findNearbyCircle(textCenter, allCircles) {
+            let closestCircle = null;
+            let minDistance = NAV_CIRCLE_PROXIMITY_THRESHOLD;
+            if (!textCenter) return null;
+
+            allCircles.forEach((circle) => {
+                const circleCx = parseFloat(circle.getAttribute("cx"));
+                const circleCy = parseFloat(circle.getAttribute("cy"));
+                if (isNaN(circleCx) || isNaN(circleCy)) return;
+
+                const distance = Math.sqrt(
+                    Math.pow(textCenter.x - circleCx, 2) +
+                    Math.pow(textCenter.y - circleCy, 2)
+                );
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestCircle = circle;
+                }
+            });
+            return closestCircle;
+        }
+
+        function makeCircleNavigable(circle, svgFile, description) {
+            if (!circle) return;
+            if (!circle.parentNode) {
+                console.warn(
+                    `Circle for "${description}" has no parentNode. Skipping DOM manipulations.`
+                );
+            }
+
+            circle.style.fill = NAV_CIRCLE_DEFAULT_FILL;
+            circle.style.stroke = NAV_CIRCLE_DEFAULT_STROKE;
+            circle.style.strokeWidth = NAV_CIRCLE_DEFAULT_STROKE_WIDTH;
+            circle.style.cursor = "pointer";
+            circle.style.pointerEvents = "all";
+
+            let currentCircleForEvents = circle;
+            if (circle.parentNode) {
+                circle.parentNode.appendChild(circle); // Bring to front
+                const newCircle = circle.cloneNode(true);
+                try {
+                    circle.parentNode.replaceChild(newCircle, circle);
+                    currentCircleForEvents = newCircle;
+                } catch (e) {
+                    console.error(`Error replacing circle for "${description}":`, e);
+                }
+            }
+
+            // Re-apply styles to ensure they are on the event target
+            currentCircleForEvents.style.fill = NAV_CIRCLE_DEFAULT_FILL;
+            currentCircleForEvents.style.stroke = NAV_CIRCLE_DEFAULT_STROKE;
+            currentCircleForEvents.style.strokeWidth =
+                NAV_CIRCLE_DEFAULT_STROKE_WIDTH;
+            currentCircleForEvents.style.cursor = "pointer";
+            currentCircleForEvents.style.pointerEvents = "all";
+
+            const originalFill = currentCircleForEvents.style.fill;
+            const originalStrokeWidth = currentCircleForEvents.style.strokeWidth;
+
+            const clickListener = (event) => {
+                event.stopPropagation();
+                loadAndDisplaySVG(svgFile);
+            };
+
+            const mouseEnterListener = () => {
+                currentCircleForEvents.style.fillOpacity =
+                    NAV_CIRCLE_HOVER_FILL_OPACITY;
+                currentCircleForEvents.style.strokeWidth =
+                    NAV_CIRCLE_HOVER_STROKE_WIDTH;
+            };
+
+            const mouseLeaveListener = () => {
+                currentCircleForEvents.style.fill = originalFill; // Revert to original fill, not just opacity
+                currentCircleForEvents.style.fillOpacity = "1"; // Assuming default opacity if not set
+                currentCircleForEvents.style.strokeWidth = originalStrokeWidth;
+            };
+
+            currentCircleForEvents.addEventListener("click", clickListener);
+            currentCircleForEvents.addEventListener(
+                "mouseenter",
+                mouseEnterListener
+            );
+            currentCircleForEvents.addEventListener(
+                "mouseleave",
+                mouseLeaveListener
+            );
+
+            let touchStartTime, touchMoved, touchStartX, touchStartY;
+            currentCircleForEvents.addEventListener(
+                "touchstart",
+                (e) => {
+                    if (e.touches.length === 1) {
+                        const touch = e.touches[0];
+                        touchStartTime = Date.now();
+                        touchStartX = touch.clientX;
+                        touchStartY = touch.clientY;
+                        touchMoved = false;
+                    }
+                }, {
+                    passive: false
+                }
+            );
+            currentCircleForEvents.addEventListener(
+                "touchmove",
+                (e) => {
+                    if (e.touches.length === 1) {
+                        const touch = e.touches[0];
+                        if (
+                            Math.abs(touch.clientX - touchStartX) > 10 ||
+                            Math.abs(touch.clientY - touchStartY) > 10
+                        ) {
+                            touchMoved = true;
+                        }
+                    }
+                }, {
+                    passive: true
+                }
+            );
+            currentCircleForEvents.addEventListener("touchend", (e) => {
+                if (
+                    e.changedTouches.length === 1 &&
+                    !touchMoved &&
+                    Date.now() - touchStartTime < 400
+                ) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    clickListener(e);
+                }
+            });
+        }
+
+        function setupPlanNavigationLinks(planSvgElement) {
+            const allTextElements = Array.from(
+                planSvgElement.querySelectorAll("text")
+            );
+            const allCircleElements = Array.from(
+                planSvgElement.querySelectorAll("circle")
+            );
+
+            if (allCircleElements.length === 0) {
+                console.warn(
+                    "No circle elements found in Plan.svg to make navigable."
+                );
+                return;
+            }
+
+            planNavigationMappings.forEach((mapping) => {
+                allTextElements.forEach((textEl) => {
+                    const textContent = textEl.textContent ?
+                        textEl.textContent.trim() :
+                        "";
+                    if (!textContent) return;
+
+                    let zoneNumber = null;
+                    let svgFile = mapping.svgFile;
+                    let label = mapping.label;
+
+                    if (mapping.regex && textContent.match(mapping.regex)) {
+                        const match = textContent.match(mapping.regex);
+                        if (mapping.numberGroupIndex && match[mapping.numberGroupIndex]) {
+                            zoneNumber = match[mapping.numberGroupIndex];
+                            if (mapping.svgFilePattern)
+                                svgFile = mapping.svgFilePattern.replace(
+                                    "{NUMBER}",
+                                    zoneNumber
+                                );
+                            if (mapping.labelPattern)
+                                label = mapping.labelPattern.replace("{NUMBER}", zoneNumber);
+                        }
+                        if (!svgFile && mapping.svgFile) svgFile = mapping.svgFile;
+                        if (!label && mapping.label) label = mapping.label;
+                    } else if (mapping.ids && mapping.ids.includes(textEl.id)) {
+                        // This part handles ID-based mappings. It might need adjustment
+                        // if multiple text elements contribute to one navigation link.
+                        // For now, assume one text ID directly maps.
+                        svgFile = mapping.svgFile;
+                        label = mapping.label;
+                    }
+
+                    if (svgFile && label) {
+                        const textCenter = getElementCenter(textEl);
+                        if (textCenter) {
+                            const nearbyCircle = findNearbyCircle(
+                                textCenter,
+                                allCircleElements
+                            );
+                            if (nearbyCircle) {
+                                makeCircleNavigable(nearbyCircle, svgFile, label);
+                            }
+                        }
+                    }
+                });
+
+                // Handle mappings based on ID lists specifically, as they might not involve text content regex
+                if (
+                    mapping.type === "idList" &&
+                    mapping.ids &&
+                    mapping.ids.length > 0
+                ) {
+                    // Find one of the text elements to get a general position
+                    const primaryTextEl = planSvgElement.getElementById(mapping.ids[0]);
+                    if (primaryTextEl) {
+                        const textCenter = getElementCenter(primaryTextEl);
+                        if (textCenter) {
+                            const nearbyCircle = findNearbyCircle(
+                                textCenter,
+                                allCircleElements
+                            );
+                            if (nearbyCircle) {
+                                makeCircleNavigable(
+                                    nearbyCircle,
+                                    mapping.svgFile,
+                                    mapping.label
+                                );
+                            } else {
+                                console.log(
+                                    `No circle found near elements for ID-based mapping: "${mapping.label}"`
+                                );
+                            }
+                        } else {
+                            console.log(
+                                `Could not get center for primary text element of ID-based mapping: "${mapping.label}"`
+                            );
+                        }
+                    } else {
+                        console.log(
+                            `Primary text element ID not found for ID-based mapping: "${mapping.label}" (ID: ${mapping.ids[0]})`
+                        );
+                    }
+                }
+            });
+        }
+        document.addEventListener("DOMContentLoaded", () => {
+            const svgContainer = document.getElementById("svgContainer");
+            const backToPlanBtn = document.getElementById("backToPlanBtn");
+
+            backToPlanBtn.addEventListener("click", () => {
+                loadAndDisplaySVG(SVG_BASE_PATH + "Plan.svg"); // Prefixed
+            });
+            loadAndDisplaySVG(SVG_BASE_PATH + "Plan.svg"); // Initial load - Prefixed
+            const gfrcForm = document.getElementById('gfrc-form-element');
+            if (gfrcForm) {
+                gfrcForm.addEventListener('submit', function(event) {
+                    event.preventDefault(); // Prevent default browser submission
+
+                    const elementId = document.getElementById('gfrcElementId').value;
+                    const notes = document.getElementById('gfrcNotesTextarea').value;
+                    const inputs = document.querySelectorAll('#gfrcChecklistBody .checklist-input');
+
+                    const items = [];
+                    inputs.forEach(input => {
+                        items.push({
+                            check: input.name, // The question text
+                            value: input.value // The user's answer
+                        });
+                    });
+
+                    const submissionData = {
+                        elementId: elementId,
+                        notes: notes,
+                        items: items
+                    };
+
+                    // Send the data to the save API
+                    fetch('api/save_inspection.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(submissionData),
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                alert(data.message);
+                                closeForm('gfrcChecklistForm');
+                            } else {
+                                alert('خطا در ذخیره‌سازی: ' + data.message);
+                            }
+                        })
+                        .catch((error) => {
+                            console.error('Error:', error);
+                            alert('یک خطای ارتباطی رخ داد.');
+                        });
+                });
+            }
+
+        });
+
+        function applyGroupStylesAndControls(svgElement) {
+            const layerControlsContainer = document.getElementById(
+                "layerControlsContainer"
+            );
+            layerControlsContainer.innerHTML = "";
+
+            for (const groupId in svgGroupConfig) {
+                const config = svgGroupConfig[groupId];
+                const groupElement = svgElement.getElementById(groupId);
+                config.elementRef = groupElement; // Store ref
+
+                if (groupElement) {
+                    // <<< KEY CHANGE: Only proceed if the group exists in the SVG
+                    // Group exists, so create a button and apply styles/interactivity
+
+                    if (config.color && groupId !== "GFRC") {
+                        // GFRC has special coloring logic in initializeInteractiveGFRCPanels
+                        const elementsToColor = groupElement.querySelectorAll(
+                            config.isTextGroup ?
+                            "text, tspan" :
+                            "path, rect, circle, polygon, polyline, line, ellipse"
+                        );
+                        elementsToColor.forEach((el) => {
+                            if (config.isTextGroup) {
+                                el.style.fill = config.color;
+                                el.style.stroke = "none"; // Often good for text layers
+                            } else {
+                                // Special handling for Bazshow to color stroke instead of fill
+                                if (
+                                    groupId === "Bazshow" &&
+                                    el.tagName.toLowerCase() === "path"
+                                ) {
+                                    el.style.stroke = config.color;
+                                    if (!el.style.strokeWidth) el.style.strokeWidth = "2px"; // Make sure stroke is visible
+                                    // el.style.fill = "none"; // Ensure fill remains none if that's intended
+                                } else {
+                                    el.style.fill = config.color;
+                                }
+                            }
+                        });
+                    }
+                    groupElement.style.display = config.defaultVisible ? "" : "none";
+                    if (config.interactive && config.elementType) {
+                        console.log(
+                            `Initializing elements for group: ${groupId}, type: ${config.elementType}`
+                        );
+                        initializeElementsByType(
+                            groupElement,
+                            config.elementType,
+                            groupId
+                        );
+                    }
+                    if (config.interactive) {
+                        const interactiveElements = groupElement.querySelectorAll(
+                            "path, rect, circle, polygon, polyline, line, ellipse"
+                        );
+                        interactiveElements.forEach((el, index) => {
+                            const elementIdForInteractivity =
+                                el.id || `${groupId}_interactive_${index}`;
+                            // Avoid making navigation circles (already handled) interactive for forms
+                            if (
+                                el.tagName.toLowerCase() === "circle" &&
+                                el.style.cursor === "pointer" &&
+                                el.style.pointerEvents === "all"
+                            ) {
+                                // This is likely a navigation circle, skip
+                            } else {
+                                // Pass groupId and a unique ID for this specific element for interactivity setup
+                                makeElementInteractive(
+                                    el,
+                                    groupId,
+                                    elementIdForInteractivity
+                                );
+                            }
+                        });
+                    }
+
+                    const button = document.createElement("button");
+                    button.textContent = config.label;
+                    button.className = config.defaultVisible ? "active" : "inactive";
+                    button.addEventListener("click", () => {
+                        const isVisible = groupElement.style.display !== "none";
+                        groupElement.style.display = isVisible ? "none" : "";
+                        button.className = !isVisible ? "active" : "inactive";
+                    });
+                    layerControlsContainer.appendChild(button);
+                } else {
+                    // Group defined in config but NOT found in the current SVG.
+                    // Do NOT create a button for it.
+                    // console.log(`Layer group '${groupId}' (label: '${config.label}') not found in the current SVG. No button created.`);
+                }
+            }
+        }
+
+        function initializeElementsByType(groupElement, elementType, groupId) {
+            const interactiveElements = groupElement.querySelectorAll(
+                "path, rect, circle, polygon, polyline, line, ellipse"
+            );
+            const allTextsInOwningSvg = groupElement.ownerSVGElement ?
+                Array.from(groupElement.ownerSVGElement.querySelectorAll("text")) : [];
+            interactiveElements.forEach((el, index) => {
+                const elementId = el.id || `${groupId}_${index}`;
+                el.dataset.generatedId = elementId; // Store a general ID
+
+                // 1. Contractor & Block (applies to all types)
+                let elContractor = currentPlanDefaultContractor;
+                let elBlock = currentPlanDefaultBlock;
+                const closestGroupWithId = el.closest("g[id]");
+                if (closestGroupWithId && closestGroupWithId.id) {
+                    const parentGroupId = closestGroupWithId.id;
+                    if (svgGroupConfig[parentGroupId]) {
+                        if (svgGroupConfig[parentGroupId].contractor)
+                            elContractor = svgGroupConfig[parentGroupId].contractor;
+                        if (svgGroupConfig[parentGroupId].block)
+                            elBlock = svgGroupConfig[parentGroupId].block;
+                    }
+                }
+                el.dataset.contractor = elContractor;
+                el.dataset.block = elBlock;
+
+                // 2. Spatial Context (Axis Span, Floor Level)
+                const spatialCtx = getElementSpatialContext(el);
+                el.dataset.axisSpan = spatialCtx.axisSpan;
+                el.dataset.floorLevel = spatialCtx.floorLevel;
+                // Default uniquePanelId, will be overridden by GFRC logic if specific texts are found or defaults applied
+                el.dataset.uniquePanelId =
+                    el.id || spatialCtx.derivedId || `${groupId}_elem_${index}`;
+
+                // 3. Type-Specific Initializations
+                if (elementType === "GFRC") {
+                    const dims = getRectangleDimensions(el.getAttribute("d"));
+                    let orientation = "نامشخص"; // Default orientation
+
+                    if (dims) {
+                        orientation = dims.width > dims.height ? "افقی" : "عمودی";
+                        el.dataset.panelOrientation = orientation;
+                        if (dims.width > dims.height)
+                            el.style.fill = "rgba(255, 160, 122, 0.7)";
+                        else if (dims.height > dims.width)
+                            el.style.fill = "rgba(32, 178, 170, 0.7)";
+                        else el.style.fill = "rgba(211, 211, 211, 0.7)";
+                    }
+
+                    let gfrcSubPanelTexts = [];
+                    let primarySubPanelIdForGfrc = el.dataset.uniquePanelId; // Keep existing unique ID as a base
+
+                    try {
+                        const pathBBox = el.getBBox();
+                        for (const textEl of allTextsInOwningSvg) {
+                            // Still iterates all, but we can add proximity break
+                            const content = textEl.textContent.trim();
+                            if (
+                                content.match(
+                                    /^(FF|RF|LF|UL|FL|DL|UR|FR|DR)-\d+(\([A-Z0-9]+\))?/i
+                                )
+                            ) {
+                                try {
+                                    const textBBox = textEl.getBBox();
+                                    const textCenterX = textBBox.x + textBBox.width / 2;
+                                    const textCenterY = textBBox.y + textBBox.height / 2;
+                                    const padding =
+                                        Math.min(pathBBox.width, pathBBox.height) * 0.2;
+                                    if (
+                                        textCenterX >= pathBBox.x - padding &&
+                                        textCenterX <= pathBBox.x + pathBBox.width + padding &&
+                                        textCenterY >= pathBBox.y - padding &&
+                                        textCenterY <= pathBBox.y + pathBBox.height + padding
+                                    ) {
+                                        gfrcSubPanelTexts.push(content);
+                                    }
+                                } catch (e) {
+                                    /* text BBox error */
+                                }
+                            }
+                        }
+
+                        if (gfrcSubPanelTexts.length > 0) {
+                            primarySubPanelIdForGfrc =
+                                gfrcSubPanelTexts.find(
+                                    (t) =>
+                                    t.toUpperCase().startsWith("FF-") ||
+                                    t.toUpperCase().startsWith("FL-")
+                                ) || gfrcSubPanelTexts[0];
+                            el.dataset.uniquePanelId = primarySubPanelIdForGfrc; // This ID is for the "main" panel if texts are found
+                            el.dataset.allSubPanelIds = JSON.stringify(gfrcSubPanelTexts);
+                        } else {
+                            // NO TEXTS FOUND - APPLY DEFAULT SUB-PANELS
+                            let defaultSubPanelIds = [];
+                            if (orientation === "افقی") {
+                                defaultSubPanelIds = [
+                                    "F-Default-H",
+                                    "U-Default-H",
+                                    "D-Default-H",
+                                ];
+                                el.dataset.uniquePanelId = `H-Panel-${elementId}`; // More unique default ID
+                            } else if (orientation === "عمودی") {
+                                defaultSubPanelIds = [
+                                    "F-Default-V",
+                                    "L-Default-V",
+                                    "R-Default-V",
+                                ];
+                                el.dataset.uniquePanelId = `V-Panel-${elementId}`; // More unique default ID
+                            } else {
+                                defaultSubPanelIds = ["Default-Panel-Unknown"];
+                                el.dataset.uniquePanelId = `Unknown-Panel-${elementId}`;
+                            }
+                            el.dataset.allSubPanelIds = JSON.stringify(defaultSubPanelIds);
+                            console.log(
+                                `Applied default GFRC sub-panel IDs for element ${el.dataset.uniquePanelId}: ${el.dataset.allSubPanelIds}`
+                            );
+                        }
+                    } catch (e) {
+                        // BBox error for path, or other errors in text processing
+                        console.warn(
+                            `Error processing GFRC sub-panels for ${elementId}:`,
+                            e
+                        );
+                        // Fallback if BBox or text processing fails entirely for GFRC
+                        let defaultSubPanelIds = [];
+                        if (orientation === "افقی") {
+                            defaultSubPanelIds = [
+                                "F-Default-H",
+                                "U-Default-H",
+                                "D-Default-H",
+                            ];
+                            el.dataset.uniquePanelId = `H-Panel-${elementId}-fallback`;
+                        } else if (orientation === "عمودی") {
+                            defaultSubPanelIds = [
+                                "F-Default-V",
+                                "L-Default-V",
+                                "R-Default-V",
+                            ];
+                            el.dataset.uniquePanelId = `V-Panel-${elementId}-fallback`;
+                        } else {
+                            defaultSubPanelIds = ["Default-Panel-Unknown"];
+                            el.dataset.uniquePanelId = `Unknown-Panel-${elementId}-fallback`;
+                        }
+                        el.dataset.allSubPanelIds = JSON.stringify(defaultSubPanelIds);
+                    }
+                }
+                // Add initializations for Glass, Mullion etc. if they need specific dataset attributes
+
+                makeElementInteractive(
+                    el,
+                    groupId,
+                    el.dataset.uniquePanelId || elementId
+                ); // Use the potentially updated uniquePanelId
+            });
+        }
+
+        function extractAllAxisMarkers(svgElement) {
+            currentSvgAxisMarkersX = [];
+            currentSvgAxisMarkersY = [];
+            if (!svgElement) {
+                console.error("extractAllAxisMarkers: svgElement is null!");
+                return;
+            }
+            const allTextsInSvg = Array.from(svgElement.querySelectorAll("text"));
+
+            // Make thresholds less aggressive initially for debugging
+            const AXIS_LABEL_Y_THRESHOLD_TOP = currentSvgHeight * 0.25; // top 25%
+            const AXIS_LABEL_Y_THRESHOLD_BOTTOM = currentSvgHeight * 0.75; // bottom 25% (i.e. > 75% from top)
+            const AXIS_LABEL_X_THRESHOLD_LEFT = currentSvgWidth * 0.25; // left 25%
+            const AXIS_LABEL_X_THRESHOLD_RIGHT = currentSvgWidth * 0.75; // right 25% (i.e. > 75% from left)
+
+            console.log(
+                `Axis Thresholds: TopY=${AXIS_LABEL_Y_THRESHOLD_TOP}, BottomY=${AXIS_LABEL_Y_THRESHOLD_BOTTOM}, LeftX=${AXIS_LABEL_X_THRESHOLD_LEFT}, RightX=${AXIS_LABEL_X_THRESHOLD_RIGHT}`
+            );
+
+            allTextsInSvg.forEach((textEl) => {
+                const textContent = textEl.textContent.trim();
+                if (!textContent) return;
+                try {
+                    const bbox = textEl.getBBox();
+                    if (bbox.width === 0 && bbox.height === 0 && !textContent.trim())
+                        return; // Skip empty or invisible
+
+                    const centerX = bbox.x + bbox.width / 2;
+                    const centerY = bbox.y + bbox.height / 2;
+
+                    // Debug individual text elements:
+                    // if (textContent.match(/^[A-Z]$/i) || textContent.toLowerCase().includes("floor") || textContent.includes("±") || textContent.match(/^\+\d+\.\d+$/)) {
+                    //     console.log(`Checking text: "${textContent}" at X:${centerX.toFixed(2)}, Y:${centerY.toFixed(2)}`);
+                    // }
+
+                    // X-Axis Markers (Single uppercase letters, near top or bottom)
+                    if (
+                        (textContent.match(/^[A-Z]$/) || textContent.match(/^[0-9]$/)) &&
+                        (centerY < AXIS_LABEL_Y_THRESHOLD_TOP ||
+                            centerY > AXIS_LABEL_Y_THRESHOLD_BOTTOM)
+                    ) {
+                        if (!isNaN(centerX) && !isNaN(centerY)) {
+                            // console.log(`  -> X-AXIS ADDED: ${textContent}`);
+                            currentSvgAxisMarkersX.push({
+                                text: textContent,
+                                x: centerX,
+                                y: centerY,
+                            });
+                        }
+                    }
+                    // Y-Axis / Floor Markers
+                    if (
+                        textContent.toLowerCase().includes("floor") ||
+
+                        textContent.match(/^\d+(th|rd|nd)\s*FLOOR$/i)
+                    ) {
+                        if (!isNaN(centerX) && !isNaN(centerY)) {
+                            // console.log(`  -> FLOOR ADDED: ${textContent}`);
+                            currentSvgAxisMarkersY.push({
+                                text: textContent,
+                                x: centerX,
+                                y: centerY,
+                                type: "floor",
+                            });
+                        }
+                    } else if (
+                        textContent.match(/^[A-Z0-9]+$/i) &&
+                        (centerX < AXIS_LABEL_X_THRESHOLD_LEFT ||
+                            centerX > AXIS_LABEL_X_THRESHOLD_RIGHT)
+                    ) {
+                        if (!isNaN(centerX) && !isNaN(centerY)) {
+                            // console.log(`  -> Y-GRID ADDED: ${textContent}`);
+                            currentSvgAxisMarkersY.push({
+                                text: textContent,
+                                x: centerX,
+                                y: centerY,
+                                type: "grid",
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.warn("BBox error for text:", textContent, e);
+                }
+            });
+            currentSvgAxisMarkersX.sort((a, b) => a.x - b.x);
+            currentSvgAxisMarkersY.sort((a, b) => a.y - b.y);
+        }
+
+        // --- CORRECTED getElementSpatialContext function ---
+
+        function getElementSpatialContext(element) {
+            let axisSpan = "نامشخص (اولیه)";
+            let floorLevel = "نامشخص (اولیه)";
+            let derivedId = null;
+
+            if (!element) {
+                console.error("getElementSpatialContext called with null element");
+                return {
+                    axisSpan,
+                    floorLevel,
+                    derivedId
+                };
+            }
+
+            const elementIdentifier =
+                element.id || element.dataset.generatedId || "UnidentifiedElement"; // Get identifier early for logging
+
+            try {
+                const elBBox = element.getBBox(); // This is one BBox call per element, necessary
+                const elCenterX = elBBox.x + elBBox.width / 2;
+                const elCenterY = elBBox.y + elBBox.height / 2;
+
+                // --- DETAILED LOGGING ---
+                console.log(`--- Spatial Context for: ${elementIdentifier} ---`);
+                console.log(
+                    `   Element Center: X=${elCenterX.toFixed(
+              2
+            )}, Y=${elCenterY.toFixed(2)}`
+                );
+                /*  console.log(
+                  `   Available X-Markers (${currentSvgAxisMarkersX.length}):`,
+                  JSON.stringify(
+                    currentSvgAxisMarkersX.map((m) => `${m.text} (${m.x.toFixed(0)})`)
+                  )
+                );
+                console.log(
+                  `   Available Floor-Markers (${
+                    currentSvgAxisMarkersY.filter((m) => m.type === "floor").length
+                  }):`,
+                  JSON.stringify(
+                    currentSvgAxisMarkersY
+                      .filter((m) => m.type === "floor")
+                      .map((m) => `${m.text} (${m.y.toFixed(0)})`)
+                  )
+                ); */
+                // --- END DETAILED LOGGING ---
+
+                // --- X-Axis Span Logic ---
+                if (currentSvgAxisMarkersX.length > 0) {
+                    let leftMarker = null;
+                    let rightMarker = null;
+
+                    currentSvgAxisMarkersX.forEach((marker) => {
+                        if (marker.x <= elCenterX) {
+                            if (!leftMarker || marker.x > leftMarker.x) {
+                                leftMarker = marker;
+                            }
+                        }
+                        if (marker.x >= elCenterX) {
+                            if (!rightMarker || marker.x < rightMarker.x) {
+                                rightMarker = marker;
+                            }
+                        }
+                    });
+
+                    if (leftMarker && rightMarker) {
+                        if (
+                            leftMarker === rightMarker ||
+                            Math.abs(leftMarker.x - rightMarker.x) < 1
+                        ) {
+                            axisSpan = `روی محور ${leftMarker.text}`;
+                        } else {
+                            axisSpan = `${leftMarker.text}-${rightMarker.text}`;
+                        }
+                    } else if (leftMarker) {
+                        axisSpan = `>${leftMarker.text}`;
+                    } else if (rightMarker) {
+                        axisSpan = `<${rightMarker.text}`;
+                    } else {
+                        axisSpan = "خارج محدوده X";
+                    }
+                } else {
+                    axisSpan = "بدون نشانگر X";
+                }
+
+                // --- Floor Level Logic ---
+                const floorMarkers = currentSvgAxisMarkersY.filter(
+                    (m) => m.type === "floor"
+                );
+                if (floorMarkers.length > 0) {
+                    let bestMatchFloor = null;
+                    for (const marker of floorMarkers) {
+                        if (marker.y <= elCenterY) {
+                            if (!bestMatchFloor || marker.y > bestMatchFloor.y) {
+                                bestMatchFloor = marker;
+                            }
+                        }
+                    }
+
+                    if (bestMatchFloor) {
+                        floorLevel = bestMatchFloor.text;
+                    } else {
+                        floorLevel = `< ${floorMarkers[0].text}`;
+                    }
+                } else {
+                    floorLevel = "بدون نشانگر طبقه";
+                }
+
+                // --- Derived ID Logic (Now correctly inside the main try block) ---
+                if (
+                    currentSvgElement &&
+                    (!element.id || element.id.startsWith("gfrc_path_"))
+                ) {
+                    // Heuristic: only search if ID is generic
+                    // Try to find text elements near or within the current element.
+                    // This is still a heuristic. A better way is if text is a child/sibling.
+                    const MAX_TEXT_SEARCH_RADIUS =
+                        Math.max(elBBox.width, elBBox.height) * 1.5; // Search in a radius around the element
+
+                    const potentialTexts = [];
+                    if (element.parentNode) {
+                        // Check siblings and children first
+                        const siblingsAndChildren = Array.from(
+                            element.parentNode.children
+                        );
+                        siblingsAndChildren.forEach((child) => {
+                            if (child.tagName.toLowerCase() === "text") {
+                                potentialTexts.push(child);
+                            }
+                            if (child !== element) {
+                                // Avoid re-adding element itself if it's a group
+                                Array.from(child.querySelectorAll("text")).forEach((t) =>
+                                    potentialTexts.push(t)
+                                );
+                            }
+                        });
+                    }
+
+                    // If not found among siblings/children, expand search slightly (can be costly)
+                    // For now, let's restrict to a simpler proximity check from all texts if the above fails.
+                    // This is where the major cost was.
+                    // We can limit how many texts we check from the global list or be smarter.
+
+                    let bestTextMatch = null;
+                    let minDistanceToText = Infinity;
+
+                    // Iterate through *all* texts (this was the slow part).
+                    // We should try to make this more targeted or limit it.
+                    // For now, let's keep it but be aware this is a performance bottleneck.
+                    const allTextsInSvg = Array.from(
+                        currentSvgElement.querySelectorAll("text")
+                    );
+                    for (const textEl of allTextsInSvg) {
+                        try {
+                            const textBBox = textEl.getBBox();
+                            if (
+                                textBBox.width === 0 &&
+                                textBBox.height === 0 &&
+                                !textEl.textContent.trim()
+                            )
+                                continue;
+
+                            const textCenterX = textBBox.x + textBBox.width / 2;
+                            const textCenterY = textBBox.y + textBBox.height / 2;
+
+                            // Check if text is within the element's bounding box (good for labels inside)
+                            const isInside =
+                                textCenterX >= elBBox.x &&
+                                textCenterX <= elBBox.x + elBBox.width &&
+                                textCenterY >= elBBox.y &&
+                                textCenterY <= elBBox.y + elBBox.height;
+
+                            // Or if text is very close to the element's center (good for labels next to small elements)
+                            const distance = Math.sqrt(
+                                Math.pow(textCenterX - elCenterX, 2) +
+                                Math.pow(textCenterY - elCenterY, 2)
+                            );
+
+                            if (isInside || distance < MAX_TEXT_SEARCH_RADIUS * 0.5) {
+                                // Prioritize inside or very close
+                                const content = textEl.textContent.trim();
+                                if (content && !content.match(/^[A-Z]$/)) {
+                                    // Not a single letter axis
+                                    if (content.match(/^(FF|RF|LF|UL|FL|DL|UR|FR|DR)-\d+/i)) {
+                                        // Specific panel ID
+                                        derivedId = content;
+                                        break; // Found a good specific ID, stop searching
+                                    }
+                                    // If not a specific panel ID, consider it if it's the closest so far
+                                    if (distance < minDistanceToText) {
+                                        minDistanceToText = distance;
+                                        bestTextMatch = content;
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            /* ignore text BBox error */
+                        }
+                    }
+
+                    if (!derivedId && bestTextMatch) {
+                        // If no specific ID found, use the closest text match
+                        derivedId = bestTextMatch.replace(/[\s\(\)]/g, "_");
+                    }
+                }
+                // If derivedId is still null, and uniquePanelId from dataset (set by GFRC logic) isn't available,
+                // it will fall back to generatedId in initializeElementsByType.
+                // --- End OPTIMIZED Derived ID Logic ---
+                // End of the main try block
+            } catch (e) {
+                console.warn(
+                    `Error in getElementSpatialContext for ${elementIdentifier}:`,
+                    e
+                );
+                // Ensure defaults are returned even if main BBox fails
+                axisSpan = "خطا در BBox اصلی";
+                floorLevel = "خطا در BBox اصلی";
+            }
+
+            console.log(
+                `   Final Context for ${elementIdentifier}: Axis='${axisSpan}', Floor='${floorLevel}', DerivedID='${derivedId}'`
+            );
+            console.log(`--- End Spatial Context for: ${elementIdentifier} ---`);
+            return {
+                axisSpan,
+                floorLevel,
+                derivedId
+            };
+        }
+
+        function closeAllForms() {
+            document.getElementById("gfrcChecklistForm").style.display = "none";
+            document.getElementById("glassChecklistForm").style.display = "none";
+            document.getElementById("mullionChecklistForm").style.display = "none";
+            document.getElementById("bazshowChecklistForm").style.display = "none";
+            document.getElementById("zirsaziChecklistForm").style.display = "none";
+        }
+
+        let regionNavInitialized = false;
+
+        function getRegionAndZoneInfoForFile(svgFullFilename) {
+            for (const regionKey in regionToZoneMap) {
+                if (regionToZoneMap.hasOwnProperty(regionKey)) {
+                    const zonesInRegion = regionToZoneMap[regionKey]; // This is the array of zone objects
+
+                    const foundZone = zonesInRegion.find(
+                        (zone) =>
+                        zone.svgFile.toLowerCase() === svgFullFilename.toLowerCase()
+                    );
+                    if (foundZone) {
+                        const regionConfig = svgGroupConfig[regionKey];
+                        return {
+                            regionKey: regionKey, // e.g., "Atieh", "AranB"
+                            zoneLabel: foundZone.label, // e.g., "زون 1 (آتیه نما)"
+                            contractor: regionConfig?.contractor, // From svgGroupConfig using the regionKey
+                            block: regionConfig?.block, // From svgGroupConfig using the regionKey
+                        };
+                    }
+                }
+            }
+            return null; // SVG file not found in any defined region in regionToZoneMap
+        }
+
+        function setupRegionZoneNavigationIfNeeded() {
+            if (regionNavInitialized) return;
+
+            const regionSelect = document.getElementById("regionSelect");
+            const zoneButtonsContainer = document.getElementById(
+                "zoneButtonsContainer"
+            );
+
+            if (!regionSelect || !zoneButtonsContainer) {
+                console.error("Region/Zone navigation elements not found in DOM.");
+                return;
+            }
+
+            // Populate regions dropdown
+            // Ensure svgGroupConfig is available here
+            for (const regionKey in regionToZoneMap) {
+                if (regionToZoneMap.hasOwnProperty(regionKey)) {
+                    const option = document.createElement("option");
+                    option.value = regionKey;
+                    // Try to get a more descriptive label from svgGroupConfig if the regionKey exists there
+                    option.textContent =
+                        svgGroupConfig[regionKey] && svgGroupConfig[regionKey].label ?
+                        svgGroupConfig[regionKey].label :
+                        regionKey;
+                    regionSelect.appendChild(option);
+                }
+            }
+
+            regionSelect.addEventListener("change", function() {
+                zoneButtonsContainer.innerHTML = ""; // Clear previous zone buttons
+                const selectedRegionKey = this.value;
+                if (selectedRegionKey && regionToZoneMap[selectedRegionKey]) {
+                    const zones = regionToZoneMap[selectedRegionKey];
+                    zones.forEach((zone) => {
+                        const button = document.createElement("button");
+                        button.textContent = zone.label;
+                        // Reuse styles from your existing .navigation-controls button
+                        button.className = "navigation-controls button"; // This applies multiple classes if 'button' is a separate class
+                        // If 'button' is a tag selector in .navigation-controls button, this is fine.
+                        // Or use:
+                        // button.classList.add('some-base-button-class', 'zone-specific-style');
+                        // Let's assume your .navigation-controls button style is sufficient:
+                        // To apply the specific style of buttons inside .navigation-controls:
+                        // We'll add fixed styling to match, or you can create a generic button class.
+                        button.style.padding = "8px 12px";
+                        button.style.borderRadius = "4px";
+                        button.style.border = "1px solid #007bff";
+                        button.style.backgroundColor = "#007bff";
+                        button.style.color = "white";
+                        button.style.cursor = "pointer";
+                        button.style.fontFamily = "inherit";
+                        button.style.margin = "4px"; // Add some spacing for multiple buttons
+
+                        button.addEventListener("click", () => {
+                            loadAndDisplaySVG(zone.svgFile);
+                        });
+                        zoneButtonsContainer.appendChild(button);
+                    });
+                }
+            });
+
+            regionNavInitialized = true;
+        }
+
+        function loadAndDisplaySVG(svgFullFilename) {
+            const svgContainer = document.getElementById("svgContainer");
+            clearActiveSvgElementHighlight();
+            svgContainer.innerHTML = "";
+            svgContainer.classList.add("loading");
+            closeAllForms();
+            closeGfrcSubPanelMenu();
+
+            const regionZoneNavContainer = document.getElementById(
+                "regionZoneNavContainer"
+            );
+            const currentZoneInfoContainer =
+                document.getElementById("currentZoneInfo");
+            const zoneNameDisplay = document.getElementById("zoneNameDisplay");
+            const zoneContractorDisplay = document.getElementById(
+                "zoneContractorDisplay"
+            );
+            const zoneBlockDisplay = document.getElementById("zoneBlockDisplay");
+
+            const baseFilename = svgFullFilename.substring(
+                svgFullFilename.lastIndexOf("/") + 1
+            );
+
+            if (regionZoneNavContainer) {
+                if (baseFilename.toLowerCase() === "plan.svg") {
+                    regionZoneNavContainer.style.display = "flex";
+                    setupRegionZoneNavigationIfNeeded();
+                } else {
+                    regionZoneNavContainer.style.display = "none";
+                }
+            }
+
+            currentPlanFileName = svgFullFilename;
+            // currentPlanZoneName is used for the "AreaString" in forms, so it should be the specific zone name
+            // It gets updated more accurately below if it's a known zone.
+            let tempZoneNameForDisplay = baseFilename.replace(/\.svg$/i, ""); // Generic name like "Zone01"
+
+            console.log(
+                `Loading SVG: ${svgFullFilename}, Base Filename: ${baseFilename}`
+            );
+
+            // Reset to most general defaults first, these will be overridden if specific info is found
+            currentPlanDefaultContractor = "پیمانکار عمومی ";
+            currentPlanDefaultBlock = "بلوک عمومی ";
+
+            if (baseFilename.toLowerCase() === "plan.svg") {
+                const planMapping = planNavigationMappings.find(
+                    (m) =>
+                    m.svgFile &&
+                    m.svgFile.toLowerCase() === svgFullFilename.toLowerCase()
+                );
+                if (planMapping) {
+                    currentPlanDefaultContractor =
+                        planMapping.defaultContractor || currentPlanDefaultContractor;
+                    currentPlanDefaultBlock =
+                        planMapping.defaultBlock || currentPlanDefaultBlock;
+                    tempZoneNameForDisplay =
+                        planMapping.label || tempZoneNameForDisplay; // Use label from mapping for Plan
+                }
+                currentPlanZoneName = tempZoneNameForDisplay; // For Plan.svg, its name is "Plan اصلی" or similar
+
+                if (
+                    currentZoneInfoContainer &&
+                    zoneNameDisplay &&
+                    zoneContractorDisplay &&
+                    zoneBlockDisplay
+                ) {
+                    zoneNameDisplay.textContent = `${currentPlanZoneName}`;
+                    zoneContractorDisplay.textContent = `${currentPlanDefaultContractor}`;
+                    zoneBlockDisplay.textContent = `${currentPlanDefaultBlock}`;
+                    currentZoneInfoContainer.style.display = "block";
+                }
+            } else {
+                // This is a Zone SVG
+                const zoneInfo = getRegionAndZoneInfoForFile(svgFullFilename);
+                if (zoneInfo) {
+                    currentPlanDefaultContractor =
+                        zoneInfo.contractor || currentPlanDefaultContractor;
+                    currentPlanDefaultBlock = zoneInfo.block || currentPlanDefaultBlock;
+                    currentPlanZoneName = zoneInfo.zoneLabel || tempZoneNameForDisplay; // Use specific label from regionToZoneMap for areaString
+
+                    if (
+                        currentZoneInfoContainer &&
+                        zoneNameDisplay &&
+                        zoneContractorDisplay &&
+                        zoneBlockDisplay
+                    ) {
+                        zoneNameDisplay.textContent = `${currentPlanZoneName}`;
+                        zoneContractorDisplay.textContent = `${currentPlanDefaultContractor}`;
+                        zoneBlockDisplay.textContent = `${currentPlanDefaultBlock}`;
+                        currentZoneInfoContainer.style.display = "block";
+                    }
+                } else {
+                    // Fallback for zones not explicitly in regionToZoneMap but perhaps in planNavigationMappings (e.g. a zone directly mapped)
+                    const directZoneMapping = planNavigationMappings.find(
+                        (m) =>
+                        m.svgFile &&
+                        m.svgFile.toLowerCase() === svgFullFilename.toLowerCase()
+                    );
+                    if (directZoneMapping) {
+                        currentPlanDefaultContractor =
+                            directZoneMapping.defaultContractor ||
+                            currentPlanDefaultContractor;
+                        currentPlanDefaultBlock =
+                            directZoneMapping.defaultBlock || currentPlanDefaultBlock;
+                        currentPlanZoneName =
+                            directZoneMapping.label || tempZoneNameForDisplay;
+                    } else {
+                        currentPlanZoneName = tempZoneNameForDisplay; // Use generic if no specific label found
+                    }
+
+                    if (
+                        currentZoneInfoContainer &&
+                        zoneNameDisplay &&
+                        zoneContractorDisplay &&
+                        zoneBlockDisplay
+                    ) {
+                        zoneNameDisplay.textContent = `${currentPlanZoneName}`;
+                        zoneContractorDisplay.textContent = `${currentPlanDefaultContractor}`;
+                        zoneBlockDisplay.textContent = `${currentPlanDefaultBlock}`;
+                        currentZoneInfoContainer.style.display = "block";
+                    }
+                    console.warn(
+                        `Zone ${svgFullFilename} not found in regionToZoneMap or direct planNavigationMappings for specific contractor/block. Using derived/fallback defaults.`
+                    );
+                }
+            }
+            console.log(
+                `Context for ${svgFullFilename}: Name='${currentPlanZoneName}', Contractor='${currentPlanDefaultContractor}', Block='${currentPlanDefaultBlock}'`
+            );
+
+            fetch(svgFullFilename)
+                .then((response) => {
+                    svgContainer.classList.remove("loading");
+                    if (!response.ok)
+                        throw new Error(
+                            `Failed to load ${svgFullFilename}: ${response.status}`
+                        );
+                    return response.text();
+                })
+                .then((svgData) => {
+                    svgContainer.innerHTML = svgData;
+                    const zoomControlsHtml = `<div class="zoom-controls"><button id="zoomInBtn">+</button><button id="zoomOutBtn">-</button><button id="zoomResetBtn">⌂</button></div>`;
+                    svgContainer.insertAdjacentHTML("afterbegin", zoomControlsHtml);
+
+                    setTimeout(() => {
+                        const svgElement = svgContainer.querySelector("svg");
+                        if (svgElement) {
+                            svgElement.style.width = "100%";
+                            svgElement.style.height = "100%";
+                            currentSvgElement = svgElement;
+                            currentZoom = 1;
+                            panX = 0;
+                            panY = 0;
+                            updateTransform();
+                            setupZoomControls();
+
+                            currentSvgHeight = svgElement.viewBox.baseVal ?
+                                svgElement.viewBox.baseVal.height :
+                                svgElement.height.baseVal ?
+                                svgElement.height.baseVal.value :
+                                2200;
+                            currentSvgWidth = svgElement.viewBox.baseVal ?
+                                svgElement.viewBox.baseVal.width :
+                                svgElement.width.baseVal ?
+                                svgElement.width.baseVal.value :
+                                3000;
+                            console.log(
+                                `SVG Dimensions: Width=${currentSvgWidth}, Height=${currentSvgHeight}`
+                            );
+
+                            extractAllAxisMarkers(svgElement);
+                            // console.log("Extracted X Markers:", JSON.stringify(currentSvgAxisMarkersX));
+                            // console.log("Extracted Y Markers (Floors):", JSON.stringify(currentSvgAxisMarkersY.filter((m) => m.type === "floor")));
+
+                            applyGroupStylesAndControls(svgElement);
+
+                            if (baseFilename.toLowerCase() === "plan.svg") {
+                                setupPlanNavigationLinks(svgElement);
+                            }
+                        } else {
+                            console.error("SVG element not found after loading.");
+                        }
+                    }, 0);
+                })
+                .catch((error) => {
+                    svgContainer.classList.remove("loading");
+                    console.error(`Error loading/parsing ${svgFullFilename}:`, error);
+                    svgContainer.textContent = `نقشه هنوز بارگزاری نشده.`;
+                    if (currentZoneInfoContainer)
+                        currentZoneInfoContainer.style.display = "none";
+                });
+        }
+
+        function setupZoomControls() {
+            const zoomInBtn = document.getElementById("zoomInBtn");
+            const zoomOutBtn = document.getElementById("zoomOutBtn");
+            const zoomResetBtn = document.getElementById("zoomResetBtn");
+            const svgContainer = document.getElementById("svgContainer");
+
+            if (!zoomInBtn || !zoomOutBtn || !zoomResetBtn || !svgContainer) {
+                console.error("Zoom controls or SVG container not found!");
+                return;
+            }
+
+            zoomInBtn.addEventListener("click", () =>
+                zoomSvg(currentZoom + zoomStep)
+            );
+            zoomOutBtn.addEventListener("click", () =>
+                zoomSvg(currentZoom - zoomStep)
+            );
+            zoomResetBtn.addEventListener("click", resetZoomAndPan);
+            svgContainer.addEventListener("wheel", handleWheelZoom, {
+                passive: false,
+            });
+            svgContainer.addEventListener("mousedown", handleMouseDown);
+            svgContainer.addEventListener("mousemove", handleMouseMove);
+            document.addEventListener("mouseup", handleMouseUp);
+            svgContainer.addEventListener("mouseleave", handleMouseUp);
+            svgContainer.addEventListener("touchstart", handleTouchStart, {
+                passive: false,
+            });
+            svgContainer.addEventListener("touchmove", handleTouchMove, {
+                passive: false,
+            });
+            document.addEventListener("touchend", handleTouchEnd, {
+                passive: false,
+            });
+        }
+
+        function handleWheelZoom(e) {
+            e.preventDefault();
+            const svgContainerRect = e.currentTarget.getBoundingClientRect();
+            const svgX = (e.clientX - svgContainerRect.left - panX) / currentZoom;
+            const svgY = (e.clientY - svgContainerRect.top - panY) / currentZoom;
+            const delta = e.deltaY < 0 ? zoomStep : -zoomStep;
+            const newZoom = Math.max(
+                minZoom,
+                Math.min(maxZoom, currentZoom * (1 + delta))
+            );
+            panX -= svgX * (newZoom - currentZoom);
+            panY -= svgY * (newZoom - currentZoom);
+            currentZoom = newZoom;
+            updateTransform();
+            updateZoomButtonStates();
+        }
+
+        function handleMouseDown(e) {
+            if (
+                e.target.closest(".zoom-controls") ||
+                e.target.style.cursor === "pointer" ||
+                e.target.closest(".interactive-element")
+            )
+                return;
+            isPanning = true;
+            panStartX = e.clientX - panX;
+            panStartY = e.clientY - panY;
+            svgContainer.classList.add("dragging");
+        }
+
+        function handleMouseMove(e) {
+            if (!isPanning) return;
+            e.preventDefault();
+            panX = e.clientX - panStartX;
+            panY = e.clientY - panStartY;
+            updateTransform();
+        }
+
+        function handleMouseUp() {
+            if (isPanning) {
+                isPanning = false;
+                svgContainer.classList.remove("dragging");
+            }
+        }
+
+        function handleTouchStart(e) {
+            const targetIsControl = e.target.closest(".zoom-controls");
+            const targetIsClickable = e.target.closest(
+                '[style*="cursor: pointer"], .interactive-element'
+            );
+
+            if (targetIsControl) return;
+
+            window.touchStartOnInteractive = !!targetIsClickable;
+
+            if (e.touches.length === 1) {
+                isPanning = true;
+                const touch = e.touches[0];
+                panStartX = touch.clientX - panX;
+                panStartY = touch.clientY - panY;
+                window.touchStartX = touch.clientX;
+                window.touchStartY = touch.clientY;
+                window.touchStartTime = Date.now();
+                window.hasMoved = false;
+            } else if (e.touches.length === 2) {
+                isPanning = false;
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                lastTouchDistance = Math.sqrt(
+                    Math.pow(touch2.clientX - touch1.clientX, 2) +
+                    Math.pow(touch2.clientY - touch1.clientY, 2)
+                );
+            }
+        }
+
+        function handleTouchMove(e) {
+            if (e.touches.length === 1 && isPanning) {
+                // Only preventDefault if we are actually panning,
+                // to allow scrolling if the touch started on an interactive element but then moved off.
+                if (!window.touchStartOnInteractive || window.hasMoved) {
+                    e.preventDefault();
+                }
+                const touch = e.touches[0];
+                panX = touch.clientX - panStartX;
+                panY = touch.clientY - panStartY;
+                updateTransform();
+                if (window.touchStartX !== undefined) {
+                    if (
+                        Math.abs(touch.clientX - window.touchStartX) > 10 ||
+                        Math.abs(touch.clientY - window.touchStartY) > 10
+                    ) {
+                        window.hasMoved = true;
+                    }
+                }
+            } else if (e.touches.length === 2) {
+                e.preventDefault();
+                isPanning = false;
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const currentDistance = Math.sqrt(
+                    Math.pow(touch2.clientX - touch1.clientX, 2) +
+                    Math.pow(touch2.clientY - touch1.clientY, 2)
+                );
+                if (lastTouchDistance > 0) {
+                    const scaleChange = currentDistance / lastTouchDistance;
+                    const newZoom = Math.max(
+                        minZoom,
+                        Math.min(maxZoom, currentZoom * scaleChange)
+                    );
+                    const midX = (touch1.clientX + touch2.clientX) / 2;
+                    const midY = (touch1.clientY + touch2.clientY) / 2;
+                    const svgContainerRect = svgContainer.getBoundingClientRect();
+                    const svgX = (midX - svgContainerRect.left - panX) / currentZoom;
+                    const svgY = (midY - svgContainerRect.top - panY) / currentZoom;
+                    panX -= svgX * (newZoom - currentZoom);
+                    panY -= svgY * (newZoom - currentZoom);
+                    currentZoom = newZoom;
+                    updateTransform();
+                    updateZoomButtonStates();
+                }
+                lastTouchDistance = currentDistance;
+            }
+        }
+
+        function handleTouchEnd(e) {
+            if (e.touches.length < 2) isPanning = false;
+            if (e.touches.length === 0) lastTouchDistance = 0;
+
+            // Check for tap on an interactive element that wasn't handled by its own touchend
+            // This is a bit tricky as interactive elements have their own touchend
+            // The main purpose here is to correctly reset panning state.
+
+            // The addTouchClickSupport handles taps on interactive elements.
+            // This global touchend mainly resets pan/zoom states.
+
+            window.touchStartX = undefined;
+            window.touchStartY = undefined;
+            window.touchStartTime = undefined;
+            window.hasMoved = false;
+            window.touchStartOnInteractive = false;
+        }
+
+        function addTouchClickSupport(element, clickHandler) {
+            let touchStartTime, touchStartX, touchStartY, touchMoved;
+            element.addEventListener(
+                "touchstart",
+                function(e) {
+                    if (e.touches.length === 1) {
+                        const touch = e.touches[0];
+                        touchStartTime = Date.now();
+                        touchStartX = touch.clientX;
+                        touchStartY = touch.clientY;
+                        touchMoved = false;
+                        e.stopPropagation(); // Prevent container pan/zoom from starting on this element
+                    }
+                }, {
+                    passive: false
+                }
+            );
+
+            element.addEventListener(
+                "touchmove",
+                function(e) {
+                    if (touchStartTime === undefined || e.touches.length !== 1) return;
+                    const touch = e.touches[0];
+                    if (
+                        Math.abs(touch.clientX - touchStartX) > 10 ||
+                        Math.abs(touch.clientY - touchStartY) > 10
+                    ) {
+                        touchMoved = true;
+                    }
+                }, {
+                    passive: true
+                }
+            );
+
+            element.addEventListener("touchend", function(e) {
+                if (touchStartTime === undefined || e.changedTouches.length !== 1)
+                    return;
+                if (!touchMoved && Date.now() - touchStartTime < 400) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    clickHandler(e);
+                }
+                touchStartTime = undefined;
+            });
+        }
+
+        function zoomSvg(newZoomFactor) {
+            if (!currentSvgElement) return;
+            const svgContainerRect = svgContainer.getBoundingClientRect();
+            const centerX = svgContainerRect.width / 2;
+            const centerY = svgContainerRect.height / 2;
+            const svgX = (centerX - panX) / currentZoom;
+            const svgY = (centerY - panY) / currentZoom;
+            const newZoom = Math.max(minZoom, Math.min(maxZoom, newZoomFactor));
+            panX -= svgX * (newZoom - currentZoom);
+            panY -= svgY * (newZoom - currentZoom);
+            currentZoom = newZoom;
+            updateTransform();
+            updateZoomButtonStates();
+        }
+
+        function updateTransform() {
+            if (!currentSvgElement) return;
+            currentSvgElement.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
+            currentSvgElement.style.transformOrigin = `0 0`;
+        }
+
+        function resetZoomAndPan() {
+            currentZoom = 1;
+            panX = 0;
+            panY = 0;
+            updateTransform();
+            updateZoomButtonStates();
+        }
+
+        function updateZoomButtonStates() {
+            const zoomInBtn = document.getElementById("zoomInBtn");
+            const zoomOutBtn = document.getElementById("zoomOutBtn");
+            if (zoomInBtn && zoomOutBtn) {
+                zoomInBtn.disabled = currentZoom >= maxZoom;
+                zoomOutBtn.disabled = currentZoom <= minZoom;
+            }
+        }
+
+        function initializeInteractiveGFRCPanels(svg) {
+            const gfrcConfig = svgGroupConfig["GFRC"];
+            if (
+                !gfrcConfig ||
+                !svg.getElementById(
+                    gfrcConfig.elementRef ? gfrcConfig.elementRef.id : "GFRC"
+                )
+            ) {
+                // If GFRC group itself isn't found, try to get its reference from svgGroupConfig if already populated
+                const gfrcGroup = svg.getElementById("GFRC");
+                if (!gfrcGroup) {
+                    // console.log("GFRC group not found in this SVG. Skipping GFRC panel initialization.");
+                    return;
+                }
+                gfrcConfig.elementRef = gfrcGroup; // Assign if found now
+            }
+            const gfrcGroupElement = gfrcConfig.elementRef;
+            if (!gfrcGroupElement) return;
+
+            const allPathsInGfrc = gfrcGroupElement.querySelectorAll("path");
+            const allTextsInSvg = Array.from(svg.querySelectorAll("text")); // All texts in the SVG
+
+            // --- Axis Marker Extraction ---
+            let xAxisMarkers = [],
+                yAxisMarkers = []; // Changed from yFloorMarkers to generic yAxisMarkers
+            const AXIS_LABEL_Y_THRESHOLD_TOP = 300; // Text elements with y < this might be top X-axis labels
+            const AXIS_LABEL_Y_THRESHOLD_BOTTOM_FACTOR = 0.8; // Text elements with y > (SVGHeight * factor) might be bottom X-axis labels
+            const AXIS_LABEL_X_THRESHOLD_LEFT = 300; // Text elements with x < this might be left Y-axis labels
+            const AXIS_LABEL_X_THRESHOLD_RIGHT_FACTOR = 0.8; // Text elements with x > (SVGWidth * factor) might be right Y-axis labels
+
+            let svgHeight = svg.viewBox.baseVal ?
+                svg.viewBox.baseVal.height :
+                svg.height.baseVal ?
+                svg.height.baseVal.value :
+                2200;
+            let svgWidth = svg.viewBox.baseVal ?
+                svg.viewBox.baseVal.width :
+                svg.width.baseVal ?
+                svg.width.baseVal.value :
+                3000;
+
+            allTextsInSvg.forEach((textEl) => {
+                const textContent = textEl.textContent.trim();
+                if (!textContent) return;
+                try {
+                    const bbox = textEl.getBBox();
+                    const centerX = bbox.x + bbox.width / 2;
+                    const centerY = bbox.y + bbox.height / 2;
+
+                    // Basic X-axis detection (typically horizontal text, near top/bottom)
+                    // Your example shows single capital letters for axes.
+                    if (
+                        textContent.match(/^[A-Z]$/i) &&
+                        (centerY < AXIS_LABEL_Y_THRESHOLD_TOP ||
+                            centerY > svgHeight * AXIS_LABEL_Y_THRESHOLD_BOTTOM_FACTOR)
+                    ) {
+                        if (!isNaN(centerX) && !isNaN(centerY)) {
+                            xAxisMarkers.push({
+                                text: textContent,
+                                x: centerX,
+                                y: centerY,
+                            });
+                        }
+                    }
+                    // Basic Y-axis detection (typically vertical text, near left/right, or horizontal for floor levels)
+                    // For floor levels:
+                    if (
+                        textContent.toLowerCase().includes("floor") ||
+                        textContent.includes("±") ||
+                        textContent.match(/^\+\d+\.\d+$/)
+                    ) {
+                        if (!isNaN(centerX) && !isNaN(centerY)) {
+                            yAxisMarkers.push({
+                                text: textContent,
+                                x: centerX,
+                                y: centerY,
+                                type: "floor",
+                            });
+                        }
+                    }
+                    // For Y-axis grid lines (if they are also single letters and positioned vertically)
+                    else if (
+                        textContent.match(/^[A-Z]$/i) &&
+                        (centerX < AXIS_LABEL_X_THRESHOLD_LEFT ||
+                            centerX > svgWidth * AXIS_LABEL_X_THRESHOLD_RIGHT_FACTOR)
+                    ) {
+                        if (!isNaN(centerX) && !isNaN(centerY)) {
+                            yAxisMarkers.push({
+                                text: textContent,
+                                x: centerX,
+                                y: centerY,
+                                type: "grid",
+                            });
+                        }
+                    }
+                } catch (e) {
+                    /* ignore BBox error */
+                }
+            });
+
+            xAxisMarkers.sort((a, b) => a.x - b.x);
+            yAxisMarkers.sort((a, b) => a.y - b.y); // Sort Y markers by their Y position
+
+            function getXAxisSpan(rectCenterX) {
+                if (xAxisMarkers.length < 2) return textContent || "نامشخص";
+                for (let i = 0; i < xAxisMarkers.length - 1; i++) {
+                    // Check if center is between the midpoints of current axis and next axis text
+                    // Or simply if it's between the x-positions of two adjacent axis markers
+                    if (
+                        rectCenterX >= xAxisMarkers[i].x &&
+                        rectCenterX <= xAxisMarkers[i + 1].x
+                    ) {
+                        return `${xAxisMarkers[i].text}-${xAxisMarkers[i + 1].text}`;
+                    }
+                }
+                if (xAxisMarkers.length > 0) {
+                    if (rectCenterX < xAxisMarkers[0].x)
+                        return `<${xAxisMarkers[0].text}`;
+                    if (rectCenterX > xAxisMarkers[xAxisMarkers.length - 1].x)
+                        return `>${xAxisMarkers[xAxisMarkers.length - 1].text}`;
+                }
+                return "X-نامشخص";
+            }
+
+            function getFloorLevel(rectCenterY) {
+                const floorMarkers = yAxisMarkers.filter((m) => m.type === "floor");
+                if (floorMarkers.length === 0) return "طبقه نامشخص";
+
+                for (let i = 0; i < floorMarkers.length; i++) {
+                    const currentFloor = floorMarkers[i];
+                    const nextFloor = floorMarkers[i + 1];
+                    if (nextFloor) {
+                        if (rectCenterY >= currentFloor.y && rectCenterY < nextFloor.y) {
+                            return currentFloor.text;
+                        }
+                    } else {
+                        // Last floor marker
+                        if (rectCenterY >= currentFloor.y) {
+                            return currentFloor.text;
+                        }
+                    }
+                }
+                if (rectCenterY < floorMarkers[0].y)
+                    return `<${floorMarkers[0].text}`; // Below the lowest floor marker
+                return "F-نامشخص";
+            }
+
+            allPathsInGfrc.forEach((path, index) => {
+                path.dataset.generatedId = `gfrc_path_${index + 1}`;
+                const dAttr = path.getAttribute("d");
+                if (!dAttr) return;
+                const dims = getRectangleDimensions(dAttr);
+                if (dims) {
+                    // 4- Panel Type (Orientation)
+                    path.dataset.panelOrientation =
+                        dims.width > dims.height ? "افقی" : "عمودی";
+                    if (dims.width > dims.height)
+                        path.style.fill = "rgba(255, 160, 122, 0.7)";
+                    else if (dims.height > dims.width)
+                        path.style.fill = "rgba(32, 178, 170, 0.7)";
+                    else path.style.fill = "rgba(211, 211, 211, 0.7)";
+
+                    // 5- Panel ID (FF-01(AT), etc.)
+                    let gfrcSubPanelTexts = [];
+                    let primarySubPanelId = path.dataset.generatedId; // Fallback
+                    try {
+                        const pathBBox = path.getBBox();
+                        allTextsInSvg.forEach((textEl) => {
+                            const content = textEl.textContent.trim();
+                            // Regex for FF-01(AT), RF-01, UL-01(ANYTHING), etc.
+                            if (
+                                content.match(
+                                    /^(FF|RF|LF|UL|FL|DL|UR|FR|DR)-\d+(\([A-Z0-9]+\))?/i
+                                )
+                            ) {
+                                try {
+                                    const textBBox = textEl.getBBox();
+                                    const textCenterX = textBBox.x + textBBox.width / 2;
+                                    const textCenterY = textBBox.y + textBBox.height / 2;
+                                    if (
+                                        textCenterX >= pathBBox.x &&
+                                        textCenterX <= pathBBox.x + pathBBox.width &&
+                                        textCenterY >= pathBBox.y &&
+                                        textCenterY <= pathBBox.y + pathBBox.height
+                                    ) {
+                                        gfrcSubPanelTexts.push(content);
+                                    }
+                                } catch (e) {
+                                    /* BBox error for text */
+                                }
+                            }
+                        });
+                        if (gfrcSubPanelTexts.length > 0) {
+                            primarySubPanelId =
+                                gfrcSubPanelTexts.find(
+                                    (t) => t.startsWith("FF") || t.startsWith("FL")
+                                ) || gfrcSubPanelTexts[0];
+                        }
+                    } catch (e) {
+                        /* BBox error for path */
+                    }
+                    path.dataset.uniquePanelId = primarySubPanelId;
+                    // path.dataset.allSubPanelIds = JSON.stringify(gfrcSubPanelTexts); // If needed later
+
+                    // 2- Axis Span
+                    const rectCenterX = dims.x + dims.width / 2;
+                    const rectCenterY = dims.y + dims.height / 2;
+                    path.dataset.axisSpan = getXAxisSpan(rectCenterX);
+                    path.dataset.floorLevel = getFloorLevel(rectCenterY);
+
+                    // 1 & 3- Contractor and Block
+                    let panelContractor = currentPlanDefaultContractor;
+                    let panelBlock = currentPlanDefaultBlock;
+                    const closestGroupWithId = path.closest("g[id]");
+                    if (closestGroupWithId && closestGroupWithId.id) {
+                        const groupId = closestGroupWithId.id;
+                        if (svgGroupConfig[groupId]) {
+                            if (svgGroupConfig[groupId].contractor)
+                                panelContractor = svgGroupConfig[groupId].contractor;
+                            if (svgGroupConfig[groupId].block)
+                                panelBlock = svgGroupConfig[groupId].block;
+                        }
+                    }
+                    path.dataset.contractor = panelContractor;
+                    path.dataset.block = panelBlock;
+
+                    // Interactivity is added by makeElementInteractive via applyGroupStylesAndControls
+                }
+            });
+        }
+
+        function getRectangleDimensions(dAttribute) {
+            const commands = dAttribute
+                .trim()
+                .toUpperCase()
+                .split(/(?=[LMCZHV])/);
+            let points = [];
+            let currentX = 0,
+                currentY = 0;
+            commands.forEach((commandStr) => {
+                const type = commandStr.charAt(0);
+                const rawArgs = commandStr.substring(1).trim();
+                let args = rawArgs ? rawArgs.split(/[\s,]+/).map(Number) : [];
+                let i = 0;
+                switch (type) {
+                    case "M":
+                        currentX = args[i++];
+                        currentY = args[i++];
+                        points.push({
+                            x: currentX,
+                            y: currentY
+                        });
+                        while (i < args.length) {
+                            currentX = args[i++];
+                            currentY = args[i++];
+                            points.push({
+                                x: currentX,
+                                y: currentY
+                            });
+                        }
+                        break;
+                    case "L":
+                        while (i < args.length) {
+                            currentX = args[i++];
+                            currentY = args[i++];
+                            points.push({
+                                x: currentX,
+                                y: currentY
+                            });
+                        }
+                        break;
+                    case "H":
+                        while (i < args.length) {
+                            currentX = args[i++];
+                            points.push({
+                                x: currentX,
+                                y: currentY
+                            });
+                        }
+                        break;
+                    case "V":
+                        while (i < args.length) {
+                            currentY = args[i++];
+                            points.push({
+                                x: currentX,
+                                y: currentY
+                            });
+                        }
+                        break;
+                    case "Z":
+                        break;
+                }
+            });
+            if (points.length < 3) return null;
+            const xValues = points.map((p) => p.x),
+                yValues = points.map((p) => p.y);
+            const minX = Math.min(...xValues),
+                maxX = Math.max(...xValues);
+            const minY = Math.min(...yValues),
+                maxY = Math.max(...yValues);
+            const width = maxX - minX,
+                height = maxY - minY;
+            if (width <= 0 || height <= 0) return null;
+            return {
+                x: minX,
+                y: minY,
+                width,
+                height,
+                points
+            };
+        }
+
+        function openGfrcChecklistForm(panelId, panelData, dynamicContext) {
+            const form = document.getElementById('gfrcChecklistForm');
+            const formTitle = document.getElementById('gfrcFormTitle');
+            const checklistBody = document.getElementById('gfrcChecklistBody');
+            const notesField = document.getElementById('gfrcNotes'); // Assuming you add a textarea with this ID
+
+            formTitle.textContent = `در حال بارگذاری اطلاعات برای پنل: ${panelId}...`;
+            checklistBody.innerHTML = '<tr><td colspan="2">در حال بارگذاری...</td></tr>';
+            form.style.display = 'block';
+
+            // Fetch data from the new API
+            fetch(`api/get_element_data.php?element_id=${encodeURIComponent(panelId)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+
+                    // Populate the form with data from the API
+                    formTitle.textContent = `چک لیست کنترل کیفی - GFRC - پنل: ${panelId}`;
+                    document.getElementById('gfrcContractor').textContent = dynamicContext.contractor || 'تعیین نشده';
+                    document.getElementById('gfrcArea').textContent = dynamicContext.areaString || 'تعیین نشده';
+                    document.getElementById("gfrcBlock").textContent =
+                        dynamicContext.block || "تعیین نشده";
+                    document.getElementById("gfrcDeliveryStatus").textContent =
+                        dynamicContext.deliveryStatus || "تعیین نشده";
+                    document.getElementById("gfrcPanelType").textContent =
+                        dynamicContext.panelOrientation || "تعیین نشده";
+                    document.getElementById("gfrcPanelNumber").textContent = panelId; // This is the specific ID like FF-01(AT)
+
+                    checklistBody.innerHTML = ""; // Clear loading message
+                    data.items.forEach(item => {
+                        const row = checklistBody.insertRow();
+                        const cellCheck = row.insertCell();
+                        const cellValue = row.insertCell();
+
+                        cellCheck.textContent = item.item_text;
+                        // Create an input field for the value
+                        cellValue.innerHTML = `<input type="text" class="checklist-input" name="${item.item_text}" value="${item.item_value || ''}" />`;
+
+                        // Add your highlighting logic if needed
+                        if (item.item_value && (item.item_value.includes("×") || item.item_value.match(/[A-Z]\d+/))) {
+                            cellValue.querySelector('input').classList.add("highlight-issue");
+                        }
+                    });
+
+                    // Populate notes and make it an editable textarea
+                    document.getElementById('gfrcNotes').innerHTML = `<label for="gfrcNotesTextarea">ملاحظات:</label><textarea id="gfrcNotesTextarea" class="notes-textarea">${data.inspectionData?.notes || ''}</textarea>`;
+
+                    // Show the form
+                    form.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error fetching checklist data:', error);
+                    formTitle.textContent = 'خطا در بارگذاری اطلاعات';
+                    checklistBody.innerHTML = `<tr><td colspan="2">مجدداً تلاش کنید. جزئیات خطا: ${error.message}</td></tr>`;
+                });
+        }
+
+        function closeForm(formId) {
+            document.getElementById(formId).style.display = "none";
+            // --- ADD THIS LINE ---
+            clearActiveSvgElementHighlight(); // Remove highlight when a form is closed
+        }
+    </script>
+
+</body>
+
+</html>
+please complete the index.php for read from db.
+i have this 2 files too:
+on api folder:
+get_element_data.php
+<?php
+header('Content-Type: application/json');
+// *** CORRECTED PATH: ../../../ goes from api -> ghom -> public_html -> project root
+require_once __DIR__ . '/../../../sercon/bootstrap.php';
+
+secureSession();
+if (!isLoggedIn() || $_SESSION['current_project_config_key'] !== 'ghom') {
+    http_response_code(403);
+    echo json_encode(['error' => 'Forbidden']);
+    exit();
+}
+
+$elementId = filter_input(INPUT_GET, 'element_id', FILTER_DEFAULT);
+$elementType = filter_input(INPUT_GET, 'element_type', FILTER_DEFAULT);
+
+if (!$elementId || !$elementType) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Element ID and Element Type are required']);
+    exit();
+}
+
+try {
+    $pdo = getProjectDBConnection('ghom');
+
+    // Upsert Element: Create the element record if it doesn't exist yet.
+    // This happens when a user clicks an element for the first time.
+    $stmt_upsert = $pdo->prepare("
+        INSERT INTO elements (element_id, element_type, zone_name, axis_span, floor_level, contractor, block)
+        VALUES (:element_id, :element_type, :zone_name, :axis_span, :floor_level, :contractor, :block)
+        ON DUPLICATE KEY UPDATE element_id = VALUES(element_id) -- A no-op to prevent errors on existing keys
+    ");
+    $stmt_upsert->execute([
+        ':element_id'   => $elementId,
+        ':element_type' => $elementType,
+        ':zone_name'    => htmlspecialchars(trim((string)filter_input(INPUT_GET, 'zone_name', FILTER_DEFAULT)), ENT_QUOTES, 'UTF-8'),
+        ':axis_span'    => htmlspecialchars(trim((string)filter_input(INPUT_GET, 'axis_span', FILTER_DEFAULT)), ENT_QUOTES, 'UTF-8'),
+        ':floor_level'  => htmlspecialchars(trim((string)filter_input(INPUT_GET, 'floor_level', FILTER_DEFAULT)), ENT_QUOTES, 'UTF-8'),
+        ':contractor'   => htmlspecialchars(trim((string)filter_input(INPUT_GET, 'contractor', FILTER_DEFAULT)), ENT_QUOTES, 'UTF-8'),
+        ':block'        => htmlspecialchars(trim((string)filter_input(INPUT_GET, 'block', FILTER_DEFAULT)), ENT_QUOTES, 'UTF-8')
+    ]);
+
+    // Find the most recent inspection for this element
+    $stmt = $pdo->prepare("
+        SELECT i.inspection_id, i.notes
+        FROM inspections i
+        WHERE i.element_id = ?
+        ORDER BY i.inspection_date DESC
+        LIMIT 1
+    ");
+    $stmt->execute([$elementId]);
+    $inspection = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $items = [];
+    // Get the template_id for the given element_type to find the correct questions
+    $stmt_template_id = $pdo->prepare("SELECT template_id FROM checklist_templates WHERE element_type = ? AND is_active = TRUE LIMIT 1");
+    $stmt_template_id->execute([$elementType]);
+    $templateId = $stmt_template_id->fetchColumn();
+
+    if ($inspection && $templateId) {
+        // An inspection exists: Get its saved data, but join with the template to ensure all questions are present
+        $stmt_items = $pdo->prepare("
+            SELECT ci.item_id, ci.item_text, id.item_value
+            FROM checklist_items ci
+            LEFT JOIN inspection_data id ON ci.item_id = id.item_id AND id.inspection_id = :inspection_id
+            WHERE ci.template_id = :template_id
+            ORDER BY ci.item_order, ci.item_id
+        ");
+        $stmt_items->execute([':inspection_id' => $inspection['inspection_id'], ':template_id' => $templateId]);
+        $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
+    } elseif ($templateId) {
+        // No inspection yet: Get the blank checklist from the template
+        $stmt_template_items = $pdo->prepare("
+            SELECT item_id, item_text, '' as item_value
+            FROM checklist_items
+            WHERE template_id = ?
+            ORDER BY item_order, item_id
+        ");
+        $stmt_template_items->execute([$templateId]);
+        $items = $stmt_template_items->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    echo json_encode([
+        'elementId' => $elementId,
+        'inspectionData' => $inspection,
+        'items' => $items
+    ]);
+} catch (Exception $e) {
+    logError("API Error in get_element_data.php: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['error' => 'Database error occurred.']);
+}
+
+and : save_inspection.php
+
+<?php
+header('Content-Type: application/json');
+// *** CORRECTED PATH: ../../../ goes from api -> ghom -> public_html -> project root
+require_once __DIR__ . '/../../../sercon/bootstrap.php';
+
+secureSession();
+if (!isLoggedIn() || $_SESSION['current_project_config_key'] !== 'ghom') {
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'Forbidden']);
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['status' => 'error', 'message' => 'Method Not Allowed']);
+    exit();
+}
+
+$data = json_decode(file_get_contents('php://input'), true);
+
+$elementId = $data['elementId'] ?? null;
+$checklistItems = $data['items'] ?? [];
+$notes = $data['notes'] ?? '';
+$userId = $_SESSION['user_id'];
+
+if (!$elementId || !isset($data['items'])) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Missing required data (elementId, items).']);
+    exit();
+}
+
+try {
+    $pdo = getProjectDBConnection('ghom');
+    $pdo->beginTransaction();
+
+    // Create a new inspection record
+    $stmt = $pdo->prepare("
+        INSERT INTO inspections (element_id, user_id, inspection_date, notes)
+        VALUES (?, ?, NOW(), ?)
+    ");
+    $stmt->execute([$elementId, $userId, $notes]);
+    $inspectionId = $pdo->lastInsertId();
+
+    // Insert each checklist item's data
+    $stmt_data = $pdo->prepare("
+        INSERT INTO inspection_data (inspection_id, item_id, item_value) VALUES (?, ?, ?)
+    ");
+
+    foreach ($checklistItems as $item) {
+        // Use the item_id sent directly from the form, which is much more reliable
+        if (isset($item['itemId']) && isset($item['value'])) {
+            $stmt_data->execute([$inspectionId, $item['itemId'], $item['value']]);
+        }
+    }
+
+    $pdo->commit();
+
+    log_activity($userId, $_SESSION['username'], 'inspection_save', "Saved inspection for element: $elementId", $_SESSION['current_project_id']);
+
+    echo json_encode(['status' => 'success', 'message' => 'بازرسی با موفقیت ذخیره شد.']);
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    logError("API Error in save_inspection.php: " . $e->getMessage() . " Data: " . json_encode($data));
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'An error occurred during save. Please check the logs.']);
+}
+here is my inex.php now:
+<?php
+// public_html/ghom/index.php
+
+// Include the central bootstrap file
+require_once __DIR__ . '/../../sercon/bootstrap.php';
+
+// Secure the session (starts or resumes and applies security checks)
+secureSession();
+
+// --- Authorization & Project Context Check ---
+
+// 1. Check if user is logged in at all
+if (!isLoggedIn()) {
+    header('Location: /login.php?msg=login_required');
+    exit();
+}
+
+// 2. Define the expected project for this page
+$expected_project_key = 'ghom';
+
+// 3. Check if the user has selected a project and if it's the correct one
+if (!isset($_SESSION['current_project_config_key']) || $_SESSION['current_project_config_key'] !== $expected_project_key) {
+    // Log the attempt for security auditing
+    logError("User ID " . ($_SESSION['user_id'] ?? 'N/A') . " tried to access Ghom project page without correct session context.");
+    // Redirect them to the project selection page with an error
+    header('Location: /select_project.php?msg=context_mismatch');
+    exit();
+}
+$pageTitle = "پروژه بیمارستان هزار تخت خوابی قم";
+require_once __DIR__ . '/header_ghom.php';
+// If all checks pass, the script continues and will render the HTML below.
+?>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><?php echo escapeHtml($pageTitle); ?></title>
+    <link rel="icon" type="image/x-icon" href="/ghom/assets/images/favicon.ico" />
+    <style>
+        @font-face {
+            font-family: "Samim";
+            /* Use absolute paths for assets */
+            src: url("/ghom/assets/fonts/Samim-FD.woff2") format("woff2"),
+                url("/ghom/assets/fonts/Samim-FD.woff") format("woff"),
+                url("/ghom/assets/fonts/Samim-FD.ttf") format("truetype");
+        }
+
+        body {
+            font-family: "Samim", "Tahoma", sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0;
+            box-sizing: border-box;
+            text-align: right;
+            background-color: #f4f7f6;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #0056b3;
+            color: white;
+            padding: 15px 20px;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .header-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            align-items: center;
+            max-width: 1200px;
+            width: 100%;
+            gap: 20px;
+        }
+
+        .header-content .logo-left,
+        .header-content .logo-right {
+            display: flex;
+            align-items: center;
+            height: 50px;
+        }
+
+        .header-content .logo-left img {
+            height: 50px;
+            width: auto;
+        }
+
+        .header-content .logo-left {
+            justify-content: flex-start;
+        }
+
+        .header-content .logo-right {
+            justify-content: flex-end;
+        }
+
+        .header-content h1 {
+            margin: 0;
+            font-size: 1.6em;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        #currentZoneInfo {
+            margin-top: 20px;
+            text-align: center;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: none;
+            font-size: 0.9em;
+        }
+
+        #zoneNameDisplay,
+        #zoneContractorDisplay,
+        #zoneBlockDisplay {
+            margin-left: 15px;
+            font-weight: bold;
+        }
+
+        #regionZoneNavContainer {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 80%;
+            max-width: 600px;
+            background-color: #f8f9fa;
+        }
+
+        footer {
+            background-color: #343a40;
+            color: #f8f9fa;
+            text-align: center;
+            padding: 20px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: auto;
+            font-size: 0.9em;
+        }
+
+        footer p {
+            margin: 0;
+        }
+
+        .navigation-controls {
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .navigation-controls button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #007bff;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .navigation-controls button:hover {
+            background-color: #0056b3;
+        }
+
+        .layer-controls {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .layer-controls button {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .layer-controls button.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .layer-controls button.inactive {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+
+        p.description {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        #svgContainer {
+            width: 90vw;
+            height: 65vh;
+            max-width: 1200px;
+            border: 1px solid #007bff;
+            background-color: #e9ecef;
+            overflow: hidden;
+            margin: 10px auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+            position: relative;
+        }
+
+        #svgContainer.dragging {
+            cursor: grabbing;
+        }
+
+        #svgContainer.loading::before {
+            content: "در حال بارگذاری SVG...";
+            font-style: italic;
+            color: #666;
+        }
+
+        #svgContainer svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .interactive-element {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .interactive-element:hover {
+            filter: brightness(1.1);
+        }
+
+        .form-popup {
+            display: none;
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            border: 2px solid #555;
+            z-index: 10;
+            background-color: #f9f9f9;
+            padding: 15px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            max-width: 450px;
+            width: 95vw;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .form-popup h3 {
+            margin-top: 0;
+            text-align: center;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+
+        .form-popup table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .form-popup th,
+        .form-popup td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: right;
+            vertical-align: middle;
+        }
+
+        .form-popup th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        .form-popup .checklist-input {
+            width: 100%;
+            padding: 4px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+
+        .form-popup .notes-container {
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+
+        .notes-container textarea {
+            width: 100%;
+            min-height: 60px;
+            font-family: inherit;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+
+        .form-popup .btn-container {
+            text-align: left;
+            margin-top: 15px;
+        }
+
+        .form-popup .btn {
+            padding: 8px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 3px;
+        }
+
+        .form-popup .btn.save {
+            background-color: #28a745;
+        }
+
+        .form-popup .btn.cancel {
+            background-color: #dc3545;
+        }
+
+        .form-popup .btn:hover {
+            opacity: 0.9;
+        }
+
+        .highlight-issue {
+            background-color: #fff3cd !important;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .zoom-controls button {
+            padding: 8px 12px;
+            background-color: rgba(0, 123, 255, 0.8);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .zoom-controls button:hover {
+            background-color: #0056b3;
+        }
+
+        .zoom-controls button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .region-zone-nav-title {
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .region-zone-nav-select-row {
+            margin-bottom: 10px;
+            width: 100%;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .region-zone-nav-label {
+            margin-left: 5px;
+            font-weight: bold;
+        }
+
+        .region-zone-nav-select {
+            padding: 5px;
+            border-radius: 3px;
+            border: 1px solid #ccc;
+            min-width: 200px;
+            font-family: inherit;
+        }
+
+        .region-zone-nav-zone-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 5px;
+        }
+
+        .region-zone-nav-zone-buttons button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #007bff;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-family: inherit;
+            margin: 4px;
+            transition: background 0.2s;
+        }
+
+        .region-zone-nav-zone-buttons button:hover {
+            background-color: #0056b3;
+        }
+
+        .svg-element-active {
+            stroke: #ff3333 !important;
+            stroke-width: 3px !important;
+            transition: stroke 0.1s ease-in-out, stroke-width 0.1s ease-in-out;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="currentZoneInfo">
+        <strong>نقشه فعلی:</strong> <span id="zoneNameDisplay"></span>
+        <strong>پیمانکار:</strong> <span id="zoneContractorDisplay"></span>
+        <strong>بلوک:</strong> <span id="zoneBlockDisplay"></span>
+    </div>
+
+    <div class="layer-controls" id="layerControlsContainer"></div>
+    <div class="navigation-controls"><button id="backToPlanBtn">بازگشت به پلن اصلی</button></div>
+    <div id="regionZoneNavContainer">
+        <h3 class="region-zone-nav-title">ناوبری سریع به زون‌ها</h3>
+        <div class="region-zone-nav-select-row">
+            <label for="regionSelect" class="region-zone-nav-label">انتخاب محدوده (بلاک):</label>
+            <select id="regionSelect" class="region-zone-nav-select">
+                <option value="">-- ابتدا یک محدوده انتخاب کنید --</option>
+            </select>
+        </div>
+        <div id="zoneButtonsContainer" class="region-zone-nav-zone-buttons"></div>
+    </div>
+    <p class="description">برای مشاهده چک لیست، روی المان مربوطه در نقشه کلیک کنید.</p>
+    <div id="svgContainer"></div>
+
+    <!-- *** CORRECTED GFRC Form Popup HTML *** -->
+    <div class="form-popup" id="gfrcChecklistForm">
+        <form id="gfrc-form-element" onsubmit="return false;">
+            <input type="hidden" id="gfrcElementId" name="elementId" value="">
+            <h3 id="gfrcFormTitle">چک لیست کنترل کیفی - GFRC</h3>
+            <div id="gfrcStaticData">
+                <p><strong>پیمانکار:</strong> <span id="gfrcContractor"></span></p>
+                <p><strong>محدوده:</strong> <span id="gfrcArea"></span></p>
+                <p><strong>بلوک:</strong> <span id="gfrcBlock"></span></p>
+                <p><strong>نوع پنل:</strong> <span id="gfrcPanelType"></span></p>
+                <p><strong>شماره پنل:</strong> <span id="gfrcPanelNumber"></span></p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>شرح بررسی</th>
+                        <th>وضعیت / مقدار</th>
+                    </tr>
+                </thead>
+                <tbody id="gfrcChecklistBody"></tbody>
+            </table>
+            <div class="notes-container">
+                <label for="gfrcNotesTextarea">ملاحظات:</label>
+                <textarea id="gfrcNotesTextarea" name="notes"></textarea>
+            </div>
+            <div class="btn-container">
+                <button type="submit" class="btn save">ذخیره</button>
+                <button type="button" class="btn cancel" onclick="closeForm('gfrcChecklistForm')">بستن</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Other form popups (Glass, Mullion, etc.) would go here. -->
+    <!-- They should follow the same pattern as the GFRC form above. -->
+
+    <footer>
+        <p>@1404-1405 شرکت آلومنیوم شیشه تهران. تمامی حقوق محفوظ است.</p>
+    </footer>
+
+    <script>
+        //<editor-fold desc="Config and Global Variables">
+        let currentZoom = 1;
+        const zoomStep = 0.2;
+        const minZoom = 0.5;
+        const maxZoom = 40;
+        let currentSvgElement = null;
+        let isPanning = false;
+        let panStartX = 0,
+            panStartY = 0,
+            panX = 0,
+            panY = 0;
+        let lastTouchDistance = 0;
+        let currentPlanFileName = "Plan.svg";
+        let currentPlanZoneName = "نامشخص";
+        let currentPlanDefaultContractor = "پیمانکار عمومی";
+        let currentPlanDefaultBlock = "بلوک عمومی";
+        let currentSvgAxisMarkersX = [],
+            currentSvgAxisMarkersY = [];
+        let currentSvgHeight = 2200,
+            currentSvgWidth = 3000;
+        let currentlyActiveSvgElement = null;
+        const SVG_BASE_PATH = "/ghom/"; // Use root-relative path
+
+        const svgGroupConfig = {
+            GFRC: {
+                label: "GFRC",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "GFRC"
+            },
+            Box_40x80x4: {
+                label: "Box_40x80x4",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi"
+            },
+            Box_40x20: {
+                label: "Box_40x20",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi"
+            },
+            tasme: {
+                label: "تسمه",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi"
+            },
+            nabshi_tooli: {
+                label: "نبشی طولی",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi"
+            },
+            Gasket: {
+                label: "Gasket",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi"
+            },
+            SPACER: {
+                label: "فاصله گذار",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi"
+            },
+            Smoke_Barrier: {
+                label: "دودبند",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi"
+            },
+            uchanel: {
+                label: "یو چنل",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi"
+            },
+            unolite: {
+                label: "یونولیت",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi"
+            },
+            "GFRC-Part6": {
+                label: "GFRC - قسمت 6",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "GFRC"
+            },
+            "GFRC-Part_4": {
+                label: "GFRC - قسمت 4",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "GFRC"
+            },
+            Atieh: {
+                label: "بلوک A- آتیه نما",
+                color: "#0de16d",
+                defaultVisible: true,
+                interactive: true,
+                contractor: "شرکت آتیه نما",
+                block: "A",
+                elementType: "Region"
+            },
+            org: {
+                label: "بلوک - اورژانس A- آتیه نما",
+                color: "#ebb00d",
+                defaultVisible: true,
+                interactive: true,
+                contractor: "شرکت آتیه نما",
+                block: "A - اورژانس",
+                elementType: "Region"
+            },
+            AranB: {
+                label: "بلوک B-آرانسج",
+                color: "#38abee",
+                defaultVisible: true,
+                interactive: true,
+                contractor: "شرکت آرانسج",
+                block: "B",
+                elementType: "Region"
+            },
+            AranC: {
+                label: "بلوک C-آرانسج",
+                color: "#ee3838",
+                defaultVisible: true,
+                interactive: true,
+                contractor: "شرکت آرانسج",
+                block: "C",
+                elementType: "Region"
+            },
+            hayatOmran: {
+                label: " حیاط عمران آذرستان",
+                color: "#eef595da",
+                defaultVisible: true,
+                interactive: true,
+                contractor: "شرکت عمران آذرستان",
+                block: "حیاط",
+                elementType: "Region"
+            },
+            hayatRos: {
+                label: " حیاط رس",
+                color: "#eb0de7da",
+                defaultVisible: true,
+                interactive: true,
+                contractor: "شرکت ساختمانی رس",
+                block: "حیاط",
+                elementType: "Region"
+            },
+            handrail: {
+                label: "نقشه ندارد",
+                color: "rgba(238, 56, 56, 0.3)",
+                defaultVisible: true,
+                interactive: true
+            },
+            "glass_40%": {
+                label: "شیشه 40%",
+                color: "rgba(173, 216, 230, 0.7)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Glass"
+            },
+            "glass_30%": {
+                label: "شیشه 30%",
+                color: "rgba(173, 216, 230, 0.7)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Glass"
+            },
+            "glass_50%": {
+                label: "شیشه 50%",
+                color: "rgba(173, 216, 230, 0.7)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Glass"
+            },
+            glass_opaque: {
+                label: "شیشه مات",
+                color: "rgba(144, 238, 144, 0.7)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Glass"
+            },
+            "glass_80%": {
+                label: "شیشه 80%",
+                color: "rgba(255, 255, 102, 0.7)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Glass"
+            },
+            Mullion: {
+                label: "مولیون",
+                color: "rgba(128, 128, 128, 0.9)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Mullion"
+            },
+            Transom: {
+                label: "ترنزوم",
+                color: "rgba(169, 169, 169, 0.9)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Transom"
+            },
+            Bazshow: {
+                label: "بازشو",
+                color: "rgba(169, 169, 169, 0.9)",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Bazshow"
+            },
+            GLASS: {
+                label: "شیشه",
+                color: "#eef595da",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Glass"
+            },
+            STONE: {
+                label: "سنگ",
+                color: "#4c28a1",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "STONE"
+            },
+            Zirsazi: {
+                label: "زیرسازی",
+                color: "#2464ee",
+                defaultVisible: true,
+                interactive: true,
+                elementType: "Zirsazi"
+            },
+        };
+
+        const regionToZoneMap = {
+            Atieh: [{
+                label: "زون 1 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone01.svg"
+            }, {
+                label: "زون 2 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone02.svg"
+            }, {
+                label: "زون 3 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone03.svg"
+            }, {
+                label: "زون 4 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone04.svg"
+            }, {
+                label: "زون 5 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone05.svg"
+            }, {
+                label: "زون 6 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone06.svg"
+            }, {
+                label: "زون 7 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone07.svg"
+            }, {
+                label: "زون 8 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone08.svg"
+            }, {
+                label: "زون 9 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone09.svg"
+            }, {
+                label: "زون 10 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone10.svg"
+            }, {
+                label: "زون 15 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone15.svg"
+            }, {
+                label: "زون 16 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone16.svg"
+            }, {
+                label: "زون 17 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone17.svg"
+            }, {
+                label: "زون 18 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone18.svg"
+            }, {
+                label: "زون 19 (آتیه نما)",
+                svgFile: SVG_BASE_PATH + "Zone19.svg"
+            }],
+            org: [{
+                label: "زون اورژانس ",
+                svgFile: SVG_BASE_PATH + "ZoneEmergency.svg"
+            }],
+            AranB: [{
+                label: "زون 1 (آرانسج B)",
+                svgFile: SVG_BASE_PATH + "Zone01.svg"
+            }, {
+                label: "زون 2 (آرانسج B)",
+                svgFile: SVG_BASE_PATH + "Zone02.svg"
+            }, {
+                label: "زون 3 (آرانسج B)",
+                svgFile: SVG_BASE_PATH + "Zone03.svg"
+            }, {
+                label: "زون 11 (آرانسج B)",
+                svgFile: SVG_BASE_PATH + "Zone11.svg"
+            }, {
+                label: "زون 12 (آرانسج B)",
+                svgFile: SVG_BASE_PATH + "Zone12.svg"
+            }, {
+                label: "زون 13 (آرانسج B)",
+                svgFile: SVG_BASE_PATH + "Zone13.svg"
+            }, {
+                label: "زون 14 (آرانسج B)",
+                svgFile: SVG_BASE_PATH + "Zone14.svg"
+            }, {
+                label: "زون 16 (آرانسج B)",
+                svgFile: SVG_BASE_PATH + "Zone16.svg"
+            }, {
+                label: "زون 19 (آرانسج B)",
+                svgFile: SVG_BASE_PATH + "Zone19.svg"
+            }, {
+                label: "زون 20 (آرانسج B)",
+                svgFile: SVG_BASE_PATH + "Zone20.svg"
+            }, {
+                label: "زون 21 (آرانسج B)",
+                svgFile: SVG_BASE_PATH + "Zone21.svg"
+            }, {
+                label: "زون 26 (آرانسج B)",
+                svgFile: SVG_BASE_PATH + "Zone26.svg"
+            }],
+            AranC: [{
+                label: "زون 4 (آرانسج C)",
+                svgFile: SVG_BASE_PATH + "Zone04.svg"
+            }, {
+                label: "زون 5 (آرانسج C)",
+                svgFile: SVG_BASE_PATH + "Zone05.svg"
+            }, {
+                label: "زون 6 (آرانسج C)",
+                svgFile: SVG_BASE_PATH + "Zone06.svg"
+            }, {
+                label: "زون 7E (آرانسج C)",
+                svgFile: SVG_BASE_PATH + "Zone07E.svg"
+            }, {
+                label: "زون 7S (آرانسج C)",
+                svgFile: SVG_BASE_PATH + "Zone07S.svg"
+            }, {
+                label: "زون 7N (آرانسج C)",
+                svgFile: SVG_BASE_PATH + "Zone07N.svg"
+            }, {
+                label: "زون 8 (آرانسج C)",
+                svgFile: SVG_BASE_PATH + "Zone08.svg"
+            }, {
+                label: "زون 9 (آرانسج C)",
+                svgFile: SVG_BASE_PATH + "Zone09.svg"
+            }, {
+                label: "زون 10 (آرانسج C)",
+                svgFile: SVG_BASE_PATH + "Zone10.svg"
+            }, {
+                label: "زون 22 (آرانسج C)",
+                svgFile: SVG_BASE_PATH + "Zone22.svg"
+            }, {
+                label: "زون 23 (آرانسج C)",
+                svgFile: SVG_BASE_PATH + "Zone23.svg"
+            }, {
+                label: "زون 24 (آرانسج C)",
+                svgFile: SVG_BASE_PATH + "Zone24.svg"
+            }],
+            hayatOmran: [{
+                label: "زون 15 حیاط عمران آذرستان",
+                svgFile: SVG_BASE_PATH + "Zone15.svg"
+            }, {
+                label: "زون 16 حیاط عمران آذرستان",
+                svgFile: SVG_BASE_PATH + "Zone16.svg"
+            }, {
+                label: "زون 17 حیاط عمران آذرستان",
+                svgFile: SVG_BASE_PATH + "Zone17.svg"
+            }, {
+                label: "زون 18 حیاط عمران آذرستان",
+                svgFile: SVG_BASE_PATH + "Zone18.svg"
+            }],
+            hayatRos: [{
+                label: "زون 11 حیاط رس ",
+                svgFile: SVG_BASE_PATH + "Zone11.svg"
+            }, {
+                label: "زون 12 حیاط رس",
+                svgFile: SVG_BASE_PATH + "Zone12.svg"
+            }, {
+                label: "زون 13 حیاط رس",
+                svgFile: SVG_BASE_PATH + "Zone13.svg"
+            }, {
+                label: "زون 14 حیاط رس",
+                svgFile: SVG_BASE_PATH + "Zone14.svg"
+            }],
+        };
+
+        const planNavigationMappings = [{
+                type: "textAndCircle",
+                regex: /^(\d+|[A-Za-z]+[\d-]*)\s+Zone$/i,
+                numberGroupIndex: 1,
+                svgFilePattern: SVG_BASE_PATH + "Zone{NUMBER}.svg",
+                labelPattern: "Zone {NUMBER}",
+                defaultContractor: "پیمانکار پیش‌فرض زون عمومی",
+                defaultBlock: "بلوک پیش‌فرض زون عمومی"
+            },
+            {
+                svgFile: SVG_BASE_PATH + "Zone09.svg",
+                label: "Zone 09",
+                defaultContractor: "شرکت آتیه نما زون 09 ",
+                defaultBlock: "بلوکA  زون 9 "
+            },
+            {
+                svgFile: SVG_BASE_PATH + "Plan.svg",
+                label: "Plan اصلی",
+                defaultContractor: "مدیر پیمان ",
+                defaultBlock: "پروژه بیمارستان قم "
+            },
+        ];
+        //</editor-fold>
+
+        //<editor-fold desc="Form Handling - NEW AND REWRITTEN">
+        function clearActiveSvgElementHighlight() {
+            if (currentlyActiveSvgElement) {
+                currentlyActiveSvgElement.classList.remove('svg-element-active');
+                currentlyActiveSvgElement = null;
+            }
+        }
+
+        function closeAllForms() {
+            document.querySelectorAll('.form-popup').forEach(form => form.style.display = 'none');
+            clearActiveSvgElementHighlight();
+        }
+
+        function closeForm(formId) {
+            const form = document.getElementById(formId);
+            if (form) {
+                form.style.display = 'none';
+            }
+            clearActiveSvgElementHighlight();
+        }
+
+        // A helper function to escape HTML characters for security
+        function escapeHtml(unsafe) {
+            if (typeof unsafe !== 'string') return '';
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        /**
+         * This is the NEW, database-driven function to open the GFRC checklist.
+         * It completely replaces the old one.
+         */
+        function openGfrcChecklistForm(panelId, dynamicContext) {
+            const form = document.getElementById('gfrcChecklistForm');
+            const formTitle = document.getElementById('gfrcFormTitle');
+            const checklistBody = document.getElementById('gfrcChecklistBody');
+            const notesTextarea = document.getElementById('gfrcNotesTextarea');
+            const elementIdInput = document.getElementById('gfrcElementId');
+
+            // 1. Show a loading state and store the element ID in the form
+            formTitle.textContent = `در حال بارگذاری اطلاعات برای پنل: ${panelId}...`;
+            checklistBody.innerHTML = '<tr><td colspan="2">در حال بارگذاری...</td></tr>';
+            notesTextarea.value = '';
+            elementIdInput.value = panelId;
+            form.style.display = 'block';
+
+            // 2. Construct the API URL with all necessary context to create the element if it's new
+            const queryParams = new URLSearchParams({
+                element_id: panelId,
+                element_type: 'GFRC',
+                zone_name: dynamicContext.areaString || 'نامشخص',
+                axis_span: dynamicContext.axisSpan || 'نامشخص',
+                floor_level: dynamicContext.floorLevel || 'نامشخص',
+                contractor: dynamicContext.contractor || 'نامشخص',
+                block: dynamicContext.block || 'نامشخص'
+            });
+            const apiUrl = `${SVG_BASE_PATH}api/get_element_data.php?${queryParams.toString()}`;
+
+            // 3. Fetch data from the API
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error(`خطای شبکه: ${response.statusText}`);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+
+                    // 4. Populate the form with fetched data
+                    document.getElementById('gfrcContractor').textContent = dynamicContext.contractor || 'تعیین نشده';
+                    document.getElementById('gfrcArea').textContent = dynamicContext.areaString || 'تعیین نشده';
+                    document.getElementById('gfrcBlock').textContent = dynamicContext.block || 'تعیین نشده';
+                    document.getElementById('gfrcPanelType').textContent = dynamicContext.panelOrientation || 'تعیین نشده';
+                    document.getElementById('gfrcPanelNumber').textContent = panelId;
+                    formTitle.textContent = `چک لیست کنترل کیفی - GFRC - پنل: ${panelId}`;
+
+                    checklistBody.innerHTML = ""; // Clear loading message
+                    if (data.items && data.items.length > 0) {
+                        data.items.forEach(item => {
+                            const row = checklistBody.insertRow();
+                            row.insertCell().textContent = item.item_text;
+                            const valueCell = row.insertCell();
+                            valueCell.innerHTML = `<input type="text" class="checklist-input" data-item-id="${item.item_id}" value="${escapeHtml(item.item_value)}" />`;
+                        });
+                    } else {
+                        checklistBody.innerHTML = '<tr><td colspan="2">چک لیستی برای این نوع المان تعریف نشده است.</td></tr>';
+                    }
+
+                    notesTextarea.value = data.inspectionData?.notes || '';
+                })
+                .catch(error => {
+                    console.error('Error fetching GFRC checklist data:', error);
+                    formTitle.textContent = 'خطا در بارگذاری اطلاعات';
+                    checklistBody.innerHTML = `<tr><td colspan="2">خطا: ${error.message}</td></tr>`;
+                });
+        }
+
+        // --- You would add similar open...Form functions for Glass, Mullion, etc. here ---
+        // function openGlassChecklistForm(panelId, dynamicContext) { ... }
+        //</editor-fold>
+
+        //<editor-fold desc="SVG Initialization and Interaction">
+        function makeElementInteractive(element, groupId, elementId) {
+            element.classList.add("interactive-element");
+            const elementType = svgGroupConfig[groupId]?.elementType || "Generic";
+
+            // Gather context from the SVG element's data attributes
+            const dynamicContext = {
+                contractor: element.dataset.contractor || currentPlanDefaultContractor,
+                block: element.dataset.block || currentPlanDefaultBlock,
+                axisSpan: element.dataset.axisSpan || "نامشخص",
+                floorLevel: element.dataset.floorLevel || "نامشخص",
+                areaString: `زون ${currentPlanZoneName || "نامشخص"}, محور ${element.dataset.axisSpan || 'N/A'}, طبقه ${element.dataset.floorLevel || 'N/A'}`,
+                panelOrientation: element.dataset.panelOrientation || "نامشخص"
+            };
+
+            const clickHandler = (event) => {
+                event.stopPropagation();
+                closeAllForms();
+                element.classList.add('svg-element-active');
+                currentlyActiveSvgElement = element;
+
+                const panelIdForChecklist = element.dataset.uniquePanelId || elementId;
+
+                // Route to the correct form-opening function based on element type
+                if (elementType === "GFRC") {
+                    openGfrcChecklistForm(panelIdForChecklist, dynamicContext);
+                } else if (elementType === "Glass") {
+                    // openGlassChecklistForm(panelIdForChecklist, dynamicContext); // Future implementation
+                    alert(`چک لیست برای شیشه (ID: ${panelIdForChecklist}) هنوز پیاده‌سازی نشده است.`);
+                } else if (elementType === "Mullion" || elementType === "Transom") {
+                    // openMullionChecklistForm(panelIdForChecklist, dynamicContext); // Future implementation
+                    alert(`چک لیست برای مولیون/ترنزوم (ID: ${panelIdForChecklist}) هنوز پیاده‌سازی نشده است.`);
+                } else if (elementType === "Zirsazi") {
+                    alert(`چک لیست برای زیرسازی (ID: ${panelIdForChecklist}) هنوز پیاده‌سازی نشده است.`);
+                }
+            };
+
+            element.addEventListener("click", clickHandler);
+            addTouchClickSupport(element, clickHandler);
+        }
+
+        function initializeElementsByType(groupElement, elementType, groupId) {
+            const interactiveElements = groupElement.querySelectorAll("path, rect, circle, polygon, polyline, line, ellipse");
+            interactiveElements.forEach((el, index) => {
+                const elementId = el.id || `${groupId}_${index}`;
+                el.dataset.generatedId = elementId;
+
+                let elContractor = currentPlanDefaultContractor;
+                let elBlock = currentPlanDefaultBlock;
+                const closestGroupWithId = el.closest("g[id]");
+                if (closestGroupWithId && svgGroupConfig[closestGroupWithId.id]) {
+                    const parentGroupConfig = svgGroupConfig[closestGroupWithId.id];
+                    if (parentGroupConfig.contractor) elContractor = parentGroupConfig.contractor;
+                    if (parentGroupConfig.block) elBlock = parentGroupConfig.block;
+                }
+                el.dataset.contractor = elContractor;
+                el.dataset.block = elBlock;
+
+                const spatialCtx = getElementSpatialContext(el);
+                el.dataset.axisSpan = spatialCtx.axisSpan;
+                el.dataset.floorLevel = spatialCtx.floorLevel;
+                el.dataset.uniquePanelId = el.id || spatialCtx.derivedId || `${groupId}_elem_${index}`;
+
+                if (elementType === "GFRC") {
+                    const dims = getRectangleDimensions(el.getAttribute("d"));
+                    if (dims) {
+                        el.dataset.panelOrientation = dims.width > dims.height ? "افقی" : "عمودی";
+                        el.style.fill = dims.width > dims.height ? "rgba(255, 160, 122, 0.7)" : "rgba(32, 178, 170, 0.7)";
+                    }
+                }
+                makeElementInteractive(el, groupId, el.dataset.uniquePanelId || elementId);
+            });
+        }
+
+        function applyGroupStylesAndControls(svgElement) {
+            const layerControlsContainer = document.getElementById("layerControlsContainer");
+            layerControlsContainer.innerHTML = "";
+            for (const groupId in svgGroupConfig) {
+                const config = svgGroupConfig[groupId];
+                const groupElement = svgElement.getElementById(groupId);
+                if (groupElement) {
+                    if (config.color && groupId !== "GFRC") {
+                        const elementsToColor = groupElement.querySelectorAll("path, rect, circle, polygon, polyline, line, ellipse");
+                        elementsToColor.forEach(el => {
+                            el.style.fill = config.color;
+                        });
+                    }
+                    groupElement.style.display = config.defaultVisible ? "" : "none";
+                    if (config.interactive && config.elementType) {
+                        initializeElementsByType(groupElement, config.elementType, groupId);
+                    }
+                    const button = document.createElement("button");
+                    button.textContent = config.label;
+                    button.className = config.defaultVisible ? "active" : "inactive";
+                    button.addEventListener("click", () => {
+                        const isVisible = groupElement.style.display !== "none";
+                        groupElement.style.display = isVisible ? "none" : "";
+                        button.className = !isVisible ? "active" : "inactive";
+                    });
+                    layerControlsContainer.appendChild(button);
+                }
+            }
+        }
+        //</editor-fold>
+
+        //<editor-fold desc="SVG Loading and Navigation">
+        function getRegionAndZoneInfoForFile(svgFullFilename) {
+            for (const regionKey in regionToZoneMap) {
+                const zonesInRegion = regionToZoneMap[regionKey];
+                const foundZone = zonesInRegion.find(zone => zone.svgFile.toLowerCase() === svgFullFilename.toLowerCase());
+                if (foundZone) {
+                    const regionConfig = svgGroupConfig[regionKey];
+                    return {
+                        regionKey: regionKey,
+                        zoneLabel: foundZone.label,
+                        contractor: regionConfig?.contractor,
+                        block: regionConfig?.block,
+                    };
+                }
+            }
+            return null;
+        }
+
+        function setupRegionZoneNavigationIfNeeded() {
+            const regionSelect = document.getElementById("regionSelect");
+            const zoneButtonsContainer = document.getElementById("zoneButtonsContainer");
+            if (regionSelect.dataset.initialized) return;
+
+            for (const regionKey in regionToZoneMap) {
+                const option = document.createElement("option");
+                option.value = regionKey;
+                option.textContent = svgGroupConfig[regionKey]?.label || regionKey;
+                regionSelect.appendChild(option);
+            }
+            regionSelect.addEventListener("change", function() {
+                zoneButtonsContainer.innerHTML = "";
+                const selectedRegionKey = this.value;
+                if (selectedRegionKey && regionToZoneMap[selectedRegionKey]) {
+                    regionToZoneMap[selectedRegionKey].forEach(zone => {
+                        const button = document.createElement("button");
+                        button.textContent = zone.label;
+                        button.addEventListener("click", () => loadAndDisplaySVG(zone.svgFile));
+                        zoneButtonsContainer.appendChild(button);
+                    });
+                }
+            });
+            regionSelect.dataset.initialized = "true";
+        }
+
+        function loadAndDisplaySVG(svgFullFilename) {
+            const svgContainer = document.getElementById("svgContainer");
+            closeAllForms();
+            svgContainer.innerHTML = "";
+            svgContainer.classList.add("loading");
+
+            const baseFilename = svgFullFilename.substring(svgFullFilename.lastIndexOf("/") + 1);
+            const isPlan = baseFilename.toLowerCase() === "plan.svg";
+            document.getElementById("regionZoneNavContainer").style.display = isPlan ? "flex" : "none";
+            if (isPlan) setupRegionZoneNavigationIfNeeded();
+
+            currentPlanFileName = svgFullFilename;
+            let zoneInfo = isPlan ? planNavigationMappings.find(m => m.svgFile && m.svgFile.toLowerCase() === svgFullFilename.toLowerCase()) :
+                getRegionAndZoneInfoForFile(svgFullFilename);
+
+            currentPlanZoneName = zoneInfo?.label || baseFilename.replace(/\.svg$/i, "");
+            currentPlanDefaultContractor = zoneInfo?.defaultContractor || zoneInfo?.contractor || "پیمانکار عمومی";
+            currentPlanDefaultBlock = zoneInfo?.defaultBlock || zoneInfo?.block || "بلوک عمومی";
+
+            const zoneInfoContainer = document.getElementById("currentZoneInfo");
+            document.getElementById("zoneNameDisplay").textContent = currentPlanZoneName;
+            document.getElementById("zoneContractorDisplay").textContent = currentPlanDefaultContractor;
+            document.getElementById("zoneBlockDisplay").textContent = currentPlanDefaultBlock;
+            zoneInfoContainer.style.display = "block";
+
+            fetch(svgFullFilename)
+                .then(response => {
+                    svgContainer.classList.remove("loading");
+                    if (!response.ok) throw new Error(`Failed to load ${svgFullFilename}: ${response.status}`);
+                    return response.text();
+                })
+                .then(svgData => {
+                    svgContainer.innerHTML = svgData;
+                    const zoomControlsHtml = `<div class="zoom-controls"><button id="zoomInBtn">+</button><button id="zoomOutBtn">-</button><button id="zoomResetBtn">⌂</button></div>`;
+                    svgContainer.insertAdjacentHTML("afterbegin", zoomControlsHtml);
+
+                    setTimeout(() => {
+                        const svgElement = svgContainer.querySelector("svg");
+                        if (svgElement) {
+                            currentSvgElement = svgElement;
+                            resetZoomAndPan();
+                            setupZoomControls();
+                            currentSvgHeight = svgElement.viewBox.baseVal?.height || svgElement.height.baseVal?.value || 2200;
+                            currentSvgWidth = svgElement.viewBox.baseVal?.width || svgElement.width.baseVal?.value || 3000;
+                            extractAllAxisMarkers(svgElement);
+                            applyGroupStylesAndControls(svgElement);
+                            if (isPlan) {
+                                /* setupPlanNavigationLinks(svgElement); // This complex logic can be simplified or removed if not essential */
+                            }
+                        }
+                    }, 0);
+                })
+                .catch(error => {
+                    svgContainer.classList.remove("loading");
+                    svgContainer.textContent = `خطا در بارگزاری نقشه.`;
+                    zoneInfoContainer.style.display = "none";
+                    console.error(`Error loading SVG:`, error);
+                });
+        }
+        //</editor-fold>
+
+        //<editor-fold desc="DOM Ready and Event Listeners">
+        document.addEventListener("DOMContentLoaded", () => {
+            const backToPlanBtn = document.getElementById("backToPlanBtn");
+            backToPlanBtn.addEventListener("click", () => loadAndDisplaySVG(SVG_BASE_PATH + "Plan.svg"));
+            loadAndDisplaySVG(SVG_BASE_PATH + "Plan.svg");
+
+            // Setup the master submit handler for the GFRC form
+            const gfrcForm = document.getElementById('gfrc-form-element');
+            if (gfrcForm) {
+                gfrcForm.addEventListener('submit', function(event) {
+                    event.preventDefault();
+
+                    const saveButton = this.querySelector('.btn.save');
+                    saveButton.disabled = true;
+                    saveButton.textContent = 'در حال ذخیره...';
+
+                    const elementId = document.getElementById('gfrcElementId').value;
+                    const notes = document.getElementById('gfrcNotesTextarea').value;
+                    const inputs = document.querySelectorAll('#gfrcChecklistBody .checklist-input');
+
+                    const itemsPayload = Array.from(inputs).map(input => ({
+                        itemId: input.dataset.itemId,
+                        value: input.value
+                    }));
+
+                    const submissionData = {
+                        elementId,
+                        notes,
+                        items: itemsPayload
+                    };
+
+                    fetch(`${SVG_BASE_PATH}api/save_inspection.php`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify(submissionData),
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                alert(data.message);
+                                closeForm('gfrcChecklistForm');
+                            } else {
+                                alert('خطا در ذخیره‌سازی: ' + (data.message || 'خطای نامشخص'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Save Error:', error);
+                            alert('یک خطای ارتباطی در زمان ذخیره رخ داد.');
+                        })
+                        .finally(() => {
+                            saveButton.disabled = false;
+                            saveButton.textContent = 'ذخیره';
+                        });
+                });
+            }
+        });
+        //</editor-fold>
+
+        //<editor-fold desc="Utility and Math Functions">
+        function getRectangleDimensions(dAttribute) {
+            if (!dAttribute) return null;
+            const commands = dAttribute.trim().toUpperCase().split(/(?=[LMCZHV])/);
+            let points = [],
+                currentX = 0,
+                currentY = 0;
+            commands.forEach(commandStr => {
+                const type = commandStr.charAt(0);
+                const args = (commandStr.substring(1).trim().split(/[\s,]+/).map(Number)) || [];
+                let i = 0;
+                switch (type) {
+                    case "M":
+                    case "L":
+                        while (i < args.length) {
+                            currentX = args[i++];
+                            currentY = args[i++];
+                            points.push({
+                                x: currentX,
+                                y: currentY
+                            });
+                        }
+                        break;
+                    case "H":
+                        while (i < args.length) {
+                            currentX = args[i++];
+                            points.push({
+                                x: currentX,
+                                y: currentY
+                            });
+                        }
+                        break;
+                    case "V":
+                        while (i < args.length) {
+                            currentY = args[i++];
+                            points.push({
+                                x: currentX,
+                                y: currentY
+                            });
+                        }
+                        break;
+                }
+            });
+            if (points.length < 3) return null;
+            const xValues = points.map(p => p.x),
+                yValues = points.map(p => p.y);
+            const minX = Math.min(...xValues),
+                maxX = Math.max(...xValues);
+            const minY = Math.min(...yValues),
+                maxY = Math.max(...yValues);
+            return {
+                x: minX,
+                y: minY,
+                width: maxX - minX,
+                height: maxY - minY
+            };
+        }
+
+        function extractAllAxisMarkers(svgElement) {
+            /* This complex function remains unchanged */
+        }
+
+        function getElementSpatialContext(element) {
+            /* This complex function remains unchanged */
+            return {
+                axisSpan: 'N/A',
+                floorLevel: 'N/A',
+                derivedId: null
+            };
+        }
+        //</editor-fold>
+
+        //<editor-fold desc="Zoom and Pan Functions">
+        function setupZoomControls() {
+            const zoomInBtn = document.getElementById("zoomInBtn");
+            const zoomOutBtn = document.getElementById("zoomOutBtn");
+            const zoomResetBtn = document.getElementById("zoomResetBtn");
+            const svgContainer = document.getElementById("svgContainer");
+            zoomInBtn.addEventListener("click", () => zoomSvg(currentZoom + zoomStep));
+            zoomOutBtn.addEventListener("click", () => zoomSvg(currentZoom - zoomStep));
+            zoomResetBtn.addEventListener("click", resetZoomAndPan);
+            svgContainer.addEventListener("wheel", handleWheelZoom, {
+                passive: false
+            });
+            svgContainer.addEventListener("mousedown", handleMouseDown);
+            document.addEventListener("mousemove", handleMouseMove);
+            document.addEventListener("mouseup", handleMouseUp);
+            svgContainer.addEventListener("mouseleave", handleMouseUp);
+            svgContainer.addEventListener("touchstart", handleTouchStart, {
+                passive: false
+            });
+            svgContainer.addEventListener("touchmove", handleTouchMove, {
+                passive: false
+            });
+            document.addEventListener("touchend", handleTouchEnd, {
+                passive: false
+            });
+        }
+
+        function handleWheelZoom(e) {
+            e.preventDefault();
+            const svgContainerRect = e.currentTarget.getBoundingClientRect();
+            const svgX = (e.clientX - svgContainerRect.left - panX) / currentZoom;
+            const svgY = (e.clientY - svgContainerRect.top - panY) / currentZoom;
+            const delta = e.deltaY < 0 ? zoomStep : -zoomStep;
+            zoomSvg(currentZoom * (1 + delta), svgX, svgY);
+        }
+
+        function handleMouseDown(e) {
+            if (e.target.closest(".zoom-controls, .interactive-element")) return;
+            isPanning = true;
+            panStartX = e.clientX - panX;
+            panStartY = e.clientY - panY;
+            e.currentTarget.classList.add("dragging");
+        }
+
+        function handleMouseMove(e) {
+            if (!isPanning) return;
+            e.preventDefault();
+            panX = e.clientX - panStartX;
+            panY = e.clientY - panStartY;
+            updateTransform();
+        }
+
+        function handleMouseUp(e) {
+            if (isPanning) {
+                isPanning = false;
+                document.getElementById("svgContainer").classList.remove("dragging");
+            }
+        }
+
+        function handleTouchStart(e) {
+            if (e.target.closest(".zoom-controls")) return;
+            if (e.touches.length === 1) {
+                isPanning = true;
+                const touch = e.touches[0];
+                panStartX = touch.clientX - panX;
+                panStartY = touch.clientY - panY;
+            } else if (e.touches.length === 2) {
+                isPanning = false;
+                const t1 = e.touches[0],
+                    t2 = e.touches[1];
+                lastTouchDistance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+            }
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (e.touches.length === 1 && isPanning) {
+                const touch = e.touches[0];
+                panX = touch.clientX - panStartX;
+                panY = touch.clientY - panStartY;
+                updateTransform();
+            } else if (e.touches.length === 2) {
+                const t1 = e.touches[0],
+                    t2 = e.touches[1];
+                const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+                if (lastTouchDistance > 0) {
+                    const scale = dist / lastTouchDistance;
+                    const midX = (t1.clientX + t2.clientX) / 2;
+                    const midY = (t1.clientY + t2.clientY) / 2;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    zoomSvg(currentZoom * scale, (midX - rect.left - panX) / currentZoom, (midY - rect.top - panY) / currentZoom);
+                }
+                lastTouchDistance = dist;
+            }
+        }
+
+        function handleTouchEnd(e) {
+            isPanning = false;
+            if (e.touches.length < 2) lastTouchDistance = 0;
+        }
+
+        function addTouchClickSupport(element, clickHandler) {
+            let touchStartTime, touchMoved;
+            element.addEventListener("touchstart", e => {
+                e.stopPropagation();
+                touchMoved = false;
+                touchStartTime = Date.now();
+            }, {
+                passive: true
+            });
+            element.addEventListener("touchmove", () => {
+                touchMoved = true;
+            }, {
+                passive: true
+            });
+            element.addEventListener("touchend", e => {
+                if (!touchMoved && (Date.now() - touchStartTime < 300)) {
+                    e.preventDefault();
+                    clickHandler(e);
+                }
+            }, {
+                passive: false
+            });
+        }
+
+        function zoomSvg(newZoomFactor, pivotX, pivotY) {
+            if (!currentSvgElement) return;
+            const svgContainerRect = document.getElementById("svgContainer").getBoundingClientRect();
+            pivotX = pivotX ?? svgContainerRect.width / 2;
+            pivotY = pivotY ?? svgContainerRect.height / 2;
+            const newZoom = Math.max(minZoom, Math.min(maxZoom, newZoomFactor));
+            panX -= pivotX * (newZoom - currentZoom);
+            panY -= pivotY * (newZoom - currentZoom);
+            currentZoom = newZoom;
+            updateTransform();
+            updateZoomButtonStates();
+        }
+
+        function resetZoomAndPan() {
+            currentZoom = 1;
+            panX = 0;
+            panY = 0;
+            updateTransform();
+            updateZoomButtonStates();
+        }
+
+        function updateTransform() {
+            if (currentSvgElement) {
+                currentSvgElement.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
+                currentSvgElement.style.transformOrigin = `0 0`;
+            }
+        }
+
+        function updateZoomButtonStates() {
+            const zoomInBtn = document.getElementById("zoomInBtn");
+            const zoomOutBtn = document.getElementById("zoomOutBtn");
+            if (zoomInBtn && zoomOutBtn) {
+                zoomInBtn.disabled = currentZoom >= maxZoom;
+                zoomOutBtn.disabled = currentZoom <= minZoom;
+            }
+        }
+        //</editor-fold>
+    </script>
+</body>
+
+</html>
+and now 
+1-it cant get axis and floors values! 
+2- each gfrc had 3 buttons:
+for vertical types FF=Face, Lf=left face, RF= right face and for horizontal types FF=Face, Bf=Button and UF=up and etc. 
+please look at index.html file and carefully put them on and everything's else's i put on there because it was critical to work correctly. also i need a place for uploading images and files per form that their addressee should be on db too like a json for multiple files. and for forms put persian date for it too with jalalidatepicker.min.js and use this fom for it i make before make it visual:
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>موکاپ بازرسی نما</title>
+    <link rel="stylesheet" href="assets/css/jalalidatepicker.min.css" />
+    <script
+      type="text/javascript"
+      src="assets/js/jalalidatepicker.min.js"
+    ></script>
+
+    <style>
+      @font-face {
+        font-family: "Samim";
+        src: url("assets//fonts/Samim-FD.woff2") format("woff2"),
+          url("assets/fonts/Samim-FD.woff") format("woff"),
+          url("assets/fonts/Samim-FD.ttf") format("truetype");
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Samim";
+        background-color: #f5f5f5;
+        direction: rtl;
+      }
+
+      .container {
+        display: flex;
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        width: 250px;
+        background-color: #2c3e50;
+        color: white;
+        padding: 20px 0;
+      }
+
+      .logo {
+        text-align: center;
+        padding: 20px;
+        border-bottom: 1px solid #34495e;
+      }
+
+      .logo h2 {
+        color: #ecf0f1;
+      }
+
+      .menu ul {
+        list-style: none;
+        padding: 20px 0;
+      }
+
+      .menu ul li {
+        margin: 5px 0;
+      }
+
+      .menu ul li a {
+        display: block;
+        color: #bdc3c7;
+        text-decoration: none;
+        padding: 15px 25px;
+        transition: all 0.3s;
+      }
+
+      .menu ul li a:hover,
+      .menu ul li a.active {
+        background-color: #3498db;
+        color: white;
+      }
+
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .main-header {
+        background-color: white;
+        padding: 15px 30px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+
+      .user-profile {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #3498db;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+      }
+
+      #page-content {
+        padding: 30px;
+        flex: 1;
+        background-color: white;
+        margin: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .grid-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+      }
+
+      .card {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        border: 1px solid #e9ecef;
+      }
+
+      .card h3 {
+        color: #2c3e50;
+        margin-bottom: 10px;
+      }
+
+      .card p {
+        font-size: 24px;
+        font-weight: bold;
+        color: #3498db;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+
+      table th,
+      table td {
+        padding: 12px;
+        text-align: right;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      table th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+        color: #2c3e50;
+      }
+
+      table tr:hover {
+        background-color: #f8f9fa;
+      }
+
+      .btn {
+        background-color: #3498db;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        margin: 10px 0;
+        transition: background-color 0.3s;
+      }
+
+      .btn:hover {
+        background-color: #2980b9;
+      }
+
+      .form-group {
+        margin: 15px 0;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        color: #2c3e50;
+        font-weight: bold;
+      }
+
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-family: inherit;
+      }
+
+      .form-group textarea {
+        height: 100px;
+        resize: vertical;
+      }
+
+      .form-group input[type="checkbox"] {
+        width: auto;
+        margin-left: 8px;
+      }
+
+      .login-page {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 80vh;
+      }
+
+      .login-form {
+        background-color: white;
+        padding: 40px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 400px;
+      }
+
+      .login-form h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        color: #2c3e50;
+      }
+
+      a {
+        color: #3498db;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      h1 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+      }
+
+      h2 {
+        color: #2c3e50;
+        margin: 20px 0 10px 0;
+      }
+      .jdp-container {
+        /* Replace with actual class */
+        border: 2px solid #3498db; /* Example: Blue border */
+      }
+
+      /* Example: Change header background and text color */
+      /* Common selectors might be .jdp-header, .jdp-month, .jdp-year */
+      .jdp-header {
+        /* Replace with actual class */
+        background-color: #1a1b1b !important; /* Dark blue background */
+        color: #ecf0f1 !important; /* Light text color */
+      }
+
+      /* Example: Change selected day style */
+      .jdp-day.jdp-selected {
+        /* Replace with actual classes */
+        background-color: #0b3653 !important; /* Blue selected day */
+        color: white !important;
+        border-radius: 50% !important;
+      }
+
+      /* Example: Change today's day style (if different from selected) */
+      .jdp-day.jdp-today {
+        /* Replace with actual classes */
+        border: 1px solid #3498db !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <aside class="sidebar">
+        <div class="logo">
+          <h2>بازرس نما</h2>
+        </div>
+        <nav class="menu">
+          <ul>
+            <li>
+              <a href="#" onclick="showPage('dashboard')">داشبورد</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('elements')">المان‌های نما</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('inspections')">بازرسی‌ها</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('new_inspection')">بازرسی جدید</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('checklists')">مدیریت چک‌لیست</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('users')">مدیریت کاربران</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('settings')">تنظیمات</a>
+            </li>
+            <li>
+              <a href="#" onclick="showPage('login')">خروج (صفحه ورود)</a>
+            </li>
+          </ul>
+        </nav>
+      </aside>
+      <main class="main-content">
+        <header class="main-header">
+          <div class="user-profile">
+            <span>کاربر: مشاور نما (نمونه)</span>
+            <div class="avatar">ک</div>
+          </div>
+        </header>
+        <div id="page-content">
+          <!-- Content will be loaded here by JavaScript -->
+        </div>
+      </main>
+    </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // Load initial page (dashboard)
+        showPage("dashboard");
+      });
+
+      function showPage(pageId) {
+        const pageContent = document.getElementById("page-content");
+        const menuLinks = document.querySelectorAll(".menu ul li a");
+
+        // Remove active class from all menu links
+        menuLinks.forEach((link) => link.classList.remove("active"));
+
+        // Add active class to the current menu link
+        const currentLink = document.querySelector(
+          `.menu ul li a[onclick="showPage('${pageId}')"]`
+        );
+        if (currentLink) {
+          currentLink.classList.add("active");
+        }
+
+        let content = "<h1>صفحه مورد نظر یافت نشد</h1>";
+
+        if (pageId === "dashboard") {
+          content = `
+                  <h1>داشبورد مدیریتی</h1>
+                  <div class="grid-container">
+                      <div class="card">
+                          <h3>تعداد کل پنل‌ها</h3>
+                          <p>۱۲۰۰</p>
+                      </div>
+                      <div class="card">
+                          <h3>پنل‌های بازرسی شده</h3>
+                          <p>۷۵۰ (۶۲.۵%)</p>
+                      </div>
+                      <div class="card">
+                          <h3>پنل‌های دارای ایراد</h3>
+                          <p>۱۲۰</p>
+                      </div>
+                      <div class="card">
+                          <h3>ایرادات اصلاح شده</h3>
+                          <p>۸۵</p>
+                      </div>
+                  </div>
+                  <h2>آخرین فعالیت‌ها</h2>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>شرح فعالیت</th>
+                              <th>کاربر</th>
+                              <th>تاریخ</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>بازرسی پنل GFRC-Z7-A-001</td>
+                              <td>مشاور نما ۱</td>
+                              <td>۱۴۰۳/۰۲/۲۵</td>
+                          </tr>
+                          <tr>
+                              <td>ثبت ایراد برای CW-A-L2-005</td>
+                              <td>مشاور نوی ۱</td>
+                              <td>۱۴۰۳/۰۲/۲۴</td>
+                          </tr>
+                          <tr>
+                              <td>اصلاح ایراد پنل GFRC-Z7-B-010</td>
+                              <td>پیمانکار ۱</td>
+                              <td>۱۴۰۳/۰۲/۲۳</td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "elements") {
+          content = `
+                  <h1>مدیریت المان‌های نما</h1>
+                  <button class="btn" onclick="alert('افزودن المان جدید')">افزودن المان جدید</button>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>کد المان</th>
+                              <th>نوع نما</th>
+                              <th>زون</th>
+                              <th>محور</th>
+                              <th>وضعیت</th>
+                              <th>عملیات</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>GFRC-Z7-A-001</td>
+                              <td>GFRC</td>
+                              <td>۷</td>
+                              <td>A</td>
+                              <td>بازرسی شده - سالم</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a></td>
+                          </tr>
+                          <tr>
+                              <td>CW-A-L2-005</td>
+                              <td>کرتین وال</td>
+                              <td>A</td>
+                              <td>L2</td>
+                              <td>دارای ایراد</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a></td>
+                          </tr>
+                          <tr>
+                              <td>WW-B-03-012</td>
+                              <td>ویندو وال</td>
+                              <td>B</td>
+                              <td>۰۳</td>
+                              <td>منتظر بازرسی</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "inspections") {
+          content = `
+                  <h1>لیست بازرسی‌ها</h1>
+                  <button class="btn" onclick="showPage('new_inspection')">شروع بازرسی جدید</button>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>کد المان</th>
+                              <th>تاریخ بازرسی</th>
+                              <th>بازرس (نما)</th>
+                              <th>بازرس (نوی)</th>
+                              <th>وضعیت کلی</th>
+                              <th>عملیات</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>GFRC-Z7-A-001</td>
+                              <td>۱۴۰۳/۰۲/۲۵</td>
+                              <td>مشاور نما ۱</td>
+                              <td>مشاور نوی ۲</td>
+                              <td>سالم</td>
+                              <td><a href="#">مشاهده جزئیات</a></td>
+                          </tr>
+                          <tr>
+                              <td>CW-A-L2-005</td>
+                              <td>۱۴۰۳/۰۲/۲۴</td>
+                              <td>مشاور نما ۲</td>
+                              <td>مشاور نوی ۱</td>
+                              <td>دارای ایراد</td>
+                              <td><a href="#">مشاهده جزئیات</a></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "new_inspection") {
+          content = `
+                  <h1>فرم بازرسی جدید / ویرایش بازرسی</h1>
+                  <form onsubmit="event.preventDefault(); alert('بازرسی ذخیره شد!');">
+                      <div class="form-group">
+                          <label for="element_code">کد المان</label>
+                          <select id="element_code" name="element_code">
+                              <option value="GFRC-Z7-A-001">GFRC-Z7-A-001</option>
+                              <option value="CW-A-L2-005">CW-A-L2-005</option>
+                              <option value="WW-B-03-012">WW-B-03-012</option>
+                          </select>
+                      </div>
+                      <div class="form-group">
+                          <label for="inspection_date">تاریخ بازرسی</label>
+                          <input type="text" id="inspection_date" name="inspection_date" data-jdp readonly>
+                      </div>
+                      <div class="form-group">
+                          <label>چک لیست (نمونه آیتم‌ها - GFRC)</label>
+                          <div><input type="checkbox" id="item1" name="item1"><label for="item1">بررسی مختصات و موقعیت</label></div>
+                          <div><input type="checkbox" id="item2" name="item2"><label for="item2">بررسی اتصالات کیل</label></div>
+                          <div><input type="checkbox" id="item3" name="item3"><label for="item3">بررسی زیرسازی فلزی</label></div>
+                          <div><label for="item4_consultant1">نظر مشاور نما برای آیتم ۱:</label><input type="text" id="item4_consultant1"></div>
+                          <div><label for="item4_consultant2">نظر مشاور نوی برای آیتم ۱:</label><input type="text" id="item4_consultant2"></div>
+                      </div>
+                      <div class="form-group">
+                          <label for="remarks">ملاحظات کلی</label>
+                          <textarea id="remarks" name="remarks"></textarea>
+                      </div>
+                      <div class="form-group">
+                          <label for="image_upload">پیوست تصویر</label>
+                          <input type="file" id="image_upload" name="image_upload">
+                      </div>
+                      <button type="submit" class="btn">ذخیره بازرسی</button>
+                  </form>
+              `;
+        } else if (pageId === "checklists") {
+          content = `
+                  <h1>مدیریت قالب‌های چک‌لیست</h1>
+                  <button class="btn" onclick="alert('ایجاد قالب جدید')">ایجاد قالب جدید</button>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>نام قالب</th>
+                              <th>نوع نما مرتبط</th>
+                              <th>تعداد آیتم‌ها</th>
+                              <th>عملیات</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>چک‌لیست نمای GFRC - نسخه ۱</td>
+                              <td>GFRC</td>
+                              <td>۱۵</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a> | <a href="#">کپی</a></td>
+                          </tr>
+                          <tr>
+                              <td>چک‌لیست کرتین وال - نسخه ۲.۱</td>
+                              <td>کرتین وال</td>
+                              <td>۲۲</td>
+                              <td><a href="#">مشاهده</a> | <a href="#">ویرایش</a> | <a href="#">کپی</a></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "users") {
+          content = `
+                  <h1>مدیریت کاربران</h1>
+                  <button class="btn" onclick="alert('افزودن کاربر جدید')">افزودن کاربر جدید</button>
+                  <table>
+                      <thead>
+                          <tr>
+                              <th>نام کامل</th>
+                              <th>نام کاربری</th>
+                              <th>نقش</th>
+                              <th>ایمیل</th>
+                              <th>عملیات</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td>کاربر ادمین</td>
+                              <td>admin</td>
+                              <td>ادمین</td>
+                              <td>admin@example.com</td>
+                              <td><a href="#">ویرایش</a> | <a href="#">تغییر رمز</a></td>
+                          </tr>
+                          <tr>
+                              <td>مشاور نمونه ۱</td>
+                              <td>consultant1</td>
+                              <td>مشاور نما</td>
+                              <td>consultant1@example.com</td>
+                              <td><a href="#">ویرایش</a> | <a href="#">تغییر رمز</a></td>
+                          </tr>
+                          <tr>
+                              <td>پیمانکار نمونه ۱</td>
+                              <td>contractor1</td>
+                              <td>پیمانکار</td>
+                              <td>contractor1@example.com</td>
+                              <td><a href="#">ویرایش</a> | <a href="#">تغییر رمز</a></td>
+                          </tr>
+                      </tbody>
+                  </table>
+              `;
+        } else if (pageId === "settings") {
+          content = `
+                  <h1>تنظیمات سیستم</h1>
+                  <form onsubmit="event.preventDefault(); alert('تنظیمات ذخیره شد!');">
+                      <div class="form-group">
+                          <label for="system_name">نام سامانه</label>
+                          <input type="text" id="system_name" value="سامانه بازرسی نما بیمارستان خاتم">
+                      </div>
+                      <div class="form-group">
+                          <label for="notification_email">ایمیل اطلاع‌رسانی‌ها</label>
+                          <input type="email" id="notification_email" value="notify@example.com">
+                      </div>
+                      <button type="submit" class="btn">ذخیره تنظیمات</button>
+                  </form>
+              `;
+        } else if (pageId === "login") {
+          content = `
+                  <div class="login-page">
+                      <div class="login-form">
+                          <h1>ورود به سامانه بازرس نما</h1>
+                          <form onsubmit="event.preventDefault(); showPage('dashboard');">
+                              <div class="form-group">
+                                  <label for="username">نام کاربری</label>
+                                  <input type="text" id="username" name="username" required value="consultant_user">
+                              </div>
+                              <div class="form-group">
+                                  <label for="password">رمز عبور</label>
+                                  <input type="password" id="password" name="password" required value="password123">
+                              </div>
+                              <button type="submit" class="btn">ورود</button>
+                          </form>
+                      </div>
+                  </div>
+              `;
+        }
+        pageContent.innerHTML = content;
+
+        // Initialize Persian datepicker after content is loaded
+        if (pageId === "new_inspection") {
+          // Using setTimeout to ensure the DOM is updated before startWatch is called.
+          // jalaliDatepicker.startWatch() will scan the document for `data-jdp` attributes.
+          setTimeout(() => {
+            jalaliDatepicker.startWatch({
+              // You can add options here if needed, e.g.:
+              // minDate: "today",
+              // maxDate: "1403/12/29",
+              //节日
+              holidays: [
+                { day: 1, month: 1, title: "سال نو" },
+                { day: 12, month: 1, title: "روز جمهوری اسلامی" },
+              ],
+              //回调函数
+              // onSelect: function(element, date){
+              //    console.log("Date selected:", date, "for element:", element);
+              // }
+            });
+          }, 0); // A 0ms timeout defers execution until the browser has finished other processing.
+        }
+      }
+    </script>
+  </body>
+</html>

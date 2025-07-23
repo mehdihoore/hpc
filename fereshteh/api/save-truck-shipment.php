@@ -136,7 +136,7 @@ $stands_returned = isset($input['stands_returned']) && is_numeric($input['stands
 
 
 try {
- 
+
     $shipmentId = isset($input['shipment_id']) ? (int)$input['shipment_id'] : null;
 
     if ($shipmentId) {
@@ -208,19 +208,28 @@ try {
             echo json_encode(['success' => false, 'message' => 'Truck already has a scheduled shipment.']);
             exit();
         }
-
+        $stmtfindg = $pdo->prepare("SELECT stands_sent as laststandnumber FROM shipments WHERE packing_list_number = (SELECT MAX(packing_list_number) FROM shipments)");
+        $stmtfindg->execute();
+        $resultfindg = $stmtfindg->fetch(PDO::FETCH_ASSOC);
         $stmt = $pdo->prepare("SELECT MAX(packing_list_number) AS max_packing_list_number FROM shipments");
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         $nextPackingListNumber = ($result['max_packing_list_number'] === null) ? 1 : (int)$result['max_packing_list_number'] + 1;
+        $stmtg = $pdo->prepare("SELECT MAX(global_stand_number_offset) AS max_global FROM shipments");
+        $stmtg->execute();
+        $resultg = $stmtg->fetch(PDO::FETCH_ASSOC);
+
+        $laststandsent = isset($resultfindg['laststandnumber']) ? (int)$resultfindg['laststandnumber'] : 0;
+        $maxGlobal = isset($resultg['max_global']) ? (int)$resultg['max_global'] : 0;
+        $globalStandNumberOffset = $maxGlobal + $laststandsent;
 
         // ---> UPDATED SQL (Added stands_sent column and placeholder) <---
         $stmt = $pdo->prepare("
         INSERT INTO shipments (
               truck_id, shipping_date, shipping_time, status, notes,
                 created_by, packing_list_number, stands_sent,
-                stands_returned, stands_return_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                stands_returned, stands_return_date, global_stand_number_offset
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([
             $input['truck_id'],
@@ -232,7 +241,8 @@ try {
             $nextPackingListNumber,
             $stands_sent,
             $stands_returned,
-            $stands_return_date_gregorian
+            $stands_return_date_gregorian,
+            $globalStandNumberOffset // Use max_global or default to 0
         ]);
         // Update panel status if shipment is in_transit or delivered
         if ($input['status'] === 'in_transit' || $input['status'] === 'delivered') {
